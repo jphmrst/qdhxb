@@ -1,6 +1,11 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 module Main (main) where
 
-import Lib
+import QDHXB
+
+$(qdhxb)
 
 main :: IO ()
-main = someFunc
+main = do
+  putStrLn (show x)
