@@ -21,9 +21,12 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- directory
 - template-haskell
+- xml
 
 ghc-options:
+- -ddump-splices
 - -Wall
 - -Wcompat
 - -Widentities

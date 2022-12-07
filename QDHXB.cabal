@@ -26,14 +26,17 @@ source-repository head
 library
   exposed-modules:
       QDHXB
+      Test
   other-modules:
       Paths_QDHXB
   hs-source-dirs:
       src
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
+    , directory
     , template-haskell
+    , xml
   default-language: Haskell2010
 
 executable QDHXB-exe
@@ -42,11 +45,13 @@ executable QDHXB-exe
       Paths_QDHXB
   hs-source-dirs:
       app
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QDHXB
     , base >=4.7 && <5
+    , directory
     , template-haskell
+    , xml
   default-language: Haskell2010
 
 test-suite QDHXB-test
@@ -56,9 +61,11 @@ test-suite QDHXB-test
       Paths_QDHXB
   hs-source-dirs:
       test
-  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QDHXB
     , base >=4.7 && <5
+    , directory
     , template-haskell
+    , xml
   default-language: Haskell2010

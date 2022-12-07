@@ -1,9 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Main (main) where
+module Test where
 import QDHXB
 
 qdhxb ["shiporder.xsd"]
-
-main :: IO ()
-main = putStrLn "OK"
