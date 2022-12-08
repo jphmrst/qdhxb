@@ -26,6 +26,10 @@ source-repository head
 library
   exposed-modules:
       QDHXB
+      QDHXB.Internal
+      QDHXB.Manual
+      QDHXB.TH
+      QDHXB.XMLLight
       Test
   other-modules:
       Paths_QDHXB

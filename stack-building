@@ -1,7 +1,2 @@
 #!/usr/bin/env bash
-stack build --file-watch \
-      --copy-bins \
-      --haddock QDHXB \
-      --exec 'echo All targets completed' \
-      --exec 'echo For doc files:'
-      --exec 'echo \ \ stack haddock --open QDHXB'
+stack build --file-watch
