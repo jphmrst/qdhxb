@@ -3,4 +3,4 @@
 module Test where
 import QDHXB
 
-qdhxb ["shiporder.xsd"]
+qdhxb ["shiporder1.xsd"]

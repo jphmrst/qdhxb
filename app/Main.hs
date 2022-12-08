@@ -3,7 +3,7 @@
 module Main (main) where
 import QDHXB
 
-qdhxb ["shiporder.xsd"]
+qdhxb ["shiporder1.xsd"]
 
 main :: IO ()
 main = putStrLn "OK"
