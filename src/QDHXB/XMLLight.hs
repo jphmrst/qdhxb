@@ -1,7 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QDHXB.XMLLight where
-
+module QDHXB.XMLLight (pullAttr, pullContent, isElem,
+                       ZeroOneMany(Zero, One, Many), zomToList)
+where
 import Text.XML.Light.Types
 
 pullAttr :: String -> [Attr] -> Maybe String

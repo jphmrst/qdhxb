@@ -9,15 +9,16 @@ import Text.XML.Light.Types
 import QDHXB.Internal
 import QDHXB.TH
 import QDHXB.XMLLight
+import QDHXB.UtilMisc
 
 xmlToDecs :: [Content] -> Q [Dec]
 xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _))
            : (Elem (Element (QName "schema" _ _) _ forms _))
            : []) = do
   schemaReps <- encodeSchemaItems forms
-  -- liftIO $ putStrLn $ "====== REPS\n" ++ show schemaReps ++ "\n======"
-  let ir = flattenSchemaItems schemaReps
-  -- liftIO $ putStrLn $ "====== IR\n" ++ show ir ++ "\n======"
+  -- liftIO $ putStrLn $ "====== REPS\n" ++ show schemaReps ++ "\n======\n"
+  ir <- flattenSchemaItems schemaReps
+  -- liftIO $ putStrLn $ "====== IR\n" ++ show ir ++ "\n======\n"
   decls <- hdecls ir
   return decls
   -- fmap concat $ mapM formToDecs $ filter isElem forms
@@ -29,18 +30,20 @@ data ComplexTypeSchemeRep = Sequence [SchemeRep]
   deriving Show
 
 data SchemeRep =
-  ElementScheme { contents :: [SchemeRep],
-                  ifName :: Maybe String,
-                  ifType :: Maybe String,
-                  ifRef :: Maybe String,
-                  ifMin :: IntOrUnbound,
-                  ifMax :: IntOrUnbound }
-  | AttributeScheme { ifName :: Maybe String,
-                      ifType :: Maybe String,
-                      ifRef :: Maybe String }
-  | ComplexTypeScheme { typeDetail :: ComplexTypeSchemeRep,
-                        addlAttrs :: [SchemeRep],
-                        ifName :: Maybe String }
+  ElementScheme [SchemeRep] -- ^ contents
+                (Maybe String) -- ^ ifName
+                (Maybe String) -- ^ ifType
+                (Maybe String) -- ^ ifRef
+                IntOrUnbound -- ^ ifMin
+                IntOrUnbound -- ^ ifMax
+  | AttributeScheme (Maybe String) -- ^ ifName
+                    (Maybe String) -- ^ ifType
+                    (Maybe String) -- ^ ifRef
+  | ComplexTypeScheme ComplexTypeSchemeRep -- ^ typeDetail
+                      [SchemeRep] -- ^ addlAttrs
+                      (Maybe String) -- ^ ifName
+  | SimpleTypeScheme String -- ^ baseSpec
+                     String -- ^ name
   deriving Show
 
 encodeSchemaItems :: [Content] -> Q [SchemeRep]
@@ -73,10 +76,31 @@ encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts _)) = do
       res <- encodeComplexTypeScheme ats intl ats'
       -- liftIO $ putStrLn $ "     <<< " ++ show res
       return res
+    (x, y) -> do
+      liftIO $ putStrLn $ "ATS " ++ show ats
+      liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
+      liftIO $ putStrLn $ "X " ++ show x
+      liftIO $ putStrLn $ "Y " ++ show y
+      error "TODO encodeSchemaItem > complexType > another separation case"
+encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts _)) = do
+  let ctnts' = filter isElem ctnts
+  case separateSimpleTypeContents ats ctnts' of
+    (nam, One restr) -> do
+      -- liftIO $ putStrLn $ "     <<< " ++ show ats'
+      res <- encodeSimpleTypeByRestriction nam ats restr
+      -- liftIO $ putStrLn $ "     <<< " ++ show res
+      return res
+    (x, y) -> do
+      liftIO $ putStrLn $ "ATS " ++ show ats
+      liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
+      liftIO $ putStrLn $ "X " ++ show x
+      liftIO $ putStrLn $ "Y " ++ show y
+      error "TODO encodeSchemaItem > simpleType > another separation case"
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts _)) = do
-  -- liftIO $ putStrLn $ ">>>  encodeSchemaItem Element " ++ tag
-  -- liftIO $ putStrLn $ ">>>    " ++ show ctnts
-  return $ [] -- TODO explore
+  liftIO $ putStrLn $ "TAG " ++ show tag
+  liftIO $ putStrLn $ "ATS " ++ show ats
+  liftIO $ putStrLn $ "CTNTS " ++ show ctnts
+  error "TODO encodeSchemaItem > another Element case"
 encodeSchemaItem (Text _) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem Text"
   return $ []
@@ -89,10 +113,16 @@ separateComplexTypeContents ::
 separateComplexTypeContents cts =
   (pullContent "sequence" cts, pullContent "attribute" cts)
 
+separateSimpleTypeContents ::
+  [Attr] -> [Content] -> (Maybe String, ZeroOneMany Content)
+separateSimpleTypeContents attrs cts =
+  (pullAttr "name" attrs, pullContent "restriction" cts)
+
 encodeComplexTypeScheme ::
   [Attr] -> Content -> ZeroOneMany Content -> Q [SchemeRep]
 encodeComplexTypeScheme ats
-                        (Elem (Element (QName "sequence" _ _) ats' items _))
+                        (Elem (Element (QName "sequence" _ _)
+                                       _ items _)) -- Ignoring ats' at 1st _
                         ats'' = do
   included <- encodeSchemaItems items
   atrSpecs <- encodeSchemaItems $ zomToList ats''
@@ -100,43 +130,88 @@ encodeComplexTypeScheme ats
   return [
     ComplexTypeScheme (Sequence included) atrSpecs (pullAttr "name" ats)
     ]
+encodeComplexTypeScheme ats s ats'' = do
+  liftIO $ putStrLn $ "ATS " ++ show ats
+  liftIO $ putStrLn $ "S " ++ show s
+  liftIO $ putStrLn $ "ATS'' " ++ show ats''
+  error "TODO encodeComplexTypeScheme > another case"
+
+encodeSimpleTypeByRestriction ::
+  Maybe String -> [Attr] -> Content -> Q [SchemeRep]
+encodeSimpleTypeByRestriction -- Note ignoring ats
+    (Just nam) _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
+  case pullAttr "base" ats' of
+    Just base -> return [ SimpleTypeScheme base nam ]
+    Nothing -> error "restriction without base"
+encodeSimpleTypeByRestriction ifNam ats s = do
+  liftIO $ putStrLn $ ">>> IFNAM " ++ show ifNam
+  liftIO $ putStrLn $ ">>> ATS "   ++ show ats
+  liftIO $ putStrLn $ ">>> S "     ++ show s
+  error "encodeSimpleTypeByRestriction > additional cases"
 
 -- -----------------------------------------------------------------
 
-flattenSchemaItems :: [SchemeRep] -> [ItemDefn]
-flattenSchemaItems = concat . map flattenSchemaItem
+flattenSchemaItems :: [SchemeRep] -> Q [ItemDefn]
+flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 
-flattenSchemaItem :: SchemeRep -> [ItemDefn]
+flattenSchemaItem :: SchemeRep -> Q [ItemDefn]
 flattenSchemaItem (ElementScheme [] (Just nam) (Just typ) Nothing _ _) =
-  [ SimpleRep nam typ ]
+  return [ SimpleRep nam typ ]
 flattenSchemaItem (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) =
-  let (otherDefs, refs) = flattenSchemaRefs steps
-      (atsDefs, atsRefs) = flattenSchemaRefs ats
-  in otherDefs ++ atsDefs ++ [ SequenceRep nam $ atsRefs ++ refs ]
+  assembleComplexSequence steps ats nam
 flattenSchemaItem (AttributeScheme (Just nam) (Just typ) Nothing) =
-  [ AttributeRep nam typ ]
+  return [ AttributeRep nam typ ]
 flattenSchemaItem (AttributeScheme _ _ (Just _)) =
-  error "Reference in attribute"
-flattenSchemaItem (ComplexTypeScheme (Sequence _) _ (Just name)) =
-  error "TODO flattenSchemaItem ComplexTypeScheme"
-flattenSchemaItem _ = error "TODO 1"
+  return $ error "Reference in attribute"
+flattenSchemaItem (ComplexTypeScheme (Sequence cts) ats (Just nam)) =
+  assembleComplexSequence cts ats nam
+flattenSchemaItem (SimpleTypeScheme base nam) =
+  return $ [ SimpleRep nam base ]
+flattenSchemaItem s = do
+  liftIO $ putStrLn $ ">>> " ++ show s
+  error "TODO another flatten case"
 
-flattenSchemaRefs :: [SchemeRep] -> ([ItemDefn], [ItemRef])
-flattenSchemaRefs = applyFst concat . unzip . map flattenSchemaRef
+assembleComplexSequence ::
+  [SchemeRep] ->  [SchemeRep] -> String -> Q [ItemDefn]
+assembleComplexSequence steps ats nam = do
+  (otherDefs, refs) <- flattenSchemaRefs steps
+  (atsDefs, atsRefs) <- flattenSchemaRefs ats
+  return $ otherDefs ++ atsDefs ++ [ SequenceRep nam $ atsRefs ++ refs ]
 
-flattenSchemaRef :: SchemeRep -> ([ItemDefn], ItemRef)
+flattenSchemaRefs :: [SchemeRep] -> Q ([ItemDefn], [ItemRef])
+flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
+
+flattenSchemaRef :: SchemeRep -> Q ([ItemDefn], ItemRef)
 flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
-  ([], ElementItem ref lower upper)
-flattenSchemaRef (ElementScheme contents ifName ifType ifRef lower upper) =
-  error "TODO a"
+  return ([], ElementItem ref lower upper)
+flattenSchemaRef (ElementScheme [] (Just nam) (Just typ) Nothing lower upper) =
+  return ([SimpleRep nam typ], ElementItem nam lower upper)
+flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
+                                  (Just nam) Nothing Nothing lower upper) = do
+  prev <- flattenSchemaItem s
+  return (prev, ElementItem nam lower upper)
+flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
+                                lower upper) = do
+  liftIO $ putStrLn $ "CONTENTS " ++ show ctnts
+  liftIO $ putStrLn $ "IFNAME " ++ show maybeName
+  liftIO $ putStrLn $ "IFTYPE " ++ show maybeType
+  liftIO $ putStrLn $ "IFREF " ++ show maybeRef
+  liftIO $ putStrLn $ "LOWER " ++ show lower
+  liftIO $ putStrLn $ "UPPER " ++ show upper
+  error "TODO flattenSchemaRef > unmatched ElementScheme"
 flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref)) =
-  ([], AttributeItem ref)
-flattenSchemaRef (AttributeScheme ifName ifType ifRef) = error "TODO b"
-flattenSchemaRef (ComplexTypeScheme typeDetail _ ifName) = error "TODO c"
-
-applyFst :: (a -> b) -> (a, c) -> (b, c)
-applyFst f (x,y) = (f x, y)
-applySnd :: (a -> b) -> (c, a) -> (c, b)
-applySnd f (x,y) = (x, f y)
+  return ([], AttributeItem ref)
+flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing) =
+  return ([AttributeRep nam typ], AttributeItem nam)
+flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef) = do
+  liftIO $ putStrLn $ "IFNAME " ++ show maybeName
+  liftIO $ putStrLn $ "IFTYPE " ++ show maybeType
+  liftIO $ putStrLn $ "IFREF " ++ show maybeRef
+  error "TODO flattenSchemaRef > unmatched AttributeScheme"
+flattenSchemaRef (ComplexTypeScheme _ _ _) = -- typeDetail _ maybeName
+  error "TODO flattenSchemaRef > ComplexTypeScheme"
+flattenSchemaRef s = do
+  liftIO $ putStrLn $ "S " ++ show s
+  error "TODO flattenSchemaRef > additional case"

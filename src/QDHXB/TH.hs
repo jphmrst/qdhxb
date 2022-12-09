@@ -1,11 +1,19 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QDHXB.TH where
+module QDHXB.TH (IntOrUnbound(Bound, Unbounded),
+                decodeIntOrUnbound, decodeMaybeIntOrUnbound1,
+                decodeTypeAttrVal,
+
+                intType, stringType, floatType, boolType, doubleType,
+                zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
+
+                firstToUpper, containForBounds)
+where
 
 import Language.Haskell.TH
 -- import System.Directory
 import Data.Char
-import Text.XML.Light.Types
+-- import Text.XML.Light.Types
 
 data IntOrUnbound = Bound Int | Unbounded deriving Show
 decodeIntOrUnbound :: String -> IntOrUnbound

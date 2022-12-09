@@ -29,8 +29,8 @@ library
       QDHXB.Internal
       QDHXB.Manual
       QDHXB.TH
+      QDHXB.UtilMisc
       QDHXB.XMLLight
-      Test
   other-modules:
       Paths_QDHXB
   hs-source-dirs:
@@ -62,6 +62,9 @@ test-suite QDHXB-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Shiporder0
+      Shiporder1
+      Shiporder2
       Paths_QDHXB
   hs-source-dirs:
       test

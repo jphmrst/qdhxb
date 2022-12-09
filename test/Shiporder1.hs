@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Test where
+module Shiporder1 where
 import QDHXB
 
 qdhxb ["shiporder1.xsd"]
