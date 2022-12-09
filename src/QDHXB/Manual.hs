@@ -32,7 +32,9 @@ data SchemeRep =
   ElementScheme { contents :: [SchemeRep],
                   ifName :: Maybe String,
                   ifType :: Maybe String,
-                  ifRef :: Maybe String }
+                  ifRef :: Maybe String,
+                  ifMin :: IntOrUnbound,
+                  ifMax :: IntOrUnbound }
   | AttributeScheme { ifName :: Maybe String,
                       ifType :: Maybe String,
                       ifRef :: Maybe String }
@@ -54,6 +56,8 @@ encodeSchemaItem (Elem (Element (QName "element" _ _) ats content _)) = do
     ElementScheme included
                   (pullAttr "name" ats) (pullAttr "type" ats)
                   (pullAttr "ref" ats)
+                  (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
+                  (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
     ]
 encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem attribute"
@@ -103,11 +107,11 @@ flattenSchemaItems :: [SchemeRep] -> [ItemDefn]
 flattenSchemaItems = concat . map flattenSchemaItem
 
 flattenSchemaItem :: SchemeRep -> [ItemDefn]
-flattenSchemaItem (ElementScheme [] (Just nam) (Just typ) Nothing) =
+flattenSchemaItem (ElementScheme [] (Just nam) (Just typ) Nothing _ _) =
   [ SimpleRep nam typ ]
 flattenSchemaItem (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
-                                 (Just nam) Nothing Nothing) =
+                                 (Just nam) Nothing Nothing _ _) =
   let (otherDefs, refs) = flattenSchemaRefs steps
       (atsDefs, atsRefs) = flattenSchemaRefs ats
   in otherDefs ++ atsDefs ++ [ SequenceRep nam $ atsRefs ++ refs ]
@@ -123,9 +127,10 @@ flattenSchemaRefs :: [SchemeRep] -> ([ItemDefn], [ItemRef])
 flattenSchemaRefs = applyFst concat . unzip . map flattenSchemaRef
 
 flattenSchemaRef :: SchemeRep -> ([ItemDefn], ItemRef)
-flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref)) =
-  ([], ElementItem ref)
-flattenSchemaRef (ElementScheme contents ifName ifType ifRef) = error "TODO a"
+flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
+  ([], ElementItem ref lower upper)
+flattenSchemaRef (ElementScheme contents ifName ifType ifRef lower upper) =
+  error "TODO a"
 flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref)) =
   ([], AttributeItem ref)
 flattenSchemaRef (AttributeScheme ifName ifType ifRef) = error "TODO b"

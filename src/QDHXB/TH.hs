@@ -7,6 +7,14 @@ import Language.Haskell.TH
 import Data.Char
 import Text.XML.Light.Types
 
+data IntOrUnbound = Bound Int | Unbounded deriving Show
+decodeIntOrUnbound :: String -> IntOrUnbound
+decodeIntOrUnbound "unbounded" = Unbounded
+decodeIntOrUnbound s = Bound $ read s
+decodeMaybeIntOrUnbound1 :: Maybe String -> IntOrUnbound
+decodeMaybeIntOrUnbound1 Nothing = Bound 1
+decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
+
 decodeTypeAttrVal :: String -> Type
 decodeTypeAttrVal ('x':'s':':':str) = decodeTypeAttrVal str
 decodeTypeAttrVal "anyURI" = stringType
@@ -70,3 +78,9 @@ booleanTestBinding :: String -> Dec
 booleanTestBinding name =
   ValD (VarP $ mkName name) (NormalB $ ConE $ mkName "True") []
 -}
+
+containForBounds :: IntOrUnbound -> IntOrUnbound -> Q Type -> Q Type
+containForBounds (Bound 0) (Bound 0) _ = [t|()|]
+containForBounds (Bound 0) (Bound 1) t = [t|Maybe $t|]
+containForBounds (Bound 1) (Bound 1) t = t
+containForBounds _ _ t = [t|[$t]|]

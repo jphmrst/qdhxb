@@ -1,8 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QDHXB.Internal (IntOrUnbound(Bound, Unbounded),
-                       decodeIntOrUnbound,
-                       ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
+module QDHXB.Internal (ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
                        ItemDefn(SimpleRep, AttributeRep, SequenceRep),
 
                        hdecls)
@@ -10,19 +8,14 @@ where
 
 import Language.Haskell.TH
 -- import System.Directory
-import Control.Monad.IO.Class
-import Data.Char
-import Text.XML.Light.Types
+-- import Control.Monad.IO.Class
+-- import Data.Char
+-- import Text.XML.Light.Types
 import QDHXB.TH
-import QDHXB.XMLLight
-
-data IntOrUnbound = Bound Int | Unbounded
-decodeIntOrUnbound :: String -> IntOrUnbound
-decodeIntOrUnbound "unbounded" = Unbounded
-decodeIntOrUnbound s = Bound $ read s
+-- import QDHXB.XMLLight
 
 data ItemRef =
-  ElementItem String
+  ElementItem String IntOrUnbound IntOrUnbound
   | AttributeItem String
   | ComplexTypeItem String
   deriving Show
@@ -47,13 +40,18 @@ hdecl (AttributeRep nam typ) =
          ]
 hdecl (SequenceRep namStr refs) = do
   let nam = mkName $ firstToUpper namStr
-  return [ DataD [] nam [] Nothing [NormalC nam $ map href refs] [] ]
+  hrefOut <- mapM href refs
+  return [ DataD [] nam [] Nothing [NormalC nam $ hrefOut] [] ]
 
-href :: ItemRef -> BangType
-href (ElementItem ref) = (useBang, ConT $ mkName $ firstToUpper ref)
-href (AttributeItem ref) = (useBang,
-                            ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
-href (ComplexTypeItem ref) = (useBang, ConT $ mkName $ firstToUpper ref)
+href :: ItemRef -> Q BangType
+href (ElementItem ref lower upper) = do
+  typ <- containForBounds lower upper $ return $ ConT $ mkName $ firstToUpper ref
+  return (useBang, typ)
+href (AttributeItem ref) =
+  return (useBang,
+          ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
+href (ComplexTypeItem ref) =
+  return (useBang, ConT $ mkName $ firstToUpper ref)
 
 useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness
