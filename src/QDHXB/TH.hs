@@ -25,6 +25,9 @@ decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
 decodeTypeAttrVal :: String -> Type
 decodeTypeAttrVal ('x':'s':':':str) = decodeTypeAttrVal str
+decodeTypeAttrVal "anyType" = stringType
+decodeTypeAttrVal "anySimpleType" = stringType
+decodeTypeAttrVal "anyAtomicType" = stringType
 decodeTypeAttrVal "anyURI" = stringType
 decodeTypeAttrVal "boolean" = boolType
 decodeTypeAttrVal "date" = dayType
@@ -43,8 +46,32 @@ decodeTypeAttrVal "NOTATION" = stringType
 decodeTypeAttrVal "QName" = qnameType
 decodeTypeAttrVal "positiveInteger" = intType
 decodeTypeAttrVal "integer" = intType
+decodeTypeAttrVal "long" = intType
+decodeTypeAttrVal "int" = intType
+decodeTypeAttrVal "short" = intType
+decodeTypeAttrVal "byte" = intType
+decodeTypeAttrVal "nonNegativeInteger" = intType
+decodeTypeAttrVal "positiveInteger" = intType
+decodeTypeAttrVal "unsignedInt" = intType
+decodeTypeAttrVal "unsignedShort" = intType
+decodeTypeAttrVal "unsignedByte" = intType
+decodeTypeAttrVal "positiveInteger" = intType
+decodeTypeAttrVal "nonPositiveInteger" = intType
+decodeTypeAttrVal "negativeInteger" = intType
 decodeTypeAttrVal "string" = stringType
+decodeTypeAttrVal "normalizedString" = stringType
+decodeTypeAttrVal "token" = stringType
+decodeTypeAttrVal "language" = stringType
+decodeTypeAttrVal "Name" = stringType
+decodeTypeAttrVal "NCName" = stringType
+decodeTypeAttrVal "ENTITY" = stringType
+decodeTypeAttrVal "ID" = stringType
+decodeTypeAttrVal "IDREF" = stringType
+decodeTypeAttrVal "NMTOKEN" = stringType
 decodeTypeAttrVal "time" = timeOfDayType
+decodeTypeAttrVal "ENTITIES" = stringListType
+decodeTypeAttrVal "IDREFS" = stringListType
+decodeTypeAttrVal "MNTOKENS" = stringListType
 decodeTypeAttrVal name = ConT $ mkName $ firstToUpper name
 
 intType :: Type
@@ -52,6 +79,9 @@ intType = ConT (mkName "Int")
 
 stringType :: Type
 stringType = ConT (mkName "String")
+
+stringListType :: Type
+stringListType = AppT ListT stringType
 
 floatType :: Type
 floatType = ConT (mkName "Float")

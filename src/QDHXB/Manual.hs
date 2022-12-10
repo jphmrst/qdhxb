@@ -68,7 +68,7 @@ encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
     AttributeScheme (pullAttr "name" ats) (pullAttr "type" ats)
                     (pullAttr "ref" ats)
     ]
-encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts _)) = do
+encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateComplexTypeContents ctnts' of
     (One intl, ats') -> do
@@ -81,8 +81,10 @@ encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts _)) = do
       liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
       liftIO $ putStrLn $ "X " ++ show x
       liftIO $ putStrLn $ "Y " ++ show y
-      error "TODO encodeSchemaItem > complexType > another separation case"
-encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts _)) = do
+      error $
+        "TODO encodeSchemaItem > complexType > another separation case"
+        ++ ifAtLine ifLn
+encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr) -> do
@@ -95,18 +97,34 @@ encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts _)) = do
       liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
       liftIO $ putStrLn $ "X " ++ show x
       liftIO $ putStrLn $ "Y " ++ show y
-      error "TODO encodeSchemaItem > simpleType > another separation case"
-encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts _)) = do
+      error $ "TODO encodeSchemaItem > simpleType > another separation case"
+        ++ ifAtLine ifLn
+encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
+  -- We do nothing with documentation and other annotations; currently
+  -- there is no way to pass Haddock docstrings via the TH API.
+  return []
+encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
+    tag == "include" || tag == "import" = do
+  -- Skipping these documents for now
+  liftIO $ putStrLn $
+    "WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine ifLine
+  return []
+encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   liftIO $ putStrLn $ "TAG " ++ show tag
   liftIO $ putStrLn $ "ATS " ++ show ats
   liftIO $ putStrLn $ "CTNTS " ++ show ctnts
-  error "TODO encodeSchemaItem > another Element case"
+  error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem Text"
   return $ []
 encodeSchemaItem (CRef _) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem CRef"
   return $ []
+
+ifAtLine :: Maybe Line -> String
+ifAtLine ifLine = case ifLine of
+                    Nothing -> ""
+                    Just line -> " at line " ++ show line
 
 separateComplexTypeContents ::
   [Content] -> (ZeroOneMany Content, ZeroOneMany Content)
