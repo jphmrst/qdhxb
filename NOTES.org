@@ -1,11 +1,11 @@
+* TODO Use class/instance for abstract complex types?
+* TODO Unpicklers/picklers
+
 * TODO Test code
-  - Some structure?
   - Setup for unpicklers/picklers
 
 * TODO Attribute use in xs:attribute
 * TODO Unions
 * TODO Other complex, simple type forms
   - And examples
-* TODO Unpicklers/picklers
-
 * TODO Try the whole xsd.xsd

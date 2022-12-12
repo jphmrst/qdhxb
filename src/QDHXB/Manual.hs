@@ -71,16 +71,22 @@ encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
 encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateComplexTypeContents ctnts' of
-    (One intl, ats') -> do
+    (One intl, Zero, ats') -> do
       -- liftIO $ putStrLn $ "     <<< " ++ show ats'
       res <- encodeComplexTypeScheme ats intl ats'
       -- liftIO $ putStrLn $ "     <<< " ++ show res
       return res
-    (x, y) -> do
+    (Zero, One ctnt, ats') -> do
+      liftIO $ putStrLn $ "CTNT " ++ show ctnt
+      error $
+        "TODO encodeSchemaItem > complexType > complexContent"
+        ++ ifAtLine ifLn
+    (seq, cplxCtnt, attrs) -> do
       liftIO $ putStrLn $ "ATS " ++ show ats
       liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
-      liftIO $ putStrLn $ "X " ++ show x
-      liftIO $ putStrLn $ "Y " ++ show y
+      liftIO $ putStrLn $ "SEQ " ++ show seq
+      liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
+      liftIO $ putStrLn $ "ATTRS " ++ show attrs
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn
@@ -127,9 +133,11 @@ ifAtLine ifLine = case ifLine of
                     Just line -> " at line " ++ show line
 
 separateComplexTypeContents ::
-  [Content] -> (ZeroOneMany Content, ZeroOneMany Content)
+  [Content] -> (ZeroOneMany Content, ZeroOneMany Content, ZeroOneMany Content)
 separateComplexTypeContents cts =
-  (pullContent "sequence" cts, pullContent "attribute" cts)
+  (pullContent "sequence" cts,
+   pullContent "complexContent" cts,
+   pullContent "attribute" cts)
 
 separateSimpleTypeContents ::
   [Attr] -> [Content] -> (Maybe String, ZeroOneMany Content)
