@@ -26,7 +26,10 @@ xmlToDecs _ = error "Missing <?xml> element"
 
 -- -----------------------------------------------------------------
 
-data ComplexTypeSchemeRep = Sequence [SchemeRep]
+data TypeSchemeRep = Sequence [SchemeRep]
+  | Restriction String -- ^ base
+  | Extension String -- ^ base
+              [SchemeRep] -- ^ additional
   deriving Show
 
 data SchemeRep =
@@ -39,7 +42,7 @@ data SchemeRep =
   | AttributeScheme (Maybe String) -- ^ ifName
                     (Maybe String) -- ^ ifType
                     (Maybe String) -- ^ ifRef
-  | ComplexTypeScheme ComplexTypeSchemeRep -- ^ typeDetail
+  | ComplexTypeScheme TypeSchemeRep -- ^ typeDetail
                       [SchemeRep] -- ^ addlAttrs
                       (Maybe String) -- ^ ifName
   | SimpleTypeScheme String -- ^ baseSpec
@@ -71,22 +74,31 @@ encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
 encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateComplexTypeContents ctnts' of
-    (One intl, Zero, ats') -> do
-      -- liftIO $ putStrLn $ "     <<< " ++ show ats'
-      res <- encodeComplexTypeScheme ats intl ats'
-      -- liftIO $ putStrLn $ "     <<< " ++ show res
+    -- <sequence>
+    (One intl, Zero, Zero, attrSpecs) -> do
+      res <- encodeComplexTypeScheme ats [] intl attrSpecs
       return res
-    (Zero, One ctnt, ats') -> do
+    -- <complexContent>
+    (Zero, One ctnt, Zero, attrSpecs) -> do
+      res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
+      return res
+      -- error $
+      --   "TODO encodeSchemaItem > complexType > other complexContent"
+      --   ++ ifAtLine ifLn
+    -- <simpleContent>
+    (Zero, Zero, One ctnt, attrSpecs) -> do
       liftIO $ putStrLn $ "CTNT " ++ show ctnt
+      liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
       error $
-        "TODO encodeSchemaItem > complexType > complexContent"
+        "TODO encodeSchemaItem > complexType > simpleContent"
         ++ ifAtLine ifLn
-    (seq, cplxCtnt, attrs) -> do
+    (seqnce, cplxCtnt, simplCtnt, attrSpecs) -> do
       liftIO $ putStrLn $ "ATS " ++ show ats
       liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
-      liftIO $ putStrLn $ "SEQ " ++ show seq
+      liftIO $ putStrLn $ "SEQ " ++ show seqnce
       liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
-      liftIO $ putStrLn $ "ATTRS " ++ show attrs
+      liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
+      liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn
@@ -133,10 +145,13 @@ ifAtLine ifLine = case ifLine of
                     Just line -> " at line " ++ show line
 
 separateComplexTypeContents ::
-  [Content] -> (ZeroOneMany Content, ZeroOneMany Content, ZeroOneMany Content)
+  [Content] ->
+    (ZeroOneMany Content, ZeroOneMany Content, ZeroOneMany Content,
+     ZeroOneMany Content)
 separateComplexTypeContents cts =
   (pullContent "sequence" cts,
    pullContent "complexContent" cts,
+   pullContent "simpleContent" cts,
    pullContent "attribute" cts)
 
 separateSimpleTypeContents ::
@@ -145,22 +160,39 @@ separateSimpleTypeContents attrs cts =
   (pullAttr "name" attrs, pullContent "restriction" cts)
 
 encodeComplexTypeScheme ::
-  [Attr] -> Content -> ZeroOneMany Content -> Q [SchemeRep]
-encodeComplexTypeScheme ats
-                        (Elem (Element (QName "sequence" _ _)
-                                       _ items _)) -- Ignoring ats' at 1st _
-                        ats'' = do
-  included <- encodeSchemaItems items
+  [Attr] -> [Content] -> Content -> ZeroOneMany Content -> Q [SchemeRep]
+encodeComplexTypeScheme ats attrSpecs
+                        (Elem (Element (QName tag _ _) ats' ctnts _)) ats'' =
+  encodeComplexTypeSchemeElement (ats ++ ats') attrSpecs tag ctnts ats''
+encodeComplexTypeScheme ats attrSpecs s ats'' = do
+  liftIO $ putStrLn $ "ATS " ++ show ats
+  liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+  liftIO $ putStrLn $ "S " ++ show s
+  liftIO $ putStrLn $ "ATS'' " ++ show ats''
+  error "TODO encodeComplexTypeScheme > another case"
+
+encodeComplexTypeSchemeElement ::
+  [Attr] -> [Content] -> String -> [Content] -> ZeroOneMany Content ->
+    Q [SchemeRep]
+encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' =
+  case filter isElem ctnts of
+    [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats''
+    _ -> error $ "Expected a single child for complexContent node"
+encodeComplexTypeSchemeElement ats attrSpecs "sequence" ctnts ats'' = do
+  included <- encodeSchemaItems ctnts
   atrSpecs <- encodeSchemaItems $ zomToList ats''
   -- liftIO $ putStrLn ">>> encodeComplexTypeScheme"
   return [
     ComplexTypeScheme (Sequence included) atrSpecs (pullAttr "name" ats)
     ]
-encodeComplexTypeScheme ats s ats'' = do
-  liftIO $ putStrLn $ "ATS " ++ show ats
-  liftIO $ putStrLn $ "S " ++ show s
-  liftIO $ putStrLn $ "ATS'' " ++ show ats''
+encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
+  liftIO $ putStrLn $ "ATS "       ++ show ats
+  liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+  liftIO $ putStrLn $ "TAG "       ++ show tag
+  liftIO $ putStrLn $ "CTNTS "     ++ show ctnts
+  liftIO $ putStrLn $ "ATS'' "     ++ show ats''
   error "TODO encodeComplexTypeScheme > another case"
+
 
 encodeSimpleTypeByRestriction ::
   Maybe String -> [Attr] -> Content -> Q [SchemeRep]
