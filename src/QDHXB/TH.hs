@@ -1,13 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QDHXB.TH (IntOrUnbound(Bound, Unbounded),
-                decodeIntOrUnbound, decodeMaybeIntOrUnbound1,
-                decodeTypeAttrVal,
+-- | Template Haskell definitions
+module QDHXB.TH (
+  -- * Possibly-absent integers from XSD text
+  decodeIntOrUnbound, decodeMaybeIntOrUnbound1, decodeTypeAttrVal,
 
-                intType, stringType, floatType, boolType, doubleType,
-                zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
+  -- * XSD types
+  intType, stringType, floatType, boolType, doubleType,
+  zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
 
-                firstToUpper, containForBounds)
+  -- * Miscellaneous
+  firstToUpper, containForBounds)
 where
 
 import Language.Haskell.TH
@@ -15,14 +18,21 @@ import Language.Haskell.TH
 import Data.Char
 -- import Text.XML.Light.Types
 
-data IntOrUnbound = Bound Int | Unbounded deriving Show
-decodeIntOrUnbound :: String -> IntOrUnbound
-decodeIntOrUnbound "unbounded" = Unbounded
-decodeIntOrUnbound s = Bound $ read s
-decodeMaybeIntOrUnbound1 :: Maybe String -> IntOrUnbound
-decodeMaybeIntOrUnbound1 Nothing = Bound 1
+-- | Decode the `String` representation of an XSD integer as a Haskell
+-- `Int`.  Might fail, so the result is `Maybe`-wrapped.
+decodeIntOrUnbound :: String -> Maybe Int
+decodeIntOrUnbound "unbounded" = Nothing
+decodeIntOrUnbound s = Just $ read s
+
+-- | Another decoder of the `String` representation of an XSD integer
+-- as a Haskell `Int`, where there may be no `String` in the first
+-- place.
+decodeMaybeIntOrUnbound1 :: Maybe String -> Maybe Int
+decodeMaybeIntOrUnbound1 Nothing = Just 1
 decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
+-- | Convert the `String` representation of a primitive XSD type to a
+-- Template Haskell `Type`.
 decodeTypeAttrVal :: String -> Type
 decodeTypeAttrVal ('x':'s':':':str) = decodeTypeAttrVal str
 decodeTypeAttrVal "anyType" = stringType
@@ -74,39 +84,51 @@ decodeTypeAttrVal "IDREFS" = stringListType
 decodeTypeAttrVal "MNTOKENS" = stringListType
 decodeTypeAttrVal name = ConT $ mkName $ firstToUpper name
 
+-- | TH `Int` type representation
 intType :: Type
 intType = ConT (mkName "Int")
 
+-- | TH `String` type representation
 stringType :: Type
 stringType = ConT (mkName "String")
 
+-- | TH `String` list type representation
 stringListType :: Type
 stringListType = AppT ListT stringType
 
+-- | TH `Float` type representation
 floatType :: Type
 floatType = ConT (mkName "Float")
 
+-- | TH `Bool` type representation
 boolType :: Type
 boolType = ConT (mkName "Bool")
 
+-- | TH `Double` type representation
 doubleType :: Type
 doubleType = ConT (mkName "Double")
 
+-- | TH `Data.Time.LocalTime.ZonedTime` type representation
 zonedTimeType :: Type
 zonedTimeType = ConT (mkName "ZonedTime")
 
+-- | TH `Data.Time.LocalTime.DiffTime` type representation
 diffTimeType :: Type
 diffTimeType = ConT (mkName "DiffTime")
 
+-- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
 timeOfDayType = ConT (mkName "TimeOfDay")
 
+-- | TH `Data.Time.LocalTime.Day` type representation
 dayType :: Type
 dayType = ConT (mkName "Day")
 
+-- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
 qnameType = ConT (mkName "QName")
 
+-- | Capitalize the first character of a `String`.
 firstToUpper :: String -> String
 firstToUpper "" = ""
 firstToUpper (c:cs) = toUpper c : cs
@@ -117,8 +139,10 @@ booleanTestBinding name =
   ValD (VarP $ mkName name) (NormalB $ ConE $ mkName "True") []
 -}
 
-containForBounds :: IntOrUnbound -> IntOrUnbound -> Q Type -> Q Type
-containForBounds (Bound 0) (Bound 0) _ = [t|()|]
-containForBounds (Bound 0) (Bound 1) t = [t|Maybe $t|]
-containForBounds (Bound 1) (Bound 1) t = t
+-- | Transform a Haskell type representation based on the (possibly
+-- absent) lower and upper bounds of an XSD type constraint.
+containForBounds :: Maybe Int -> Maybe Int -> Q Type -> Q Type
+containForBounds (Just 0) (Just 0) _ = [t|()|]
+containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
+containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]

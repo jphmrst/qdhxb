@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-stack build --file-watch
+stack build --file-watch --haddock QDHXB \
+      --exec 'echo For doc files: stack haddock --open QDHXB'

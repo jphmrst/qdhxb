@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Quick-and-Dirty Haskell/XSD bindings
 module QDHXB (qdhxb) where
 
 import Language.Haskell.TH (Q, Dec)
@@ -10,6 +11,8 @@ import Text.XML.Light.Input
 import QDHXB.Manual
 import QDHXB.XMLLight
 
+-- | Load the given XSD files, translating each into Haskell
+-- declarations.
 qdhxb :: [String] -> Q [Dec]
 qdhxb xsds = do
   -- liftIO (getCurrentDirectory >>= putStrLn . show)
@@ -20,3 +23,4 @@ loadFile xsdFile = do
   xsd <- liftIO $ readFile' xsdFile
   let xml = parseXML xsd
   xmlToDecs $ filter isElem xml
+

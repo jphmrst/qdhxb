@@ -1,9 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module QDHXB.Internal (ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
-                       ItemDefn(SimpleRep, AttributeRep, SequenceRep),
+-- | Our internal representation of XSD elements.
+module QDHXB.Internal (
+  -- * The representation types
+  ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
+  ItemDefn(SimpleRep, AttributeRep, SequenceRep),
 
-                       hdecls)
+  -- * Code generation from the internal representation
+  hdecls)
 where
 
 import Language.Haskell.TH
@@ -14,23 +18,34 @@ import Language.Haskell.TH
 import QDHXB.TH
 -- import QDHXB.XMLLight
 
+-- | A reference to an XSD element.
 data ItemRef =
-  ElementItem String IntOrUnbound IntOrUnbound
+  ElementItem String (Maybe Int) (Maybe Int)
+  -- ^ A named element type, possibly with numeric instance bounds.
   | AttributeItem String
+  -- ^ The name of an attribute.
   | ComplexTypeItem String
+  -- ^ The name of a complex type.
   deriving Show
 
+-- | The actual definition of an XSD element.
 data ItemDefn =
   SimpleRep String String
+  -- ^ Defining one element to have the same structure as another.
   | AttributeRep String String
+  -- ^ Defining the type of an attribute to be the same as another.
   | SequenceRep String [ItemRef]
+  -- ^ Define an element to contain a sequence of subelements.
   deriving Show
 
+-- | Translate a list of XSD definitions to a Template Haskell quotation
+-- monad returning top-level declarations.
 hdecls :: [ItemDefn] -> Q [Dec]
 hdecls defns = do
   -- liftIO $ putStrLn $ show defns
   fmap concat $ mapM hdecl defns
 
+-- | Translate one XSD definition to a Template Haskell quotation monad.
 hdecl :: ItemDefn -> Q [Dec]
 hdecl (SimpleRep nam typ) =
   return [TySynD (mkName $ firstToUpper nam) [] (decodeTypeAttrVal typ)]
@@ -43,6 +58,8 @@ hdecl (SequenceRep namStr refs) = do
   hrefOut <- mapM href refs
   return [ DataD [] nam [] Nothing [NormalC nam $ hrefOut] [] ]
 
+-- | Translate a reference to an XSD element type to a Template Haskell
+-- quotation monad returning a type.
 href :: ItemRef -> Q BangType
 href (ElementItem ref lower upper) = do
   typ <- containForBounds lower upper $ return $ ConT $ mkName $ firstToUpper ref
@@ -53,5 +70,6 @@ href (AttributeItem ref) =
 href (ComplexTypeItem ref) =
   return (useBang, ConT $ mkName $ firstToUpper ref)
 
+-- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness

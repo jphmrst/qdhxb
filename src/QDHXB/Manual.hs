@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Manual translation of an XSD file into the internal @ItemDefn@
+-- representation.
 module QDHXB.Manual (xmlToDecs) where
 
 import Language.Haskell.TH
@@ -11,6 +13,8 @@ import QDHXB.TH
 import QDHXB.XMLLight
 import QDHXB.UtilMisc
 
+-- | Convert XML `Content` into a quotation monad returning top-level
+-- Haskell declarations.
 xmlToDecs :: [Content] -> Q [Dec]
 xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _))
            : (Elem (Element (QName "schema" _ _) _ forms _))
@@ -37,8 +41,8 @@ data SchemeRep =
                 (Maybe String) -- ^ ifName
                 (Maybe String) -- ^ ifType
                 (Maybe String) -- ^ ifRef
-                IntOrUnbound -- ^ ifMin
-                IntOrUnbound -- ^ ifMax
+                (Maybe Int) -- ^ ifMin
+                (Maybe Int) -- ^ ifMax
   | AttributeScheme (Maybe String) -- ^ ifName
                     (Maybe String) -- ^ ifType
                     (Maybe String) -- ^ ifRef
@@ -178,7 +182,8 @@ encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' =
   case filter isElem ctnts of
     [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats''
     _ -> error $ "Expected a single child for complexContent node"
-encodeComplexTypeSchemeElement ats attrSpecs "sequence" ctnts ats'' = do
+encodeComplexTypeSchemeElement ats _ "sequence" ctnts ats'' = do
+  -- TODO Do something with the attrSpecs (second) argument.
   included <- encodeSchemaItems ctnts
   atrSpecs <- encodeSchemaItems $ zomToList ats''
   -- liftIO $ putStrLn ">>> encodeComplexTypeScheme"
