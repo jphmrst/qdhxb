@@ -38,9 +38,6 @@ data ItemDefn =
   -- ^ Define an element to contain a sequence of subelements.
   deriving Show
 
-todoStr :: String
-todoStr = "TODO"
-
 -- | Translate a list of XSD definitions to a Template Haskell quotation
 -- monad returning top-level declarations.
 hdecls :: [ItemDefn] -> Q [Dec]
@@ -70,10 +67,11 @@ hdecl (SequenceRep namStr refs) = do
     DataD [] typNam [] Nothing [NormalC typNam $ hrefOut] [] -- Type decl
 
        -- TODO Decoder
-     : SigD decNam decType
+     {- : SigD decNam decType -}
      : FunD decNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                              (VarE $ mkName todoStr)) []]
+                                              (VarE $ mkName "todoStr")) []]
 
+     {-
        -- TODO Encoder
      : SigD encNam encType
      : FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
@@ -88,6 +86,8 @@ hdecl (SequenceRep namStr refs) = do
      : (SigD writeNam $ VarT $ mkName "a")
      : FunD writeNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
                                                 (VarE $ mkName todoStr)) []]
+
+-}
      : []
 
 -- | Translate a reference to an XSD element type to a Template Haskell

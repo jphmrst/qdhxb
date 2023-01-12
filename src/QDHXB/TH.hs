@@ -10,7 +10,7 @@ module QDHXB.TH (
   zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
 
   -- * Miscellaneous
-  firstToUpper, containForBounds)
+  firstToUpper, containForBounds, todoStr)
 where
 
 import Language.Haskell.TH
@@ -146,3 +146,8 @@ containForBounds (Just 0) (Just 0) _ = [t|()|]
 containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
 containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
+
+-- | Helper definition, to get a TODO-marker into in-progress TH work.
+-- Should go away eventually.
+todoStr :: String
+todoStr = "TODO"
