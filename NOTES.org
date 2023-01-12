@@ -1,6 +1,16 @@
-* TODO Use class/instance for abstract complex types?
-* TODO Unpicklers/picklers
 
+* TODO Soon --- go back and document [[./src/QDHXB/Manual.hs][Manual.hs]]
+  - Need to make sense of this before adding more XSD features
+
+* TODO Unpicklers/picklers
+  - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
+  - Probably, four functions for each named element:
+    - decodeELEM/encodeELEM :: From/to a piece of parsed XML content
+      (`Content`).
+    - loadELEM/writeELEM :: From/to a file, possibly inline fns using
+      decodeELEM/encodeELEM and some standardized glue.
+
+* TODO Use class/instance for abstract complex types?
 * TODO Test code
   - Setup for unpicklers/picklers
 

@@ -14,7 +14,7 @@ import Language.Haskell.TH
 -- import System.Directory
 -- import Control.Monad.IO.Class
 -- import Data.Char
--- import Text.XML.Light.Types
+import Text.XML.Light.Types
 import QDHXB.TH
 -- import QDHXB.XMLLight
 
@@ -38,6 +38,9 @@ data ItemDefn =
   -- ^ Define an element to contain a sequence of subelements.
   deriving Show
 
+todoStr :: String
+todoStr = "TODO"
+
 -- | Translate a list of XSD definitions to a Template Haskell quotation
 -- monad returning top-level declarations.
 hdecls :: [ItemDefn] -> Q [Dec]
@@ -54,9 +57,38 @@ hdecl (AttributeRep nam typ) =
                   [] (decodeTypeAttrVal typ)
          ]
 hdecl (SequenceRep namStr refs) = do
-  let nam = mkName $ firstToUpper namStr
+  let nameRoot = firstToUpper namStr
+      typNam = mkName nameRoot
+      decNam = mkName $ "decode" ++ nameRoot
+      encNam = mkName $ "encode" ++ nameRoot
+      loadNam  = mkName $ "load" ++ nameRoot
+      writeNam = mkName $ "write" ++ nameRoot
   hrefOut <- mapM href refs
-  return [ DataD [] nam [] Nothing [NormalC nam $ hrefOut] [] ]
+  encType <- [t| $(return $ VarT typNam) -> Content |]
+  decType <- [t| [Content] -> $(return $ VarT typNam) |]
+  return $
+    DataD [] typNam [] Nothing [NormalC typNam $ hrefOut] [] -- Type decl
+
+       -- TODO Decoder
+     : SigD decNam decType
+     : FunD decNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
+                                              (VarE $ mkName todoStr)) []]
+
+       -- TODO Encoder
+     : SigD encNam encType
+     : FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
+                                              (VarE $ mkName todoStr)) []]
+
+       -- TODO Reader
+     : (SigD loadNam $ VarT $ mkName "a")
+     : FunD loadNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
+                                               (VarE $ mkName todoStr)) []]
+
+       -- TODO Writer
+     : (SigD writeNam $ VarT $ mkName "a")
+     : FunD writeNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
+                                                (VarE $ mkName todoStr)) []]
+     : []
 
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
