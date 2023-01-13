@@ -1,7 +1,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Utilities based on the @XMLLight@ library.
-module QDHXB.XMLLight (pullAttr, pullContent, isElem,
+module QDHXB.XMLLight (pullAttr, pullAttrFrom, pullContent, pullContentFrom,
+                       pullCRef, pullCRefContent,
+                       isElem,
                        ZeroOneMany(Zero, One, Many),
                        zomToList, zappend, lzappend)
 where
@@ -14,6 +16,23 @@ pullAttr _ [] = Nothing
 pullAttr nam ((Attr (QName nam' _ _) val) : ats) =
   if nam == nam' then Just val else pullAttr nam ats
 
+-- | Retrieve the named attribute value from a single content element.
+pullAttrFrom :: String -> Content -> Maybe String
+pullAttrFrom name (Elem (Element _ attrs _ _)) = pullAttr name attrs
+pullAttrFrom _ (Text _) = Nothing
+pullAttrFrom _ (CRef _) = Nothing
+
+-- | Retrieve the named attribute value from a single content element.
+pullCRef :: Content -> Maybe String
+pullCRef (CRef str) = Just str
+pullCRef _ = Nothing
+
+-- | Retrieve the named attribute value from a single content element.
+pullCRefContent :: String -> Content -> Maybe String
+pullCRefContent cname (Elem (Element (QName n _ _) _ [sub] _)) | cname == n
+  = pullCRef sub
+pullCRefContent _ _ = Nothing
+
 -- | Retrieve XML contents with the given name.
 pullContent :: String -> [Content] -> ZeroOneMany Content
 pullContent _ [] = Zero
@@ -23,6 +42,13 @@ pullContent nam (c@(Elem (Element (QName n _ _) _ _ _)) : cs) | nam == n =
     One c' -> Many [c, c']
     Many cs' -> Many $ c : cs'
 pullContent nam (_:cs) = pullContent nam cs
+
+-- | Retrieve XML contents with the given name from the contained
+-- elements of the given element.
+pullContentFrom :: String -> Content -> ZeroOneMany Content
+pullContentFrom name (Elem (Element _ _ contents _)) = pullContent name contents
+pullContentFrom _ (Text _) = Zero
+pullContentFrom _ (CRef _) = Zero
 
 -- | Predicate testing whether a piece of XML `Content` is an `Elem`.
 isElem :: Content -> Bool
