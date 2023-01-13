@@ -1,4 +1,13 @@
 
+* Hackage links
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+  - [[https://hackage.haskell.org/package/template-haskell-2.19.0.0/docs/Language-Haskell-TH.html][Language.Haskell.TH]]
+  - [[https://hackage.haskell.org/package/xml-1.3.14/docs/Text-XML-Light-Types.html][Text.XML.Light.Types]]
+  - [[https://hackage.haskell.org/package/base-4.17.0.0/docs/Control-Monad-IO-Class.html][Control.Monad.IO.Class]]
+  - [[https://hackage.haskell.org/package/directory-1.3.8.0/docs/System-Directory.html][System.Directory]]
+
 * TODO Soon --- go back and document [[./src/QDHXB/Manual.hs][Manual.hs]]
   - Need to make sense of this before adding more XSD features
 
