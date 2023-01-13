@@ -50,9 +50,9 @@ xsdDeclToHaskell :: ItemDefn -> Q [Dec]
 xsdDeclToHaskell (SimpleRep nam typ) =
   let baseName = firstToUpper nam
       decNam = mkName $ "decode" ++ baseName
-      encNam = mkName $ "encode" ++ baseName
-      loadNam  = mkName $ "load" ++ baseName
-      writeNam = mkName $ "write" ++ baseName
+      -- encNam = mkName $ "encode" ++ baseName
+      -- loadNam  = mkName $ "load" ++ baseName
+      -- writeNam = mkName $ "write" ++ baseName
   in do
     decoder <- [| pullCRefContent $(return $ LitE $ StringL nam) ctxt |]
     return [
@@ -83,9 +83,9 @@ xsdDeclToHaskell (SimpleRep nam typ) =
 xsdDeclToHaskell (AttributeRep nam typ) =
   let rootName = firstToUpper nam
       decNam = mkName $ "decode" ++ rootName
-      encNam = mkName $ "encode" ++ rootName
-      loadNam  = mkName $ "load" ++ rootName
-      writeNam = mkName $ "write" ++ rootName
+      -- encNam = mkName $ "encode" ++ rootName
+      -- loadNam  = mkName $ "load" ++ rootName
+      -- writeNam = mkName $ "write" ++ rootName
   in do
     decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
     return [
@@ -116,21 +116,22 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decode" ++ nameRoot
-      encNam = mkName $ "encode" ++ nameRoot
-      loadNam  = mkName $ "load" ++ nameRoot
-      writeNam = mkName $ "write" ++ nameRoot
+      -- encNam = mkName $ "encode" ++ nameRoot
+      -- loadNam  = mkName $ "load" ++ nameRoot
+      -- writeNam = mkName $ "write" ++ nameRoot
   in do
     hrefOut <- mapM xsdRefToBangTypeQ refs
-    encType <- [t| $(return $ VarT typNam) -> Content |]
-    decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
+    -- encType <- [t| $(return $ VarT typNam) -> Content |]
+    -- decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
     -- decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
-    let subNames = map (mkName $ ("s" ++) . show) [1..length refs]
+    let subNames = map (mkName . ("s" ++) . show) [1..length refs]
 
         binders = map (\(n, r) -> ValD (VarP n)
                                        (NormalB $ xsdRefToHaskellExpr (mkName "ctxt") r) []) $
                        zip subNames refs
 
-        decoder = LetE binders $ foldl (VarE $ typName) (\x y -> AppE x y) subnames
+        decoder = LetE binders $
+                    foldl (\x y -> AppE x y) (VarE decNam) (map VarE subNames)
     return $
       DataD [] typNam [] Nothing [NormalC typNam $ hrefOut] [] -- Type decl
 
@@ -162,8 +163,8 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
 -- `Exp`ression representation describing the extraction of the given
 -- value.
 xsdRefToHaskellExpr :: Name -> ItemRef -> Exp
-xsdRefToHaskellExpr param (ElementItem ref (Just 0) (Just 0)) = TupE []
-xsdRefToHaskellExpr param (ElementItem ref (Just 0) (Just 1)) = TupE []
+xsdRefToHaskellExpr _ (ElementItem _ (Just 0) (Just 0)) = TupE []
+xsdRefToHaskellExpr _ (ElementItem _ (Just 0) (Just 1)) = TupE []
 xsdRefToHaskellExpr param (ElementItem ref (Just 1) (Just 1)) =
   xsdRefToHaskellExpr' param ref
 xsdRefToHaskellExpr param (ElementItem ref _ _) =
