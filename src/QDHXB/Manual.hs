@@ -8,10 +8,11 @@ import Language.Haskell.TH
 -- import System.Directory
 import Control.Monad.IO.Class
 import Text.XML.Light.Types
-import QDHXB.Internal
+import QDHXB.Internal.Generate
 import QDHXB.TH
 import QDHXB.XMLLight
 import QDHXB.UtilMisc
+import QDHXB.Internal.XSDQ
 
 -- | Convert XML `Content` into a quotation monad returning top-level
 -- Haskell declarations.

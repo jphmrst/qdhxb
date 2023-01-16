@@ -4,9 +4,6 @@
 
 -- | Template Haskell definitions
 module QDHXB.TH (
-  -- * XSD loading monad
-  QdxhbState, XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
-
   -- * Possibly-absent integers from XSD text
   decodeIntOrUnbound, decodeMaybeIntOrUnbound1, decodeTypeAttrVal,
 
@@ -18,7 +15,7 @@ module QDHXB.TH (
   zeroName, oneName, manyName,
 
   -- * Miscellaneous
-  firstToUpper, containForBounds, todoStr, throwsError)
+  firstToUpper, todoStr, throwsError)
 where
 
 import Language.Haskell.TH
@@ -27,30 +24,8 @@ import Data.Char
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
--- import Text.XML.Light.Types
+import QDHXB.Internal.XSDQ
 
-type QdxhbState = ()
-
--- | Monadic type for loading and interpreting XSD files, making
--- definitions available after they are loaded.
-newtype XSDQ a = XSDQ (StateT QdxhbState Q a)
-  deriving (Functor, Applicative, Monad, MonadIO)
-
-liftIOtoXSDQ :: IO a -> XSDQ a
-liftIOtoXSDQ = XSDQ . lift . liftIO
-
-liftQtoXSDQ :: Q a -> XSDQ a
-liftQtoXSDQ = XSDQ . lift
-
-liftStatetoXSDQ :: StateT QdxhbState Q a -> XSDQ a
-liftStatetoXSDQ = XSDQ
-
-instance Quote XSDQ where
-  newName = liftQtoXSDQ . newName
-
--- | Run an `XSDQ` monad, exposing the underlying `Q` computation.
-runXSDQ :: XSDQ a -> Q a
-runXSDQ (XSDQ m) = evalStateT m ()
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.
@@ -172,14 +147,6 @@ booleanTestBinding :: String -> Dec
 booleanTestBinding name =
   ValD (VarP $ mkName name) (NormalB $ ConE $ mkName "True") []
 -}
-
--- | Transform a Haskell type representation based on the (possibly
--- absent) lower and upper bounds of an XSD type constraint.
-containForBounds :: Maybe Int -> Maybe Int -> XSDQ Type -> XSDQ Type
-containForBounds (Just 0) (Just 0) _ = [t|()|]
-containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
-containForBounds (Just 1) (Just 1) t = t
-containForBounds _ _ t = [t|[$t]|]
 
 -- | Helper definition, to get a TODO-marker into in-progress TH work.
 -- Should go away eventually.
