@@ -40,6 +40,7 @@ library
       base >=4.7 && <5
     , directory
     , template-haskell
+    , transformers ==0.5.*
     , xml
   default-language: Haskell2010
 
@@ -55,6 +56,7 @@ executable QDHXB-exe
     , base >=4.7 && <5
     , directory
     , template-haskell
+    , transformers ==0.5.*
     , xml
   default-language: Haskell2010
 
@@ -74,5 +76,6 @@ test-suite QDHXB-test
     , base >=4.7 && <5
     , directory
     , template-haskell
+    , transformers ==0.5.*
     , xml
   default-language: Haskell2010

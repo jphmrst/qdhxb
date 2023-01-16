@@ -15,7 +15,7 @@ import QDHXB.UtilMisc
 
 -- | Convert XML `Content` into a quotation monad returning top-level
 -- Haskell declarations.
-xmlToDecs :: [Content] -> Q [Dec]
+xmlToDecs :: [Content] -> XSDQ [Dec]
 xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
   (Elem (Element (QName "schema" _ _) _ forms _) : []) -> do
     schemaReps <- encodeSchemaItems forms
@@ -53,13 +53,13 @@ data SchemeRep =
                      String -- ^ name
   deriving Show
 
-encodeSchemaItems :: [Content] -> Q [SchemeRep]
+encodeSchemaItems :: [Content] -> XSDQ [SchemeRep]
 encodeSchemaItems items = do
   res <- fmap concat $ mapM encodeSchemaItem items
   -- liftIO $ putStrLn $ show res
   return res
 
-encodeSchemaItem :: Content -> Q [SchemeRep]
+encodeSchemaItem :: Content -> XSDQ [SchemeRep]
 encodeSchemaItem (Elem (Element (QName "element" _ _) ats content _)) = do
   included <- encodeSchemaItems $ filter isElem content
   return [
@@ -164,7 +164,7 @@ separateSimpleTypeContents attrs cts =
   (pullAttr "name" attrs, pullContent "restriction" cts)
 
 encodeComplexTypeScheme ::
-  [Attr] -> [Content] -> Content -> ZeroOneMany Content -> Q [SchemeRep]
+  [Attr] -> [Content] -> Content -> ZeroOneMany Content -> XSDQ [SchemeRep]
 encodeComplexTypeScheme ats attrSpecs
                         (Elem (Element (QName tag _ _) ats' ctnts _)) ats'' =
   encodeComplexTypeSchemeElement (ats ++ ats') attrSpecs tag ctnts ats''
@@ -177,7 +177,7 @@ encodeComplexTypeScheme ats attrSpecs s ats'' = do
 
 encodeComplexTypeSchemeElement ::
   [Attr] -> [Content] -> String -> [Content] -> ZeroOneMany Content ->
-    Q [SchemeRep]
+    XSDQ [SchemeRep]
 encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' =
   case filter isElem ctnts of
     [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats''
@@ -200,7 +200,7 @@ encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
 
 
 encodeSimpleTypeByRestriction ::
-  Maybe String -> [Attr] -> Content -> Q [SchemeRep]
+  Maybe String -> [Attr] -> Content -> XSDQ [SchemeRep]
 encodeSimpleTypeByRestriction -- Note ignoring ats
     (Just nam) _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
   case pullAttr "base" ats' of
@@ -214,10 +214,10 @@ encodeSimpleTypeByRestriction ifNam ats s = do
 
 -- -----------------------------------------------------------------
 
-flattenSchemaItems :: [SchemeRep] -> Q [ItemDefn]
+flattenSchemaItems :: [SchemeRep] -> XSDQ [ItemDefn]
 flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 
-flattenSchemaItem :: SchemeRep -> Q [ItemDefn]
+flattenSchemaItem :: SchemeRep -> XSDQ [ItemDefn]
 flattenSchemaItem (ElementScheme [] (Just nam) (Just typ) Nothing _ _) =
   return [ SimpleRep nam typ ]
 flattenSchemaItem (ElementScheme [ComplexTypeScheme (Sequence steps)
@@ -237,16 +237,16 @@ flattenSchemaItem s = do
   error "TODO another flatten case"
 
 assembleComplexSequence ::
-  [SchemeRep] ->  [SchemeRep] -> String -> Q [ItemDefn]
+  [SchemeRep] ->  [SchemeRep] -> String -> XSDQ [ItemDefn]
 assembleComplexSequence steps ats nam = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
   return $ otherDefs ++ atsDefs ++ [ SequenceRep nam $ atsRefs ++ refs ]
 
-flattenSchemaRefs :: [SchemeRep] -> Q ([ItemDefn], [ItemRef])
+flattenSchemaRefs :: [SchemeRep] -> XSDQ ([ItemDefn], [ItemRef])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
-flattenSchemaRef :: SchemeRep -> Q ([ItemDefn], ItemRef)
+flattenSchemaRef :: SchemeRep -> XSDQ ([ItemDefn], ItemRef)
 flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
   return ([], ElementItem ref lower upper)
 flattenSchemaRef (ElementScheme [] (Just nam) (Just typ) Nothing lower upper) =

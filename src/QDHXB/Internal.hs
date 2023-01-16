@@ -40,13 +40,13 @@ data ItemDefn =
 
 -- | Translate a list of XSD definitions to a Template Haskell quotation
 -- monad returning top-level declarations.
-xsdDeclsToHaskell :: [ItemDefn] -> Q [Dec]
+xsdDeclsToHaskell :: [ItemDefn] -> XSDQ [Dec]
 xsdDeclsToHaskell defns = do
   -- liftIO $ putStrLn $ show defns
   fmap concat $ mapM xsdDeclToHaskell defns
 
 -- | Translate one XSD definition to a Template Haskell quotation monad.
-xsdDeclToHaskell :: ItemDefn -> Q [Dec]
+xsdDeclToHaskell :: ItemDefn -> XSDQ [Dec]
 xsdDeclToHaskell (SimpleRep nam typ) =
   let baseName = firstToUpper nam
       decNam = mkName $ "decode" ++ baseName
@@ -124,7 +124,7 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
     -- encType <- [t| $(return $ VarT typNam) -> Content |]
     -- decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
     -- decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
-    let binderMapper :: (Name, ItemRef) -> Q Dec
+    let binderMapper :: (Name, ItemRef) -> XSDQ Dec
         binderMapper (n, r) = do
           body <- xsdRefToHaskellExpr (mkName "ctxt") r
           return $ ValD (VarP n) (NormalB body) []
@@ -162,7 +162,7 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
 -- | Translate a reference to an XSD element type to a Haskell
 -- `Exp`ression representation describing the extraction of the given
 -- value.
-xsdRefToHaskellExpr :: Name -> ItemRef -> Q Exp
+xsdRefToHaskellExpr :: Name -> ItemRef -> XSDQ Exp
 xsdRefToHaskellExpr param (ElementItem ref min max) =
   let casePrefix = CaseE $ subcontentZom ref param
   in case (min, max) of
@@ -186,7 +186,7 @@ xsdRefToHaskellExpr param (AttributeItem ref) = xsdRefToHaskellExpr' param ref
 xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
 
 -- | Helper for `xsdRefToHaskellExpr`.
-xsdRefToHaskellExpr' :: Name -> String -> Q Exp
+xsdRefToHaskellExpr' :: Name -> String -> XSDQ Exp
 xsdRefToHaskellExpr' param ref = return $ AppE (decoderExpFor ref) (VarE param)
 
 -- | From an element reference name, construct the associated Haskell
@@ -200,7 +200,7 @@ subcontentZom :: String -> Name -> Exp
 subcontentZom ref param =
   AppE (AppE (VarE $ mkName "pullContent") (LitE (StringL ref))) (VarE param)
 
-zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> Q [Match]
+zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> XSDQ [Match]
 zomMatches zeroCase oneCaseF manyCaseF = do
   newX <- newName "x"
   newXS <- newName "xs"
@@ -212,7 +212,7 @@ zomMatches zeroCase oneCaseF manyCaseF = do
 
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
-xsdRefToBangTypeQ :: ItemRef -> Q BangType
+xsdRefToBangTypeQ :: ItemRef -> XSDQ BangType
 xsdRefToBangTypeQ (ElementItem ref lower upper) = do
   typ <-
     containForBounds lower upper $ return $ ConT $ mkName $ firstToUpper ref

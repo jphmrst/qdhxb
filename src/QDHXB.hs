@@ -8,6 +8,7 @@ import Language.Haskell.TH (Q, Dec)
 import System.IO
 import Control.Monad.IO.Class
 import Text.XML.Light.Input
+import QDHXB.TH (XSDQ, runXSDQ)
 import QDHXB.Manual
 import QDHXB.XMLLight
 
@@ -16,9 +17,9 @@ import QDHXB.XMLLight
 qdhxb :: [String] -> Q [Dec]
 qdhxb xsds = do
   -- liftIO (getCurrentDirectory >>= putStrLn . show)
-  fmap concat $ mapM loadFile xsds
+  runXSDQ $ fmap concat $ mapM loadFile xsds
 
-loadFile :: String -> Q [Dec]
+loadFile :: String -> XSDQ [Dec]
 loadFile xsdFile = do
   xsd <- liftIO $ readFile' xsdFile
   let xml = parseXML xsd
