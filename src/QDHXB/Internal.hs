@@ -14,7 +14,7 @@ import Language.Haskell.TH
 -- import System.Directory
 -- import Control.Monad.IO.Class
 -- import Data.Char
-import Text.XML.Light.Types
+-- import Text.XML.Light.Types
 import QDHXB.TH
 import QDHXB.XMLLight
 
@@ -124,14 +124,14 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
     -- encType <- [t| $(return $ VarT typNam) -> Content |]
     -- decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
     -- decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
+    let binderMapper :: (Name, ItemRef) -> Q Dec
+        binderMapper (n, r) = do
+          body <- xsdRefToHaskellExpr (mkName "ctxt") r
+          return $ ValD (VarP n) (NormalB body) []
     let subNames = map (mkName . ("s" ++) . show) [1..length refs]
-
-        binders = map (\(n, r) -> ValD (VarP n)
-                                       (NormalB $ xsdRefToHaskellExpr (mkName "ctxt") r) []) $
-                       zip subNames refs
-
-        decoder = LetE binders $
-                    foldl (\x y -> AppE x y) (VarE decNam) (map VarE subNames)
+    binders <- mapM binderMapper $ zip subNames refs
+    let decoder = LetE binders $
+                    foldl (\x y -> AppE x y) (ConE typNam) (map VarE subNames)
     return $
       DataD [] typNam [] Nothing [NormalC typNam $ hrefOut] [] -- Type decl
 
@@ -162,24 +162,53 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
 -- | Translate a reference to an XSD element type to a Haskell
 -- `Exp`ression representation describing the extraction of the given
 -- value.
-xsdRefToHaskellExpr :: Name -> ItemRef -> Exp
-xsdRefToHaskellExpr _ (ElementItem _ (Just 0) (Just 0)) = TupE []
-xsdRefToHaskellExpr _ (ElementItem _ (Just 0) (Just 1)) = TupE []
-xsdRefToHaskellExpr param (ElementItem ref (Just 1) (Just 1)) =
-  xsdRefToHaskellExpr' param ref
-xsdRefToHaskellExpr param (ElementItem ref _ _) =
-  AppE (AppE (VarE $ mkName "map") (decoderExpFor ref)) (VarE param)
+xsdRefToHaskellExpr :: Name -> ItemRef -> Q Exp
+xsdRefToHaskellExpr param (ElementItem ref min max) =
+  let casePrefix = CaseE $ subcontentZom ref param
+  in case (min, max) of
+    (_, Just 0) -> return $ TupE []
+    (Just 0, Just 1) -> do
+      matches <- zomMatches
+        (ConE $ mkName "Nothing")
+        (\paramName -> AppE (ConE $ mkName "Just")
+                            (AppE (decoderExpFor ref) (VarE paramName)))
+        (\_ -> throwsError "QDHXB: should not return multiple results")
+      return $ casePrefix matches
+    (_, Just 1) -> do
+      matches <- zomMatches
+        (throwsError "QDHXB: should not return zero results")
+        (\paramName -> AppE (decoderExpFor ref) (VarE paramName))
+        (\_ -> throwsError "QDHXB: should not return multiple results")
+      return $ casePrefix matches
+    _ -> return $ AppE (AppE (VarE $ mkName "map") (decoderExpFor ref))
+                       (subcontentZom ref param)
 xsdRefToHaskellExpr param (AttributeItem ref) = xsdRefToHaskellExpr' param ref
 xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
 
 -- | Helper for `xsdRefToHaskellExpr`.
-xsdRefToHaskellExpr' :: Name -> String -> Exp
-xsdRefToHaskellExpr' param ref = AppE (decoderExpFor ref) (VarE param)
+xsdRefToHaskellExpr' :: Name -> String -> Q Exp
+xsdRefToHaskellExpr' param ref = return $ AppE (decoderExpFor ref) (VarE param)
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.
 decoderExpFor :: String -> Exp
 decoderExpFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
+
+-- | From an element reference name, construct the associated Haskell
+-- decoder function `Exp`ression.
+subcontentZom :: String -> Name -> Exp
+subcontentZom ref param =
+  AppE (AppE (VarE $ mkName "pullContent") (LitE (StringL ref))) (VarE param)
+
+zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> Q [Match]
+zomMatches zeroCase oneCaseF manyCaseF = do
+  newX <- newName "x"
+  newXS <- newName "xs"
+  return $ [
+    Match (ConP zeroName [] []) (NormalB zeroCase) [],
+    Match (ConP oneName [] [VarP newX]) (NormalB $ oneCaseF newX) [],
+    Match (ConP manyName [] [VarP newXS]) (NormalB $ manyCaseF newXS) []
+    ]
 
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.

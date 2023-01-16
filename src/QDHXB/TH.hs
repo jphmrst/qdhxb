@@ -9,8 +9,11 @@ module QDHXB.TH (
   intType, stringType, floatType, boolType, doubleType,
   zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
 
+  -- * Utilities for building expressions for ZOM types
+  zeroName, oneName, manyName,
+
   -- * Miscellaneous
-  firstToUpper, containForBounds, todoStr)
+  firstToUpper, containForBounds, todoStr, throwsError)
 where
 
 import Language.Haskell.TH
@@ -151,3 +154,11 @@ containForBounds _ _ t = [t|[$t]|]
 -- Should go away eventually.
 todoStr :: String
 todoStr = "TODO"
+
+zeroName = mkName "Zero"
+oneName = mkName "One"
+manyName = mkName "Many"
+
+throwsError :: String -> Exp
+throwsError msg = AppE (VarE $ mkName "error") (LitE $ StringL msg)
+
