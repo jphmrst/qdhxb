@@ -14,6 +14,9 @@
    - [[file:./shiporder0.xsd][shiporder0.xsd]]
    - [[file:./shiporder1.xsd][shiporder1.xsd]]
    - [[file:./shiporder2.xsd][shiporder2.xsd]]
+** Cabal/Stack notes
+- In `stack.yaml`, tried setting
+  `resolver: lts-12.20`
 
 * TODO Soon --- go back and document [[./src/QDHXB/Manual.hs][Manual.hs]]
   - Need to make sense of this before adding more XSD features
@@ -28,6 +31,8 @@
     - loadELEM/writeELEM :: From/to a file, possibly inline fns using
       decodeELEM/encodeELEM and some standardized glue.
 
+* TODO Shiporder2
+  - Return to test suite
 * TODO Use class/instance for abstract complex types?
 * TODO Test code
   - Setup for unpicklers/picklers
