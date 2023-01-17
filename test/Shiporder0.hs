@@ -16,12 +16,10 @@ testShiporder0 = inGroup "XSD shiporder0" $ do
       10.9 @== (lift $ loadPrice "shiporder0b.xml")
   inGroup "Structures" $ do
     do p <- lift $ loadShipto "shiporder0c.xml"
-       lift $ putStrLn $ show p
        "Correctly decode <shipto> in shiporder0c.xml" ~:
          Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway"
            @==- p
     do p <- lift $ loadShiporder "shiporder1a.xml"
-       lift $ putStrLn $ show p
        "Correctly decode <shiporder> in shiporder1a.xml" ~:
          (Shiporder "889923" "John Smith"
            (Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway")
