@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Shiporder2 where
+module Shiporder2() where
 
 -- import QDHXB
 -- import QDHXB.TH

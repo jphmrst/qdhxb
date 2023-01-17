@@ -1,8 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Shiporder1 where
-import QDHXB
-import QDHXB.TH
-import QDHXB.XMLLight
+module Shiporder1() where
 
-qdhxb ["shiporder1.xsd"]
+-- import Text.XML.Light.Types
+-- import QDHXB
+-- import QDHXB.TH
+-- import QDHXB.XMLLight
+--
+-- qdhxb ["shiporder1.xsd"]

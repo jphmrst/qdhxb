@@ -33,13 +33,14 @@ ghc-options:
 - -Widentities
 - -Wincomplete-record-updates
 - -Wincomplete-uni-patterns
-- -Wmissing-export-lists
-- -Wmissing-home-modules
 - -Wpartial-fields
 - -Wredundant-constraints
 
 library:
   source-dirs: src
+  ghc-options:
+  - -Wmissing-export-lists
+  - -Wmissing-home-modules
 
 executables:
   QDHXB-exe:
@@ -62,3 +63,4 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - QDHXB
+    - TLT  >= 0.5.0.0

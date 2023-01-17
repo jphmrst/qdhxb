@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -37,7 +37,7 @@ library
       Paths_QDHXB
   hs-source-dirs:
       src
-  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -Wmissing-export-lists -Wmissing-home-modules
   build-depends:
       base >=4.7 && <5
     , directory
@@ -52,7 +52,7 @@ executable QDHXB-exe
       Paths_QDHXB
   hs-source-dirs:
       app
-  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QDHXB
     , base >=4.7 && <5
@@ -72,9 +72,10 @@ test-suite QDHXB-test
       Paths_QDHXB
   hs-source-dirs:
       test
-  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -ddump-splices -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QDHXB
+    , TLT >=0.5.0.0
     , base >=4.7 && <5
     , directory
     , template-haskell

@@ -5,8 +5,11 @@ module QDHXB.XMLLight (pullAttr, pullAttrFrom, pullContent, pullContentFrom,
                        pullCRef, pullCRefContent,
                        isElem,
                        ZeroOneMany(Zero, One, Many),
-                       zomToList, zappend, lzappend)
+                       zomToList, zappend, lzappend,
+                       loadElement)
 where
+import System.IO
+import Text.XML.Light.Input
 import Text.XML.Light.Types
 
 -- | Retrieve the named attribute value from a list of `Attr`
@@ -87,4 +90,17 @@ lzappend [s] (One t) = Many [s, t]
 lzappend ms  (One t) = Many $ ms ++ [t]
 lzappend [s] (Many ns) = Many $ s : ns
 lzappend ms  (Many ns) = Many $ ms ++ ns
+
+-- | Using the given decoder for an XMLLight `Content` structure,
+-- extract a decoded value from an XML file.
+loadElement :: (Content -> a) -> String -> IO a
+loadElement decoder xmlFile = do
+  xml <- fmap parseXML $ readFile' xmlFile
+  case filter isElem xml of
+    ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) ->
+      case ds of
+        e:[] -> return $ decoder e
+        _:_  -> error "Expected a single top-level element, found multiple"
+        _    -> error "Missing top-level element"
+    _ -> error "Missing <?xml> element"
 

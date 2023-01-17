@@ -26,7 +26,6 @@ xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
     -- liftIO $ putStrLn $ "====== IR\n" ++ show ir ++ "\n======\n"
     decls <- xsdDeclsToHaskell ir
     return decls
-    -- fmap concat $ mapM formToDecs $ filter isElem forms
   _ -> error "Expected top-level <schema> element"
 xmlToDecs _ = error "Missing <?xml> element"
 

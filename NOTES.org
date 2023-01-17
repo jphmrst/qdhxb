@@ -22,15 +22,16 @@
   - Need to make sense of this before adding more XSD features
 
 * TODO Add some tests of the unpicklers as sample XSDs start to load
-  - Can do Shiporder0 and 1 now
-* TODO Unpicklers/picklers
+  - Can do Shiporder0 now
+* TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
-  - Probably, four functions for each named element:
-    - decodeELEM/encodeELEM :: From/to a piece of parsed XML content
-      (`Content`).
-    - loadELEM/writeELEM :: From/to a file, possibly inline fns using
-      decodeELEM/encodeELEM and some standardized glue.
+  - Probably, two more functions for most named elements:
+    - encodeELEM :: To a piece of parsed XML content (`Content`).
+    - writeELEM :: To a file, possibly inline fns using encodeELEM and
+      some standardized glue.
 
+* TODO Shiporder1
+  - Return to test suite
 * TODO Shiporder2
   - Return to test suite
 * TODO Use class/instance for abstract complex types?

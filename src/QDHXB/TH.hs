@@ -20,7 +20,7 @@ module QDHXB.TH (
   zeroName, oneName, manyName, nothingName, justName,
 
   -- * Miscellaneous
-  firstToUpper, todoStr, throwsError)
+  firstToUpper, todoStr, throwsError, fn1Type, fn2Type)
 where
 
 import Language.Haskell.TH
@@ -219,3 +219,8 @@ manyName = mkName "Many"
 throwsError :: String -> Exp
 throwsError msg = AppE (VarE $ mkName "error") (LitE $ StringL msg)
 
+fn1Type :: Type -> Type -> Type
+fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
+
+fn2Type :: Type -> Type -> Type -> Type
+fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT
