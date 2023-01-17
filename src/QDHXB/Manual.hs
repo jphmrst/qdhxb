@@ -12,6 +12,7 @@ import QDHXB.Internal.Generate
 import QDHXB.TH
 import QDHXB.XMLLight
 import QDHXB.UtilMisc
+import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 
 -- | Convert XML `Content` into a quotation monad returning top-level
@@ -47,6 +48,8 @@ data SchemeRep =
   | AttributeScheme (Maybe String) -- ^ ifName
                     (Maybe String) -- ^ ifType
                     (Maybe String) -- ^ ifRef
+                    String -- ^ use mode: prohibited, optional
+                           -- (default), required
   | ComplexTypeScheme TypeSchemeRep -- ^ typeDetail
                       [SchemeRep] -- ^ addlAttrs
                       (Maybe String) -- ^ ifName
@@ -74,7 +77,10 @@ encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem attribute"
   return [
     AttributeScheme (pullAttr "name" ats) (pullAttr "type" ats)
-                    (pullAttr "ref" ats)
+      (pullAttr "ref" ats)
+      (case pullAttr "use" ats of
+         Nothing -> "optional"
+         Just s -> s)
     ]
 encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
@@ -225,9 +231,9 @@ flattenSchemaItem (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) =
   assembleComplexSequence steps ats nam
-flattenSchemaItem (AttributeScheme (Just nam) (Just typ) Nothing) =
-  return [ AttributeRep nam typ ]
-flattenSchemaItem (AttributeScheme _ _ (Just _)) =
+flattenSchemaItem (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
+  return [ AttributeRep nam typ (stringToAttributeUsage useStr) ]
+flattenSchemaItem (AttributeScheme _ _ (Just _) _) =
   return $ error "Reference in attribute"
 flattenSchemaItem (ComplexTypeScheme (Sequence cts) ats (Just nam)) =
   assembleComplexSequence cts ats nam
@@ -265,11 +271,12 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
   liftIO $ putStrLn $ "LOWER " ++ show lower
   liftIO $ putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
-flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref)) =
+flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) _) =
   return ([], AttributeItem ref)
-flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing) =
-  return ([AttributeRep nam typ], AttributeItem nam)
-flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef) = do
+flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
+  return ([AttributeRep nam typ (stringToAttributeUsage useStr)],
+          AttributeItem nam)
+flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
   liftIO $ putStrLn $ "IFNAME " ++ show maybeName
   liftIO $ putStrLn $ "IFTYPE " ++ show maybeType
   liftIO $ putStrLn $ "IFREF " ++ show maybeRef

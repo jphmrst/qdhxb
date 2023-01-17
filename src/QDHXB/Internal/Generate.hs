@@ -38,10 +38,10 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
       -- loadNam  = mkName $ "load" ++ baseName
       -- writeNam = mkName $ "write" ++ baseName
   in do
-    decoder <- [| pullCRefContent $(return $ LitE $ StringL nam) ctxt |]
     fileNewItemDefn decl
+    decoder <- [| pullCRefContent $(return $ LitE $ StringL nam) ctxt |]
     return [
-      TySynD (mkName baseName) [] (decodeTypeAttrVal typ),
+      TySynD (mkName baseName) [] (xsdTypeNameToType typ),
 
       -- TODO Decoder
       {- SigD decNam decType, -}
@@ -65,16 +65,19 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
 
   -}
       ]
-xsdDeclToHaskell (AttributeRep nam typ) =
+xsdDeclToHaskell decl@(AttributeRep nam typ usage) =
   let rootName = firstToUpper nam
       decNam = mkName $ "decode" ++ rootName
       -- encNam = mkName $ "encode" ++ rootName
       -- loadNam  = mkName $ "load" ++ rootName
       -- writeNam = mkName $ "write" ++ rootName
   in do
-    decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
+    fileNewItemDefn decl
+    coreDecoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
+    decoder <- unpackAttrDecoderForUsage usage coreDecoder
     return [
-      TySynD (mkName $ rootName ++ "AttrType") [] (decodeTypeAttrVal typ),
+      TySynD (mkName $ rootName ++ "AttrType") []
+             (attrTypeForUsage usage (xsdTypeNameToType typ)),
 
       -- TODO Decoder
       {- SigD decNam decType, -}
@@ -97,7 +100,7 @@ xsdDeclToHaskell (AttributeRep nam typ) =
                                                (LitE $ StringL "TODO")) []]
       -}
       ]
-xsdDeclToHaskell (SequenceRep namStr refs) =
+xsdDeclToHaskell decl@(SequenceRep namStr refs) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decode" ++ nameRoot
@@ -105,6 +108,7 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
       -- loadNam  = mkName $ "load" ++ nameRoot
       -- writeNam = mkName $ "write" ++ nameRoot
   in do
+    fileNewItemDefn decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
     -- encType <- [t| $(return $ VarT typNam) -> Content |]
     -- decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
@@ -195,6 +199,14 @@ zomMatches zeroCase oneCaseF manyCaseF = do
     Match (ConP manyName [] [VarP newXS]) (NormalB $ manyCaseF newXS) []
     ]
 
+maybeMatches :: Exp -> (Name -> Exp) -> XSDQ [Match]
+maybeMatches zeroCase oneCaseF = do
+  newX <- newName "x"
+  return $ [
+    Match (ConP nothingName [] []) (NormalB zeroCase) [],
+    Match (ConP justName [] [VarP newX]) (NormalB $ oneCaseF newX) []
+    ]
+
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
 xsdRefToBangTypeQ :: ItemRef -> XSDQ BangType
@@ -206,6 +218,18 @@ xsdRefToBangTypeQ (AttributeItem ref) =
   return (useBang, ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
 xsdRefToBangTypeQ (ComplexTypeItem ref) =
   return (useBang, ConT $ mkName $ firstToUpper ref)
+
+attrTypeForUsage :: AttributeUsage -> Type -> Type
+attrTypeForUsage Forbidden _ = TupleT 0
+attrTypeForUsage Optional typ = AppT (ConT $ mkName "Maybe") typ
+attrTypeForUsage Required typ = typ
+
+unpackAttrDecoderForUsage :: AttributeUsage -> Exp -> XSDQ Exp
+unpackAttrDecoderForUsage Forbidden _ = return $ TupE []
+unpackAttrDecoderForUsage Optional exp = return exp
+unpackAttrDecoderForUsage Required exp = fmap (CaseE exp) $
+  maybeMatches (throwsError "QDHXB: should not return Nothing")
+               (\paramName -> VarE paramName)
 
 -- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang

@@ -4,7 +4,8 @@
 module QDHXB.Internal.Types (
   -- * The representation types
   ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
-  ItemDefn(SimpleRep, AttributeRep, SequenceRep)
+  ItemDefn(SimpleRep, AttributeRep, SequenceRep),
+  AttributeUsage(Forbidden, Optional, Required), stringToAttributeUsage
   ) where
 
 -- | A reference to an XSD element.
@@ -21,8 +22,17 @@ data ItemRef =
 data ItemDefn =
   SimpleRep String String
   -- ^ Defining one element to have the same structure as another.
-  | AttributeRep String String
+  | AttributeRep String String AttributeUsage
   -- ^ Defining the type of an attribute to be the same as another.
   | SequenceRep String [ItemRef]
   -- ^ Define an element to contain a sequence of subelements.
   deriving Show
+
+data AttributeUsage = Forbidden | Optional | Required
+  deriving (Eq, Show)
+
+stringToAttributeUsage :: String -> AttributeUsage
+stringToAttributeUsage "forbidden" = Forbidden
+stringToAttributeUsage "required"  = Required
+stringToAttributeUsage _ = Optional
+

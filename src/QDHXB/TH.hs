@@ -5,14 +5,14 @@
 -- | Template Haskell definitions
 module QDHXB.TH (
   -- * Possibly-absent integers from XSD text
-  decodeIntOrUnbound, decodeMaybeIntOrUnbound1, decodeTypeAttrVal,
+  decodeIntOrUnbound, decodeMaybeIntOrUnbound1, xsdTypeNameToType,
 
   -- * XSD types
   intType, stringType, floatType, boolType, doubleType,
   zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
 
   -- * Utilities for building expressions for ZOM types
-  zeroName, oneName, manyName,
+  zeroName, oneName, manyName, nothingName, justName,
 
   -- * Miscellaneous
   firstToUpper, todoStr, throwsError)
@@ -37,56 +37,56 @@ decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
 -- | Convert the `String` representation of a primitive XSD type to a
 -- Template Haskell `Type`.
-decodeTypeAttrVal :: String -> Type
-decodeTypeAttrVal ('x':'s':':':str) = decodeTypeAttrVal str
-decodeTypeAttrVal "anyType" = stringType
-decodeTypeAttrVal "anySimpleType" = stringType
-decodeTypeAttrVal "anyAtomicType" = stringType
-decodeTypeAttrVal "anyURI" = stringType
-decodeTypeAttrVal "boolean" = boolType
-decodeTypeAttrVal "date" = dayType
-decodeTypeAttrVal "dateTime" = zonedTimeType
-decodeTypeAttrVal "decimal" = doubleType
-decodeTypeAttrVal "double" = doubleType
-decodeTypeAttrVal "duration" = diffTimeType
-decodeTypeAttrVal "float" = floatType
-decodeTypeAttrVal "hexBinary" = stringType
-decodeTypeAttrVal "gDay" = dayType
-decodeTypeAttrVal "gMonth" = dayType
-decodeTypeAttrVal "gMonthDay" = dayType
-decodeTypeAttrVal "gYear" = dayType
-decodeTypeAttrVal "gYearMonth" = dayType
-decodeTypeAttrVal "NOTATION" = stringType
-decodeTypeAttrVal "QName" = qnameType
-decodeTypeAttrVal "positiveInteger" = intType
-decodeTypeAttrVal "integer" = intType
-decodeTypeAttrVal "long" = intType
-decodeTypeAttrVal "int" = intType
-decodeTypeAttrVal "short" = intType
-decodeTypeAttrVal "byte" = intType
-decodeTypeAttrVal "nonNegativeInteger" = intType
-decodeTypeAttrVal "positiveInteger" = intType
-decodeTypeAttrVal "unsignedInt" = intType
-decodeTypeAttrVal "unsignedShort" = intType
-decodeTypeAttrVal "unsignedByte" = intType
-decodeTypeAttrVal "positiveInteger" = intType
-decodeTypeAttrVal "nonPositiveInteger" = intType
-decodeTypeAttrVal "negativeInteger" = intType
-decodeTypeAttrVal "string" = stringType
-decodeTypeAttrVal "normalizedString" = stringType
-decodeTypeAttrVal "token" = stringType
-decodeTypeAttrVal "language" = stringType
-decodeTypeAttrVal "Name" = stringType
-decodeTypeAttrVal "NCName" = stringType
-decodeTypeAttrVal "ENTITY" = stringType
-decodeTypeAttrVal "ID" = stringType
-decodeTypeAttrVal "IDREF" = stringType
-decodeTypeAttrVal "NMTOKEN" = stringType
-decodeTypeAttrVal "time" = timeOfDayType
-decodeTypeAttrVal "ENTITIES" = stringListType
-decodeTypeAttrVal "IDREFS" = stringListType
-decodeTypeAttrVal "MNTOKENS" = stringListType
-decodeTypeAttrVal name = ConT $ mkName $ firstToUpper name
+xsdTypeNameToType :: String -> Type
+xsdTypeNameToType ('x':'s':':':str) = xsdTypeNameToType str
+xsdTypeNameToType "anyType" = stringType
+xsdTypeNameToType "anySimpleType" = stringType
+xsdTypeNameToType "anyAtomicType" = stringType
+xsdTypeNameToType "anyURI" = stringType
+xsdTypeNameToType "boolean" = boolType
+xsdTypeNameToType "date" = dayType
+xsdTypeNameToType "dateTime" = zonedTimeType
+xsdTypeNameToType "decimal" = doubleType
+xsdTypeNameToType "double" = doubleType
+xsdTypeNameToType "duration" = diffTimeType
+xsdTypeNameToType "float" = floatType
+xsdTypeNameToType "hexBinary" = stringType
+xsdTypeNameToType "gDay" = dayType
+xsdTypeNameToType "gMonth" = dayType
+xsdTypeNameToType "gMonthDay" = dayType
+xsdTypeNameToType "gYear" = dayType
+xsdTypeNameToType "gYearMonth" = dayType
+xsdTypeNameToType "NOTATION" = stringType
+xsdTypeNameToType "QName" = qnameType
+xsdTypeNameToType "positiveInteger" = intType
+xsdTypeNameToType "integer" = intType
+xsdTypeNameToType "long" = intType
+xsdTypeNameToType "int" = intType
+xsdTypeNameToType "short" = intType
+xsdTypeNameToType "byte" = intType
+xsdTypeNameToType "nonNegativeInteger" = intType
+xsdTypeNameToType "positiveInteger" = intType
+xsdTypeNameToType "unsignedInt" = intType
+xsdTypeNameToType "unsignedShort" = intType
+xsdTypeNameToType "unsignedByte" = intType
+xsdTypeNameToType "positiveInteger" = intType
+xsdTypeNameToType "nonPositiveInteger" = intType
+xsdTypeNameToType "negativeInteger" = intType
+xsdTypeNameToType "string" = stringType
+xsdTypeNameToType "normalizedString" = stringType
+xsdTypeNameToType "token" = stringType
+xsdTypeNameToType "language" = stringType
+xsdTypeNameToType "Name" = stringType
+xsdTypeNameToType "NCName" = stringType
+xsdTypeNameToType "ENTITY" = stringType
+xsdTypeNameToType "ID" = stringType
+xsdTypeNameToType "IDREF" = stringType
+xsdTypeNameToType "NMTOKEN" = stringType
+xsdTypeNameToType "time" = timeOfDayType
+xsdTypeNameToType "ENTITIES" = stringListType
+xsdTypeNameToType "IDREFS" = stringListType
+xsdTypeNameToType "MNTOKENS" = stringListType
+xsdTypeNameToType name = ConT $ mkName $ firstToUpper name
 
 -- | TH `Int` type representation
 intType :: Type
@@ -147,6 +147,12 @@ booleanTestBinding name =
 -- Should go away eventually.
 todoStr :: String
 todoStr = "TODO"
+
+nothingName :: Name
+nothingName = mkName "Nothing"
+
+justName :: Name
+justName = mkName "Just"
 
 zeroName :: Name
 zeroName = mkName "Zero"
