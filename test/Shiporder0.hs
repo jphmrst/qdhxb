@@ -10,16 +10,22 @@ qdhxb' ["shiporder0.xsd"]
 testShiporder0 :: TLT IO ()
 testShiporder0 = inGroup "XSD shiporder0" $ do
   inGroup "Scalars" $ do
-    -- rawXml <- fmap parseXML $ lift $ readFile' "shiporder0a.xml"
-    -- lift $ putStrLn $ show rawXml
-    -- lift $ putStrLn $ show $ filter isElem rawXml
     "Correctly decode <orderperson> text in shiporder0a.xml" ~:
       "John Smith" @== (lift $ loadOrderperson "shiporder0a.xml")
     "Correctly decode <price> text in shiporder0b.xml" ~:
       10.9 @== (lift $ loadPrice "shiporder0b.xml")
-    -- lift $ putStrLn $ show x0a
-    return ()
-  inGroup "XML shiporder1a.xml" $ do
-    x1a <- lift $ loadShiporder "shiporder1a.xml"
-    -- lift $ putStrLn $ show x1a
-    return ()
+  inGroup "Structures" $ do
+    do p <- lift $ loadShipto "shiporder0c.xml"
+       lift $ putStrLn $ show p
+       "Correctly decode <shipto> in shiporder0c.xml" ~:
+         Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway"
+           @==- p
+    do p <- lift $ loadShiporder "shiporder1a.xml"
+       lift $ putStrLn $ show p
+       "Correctly decode <shiporder> in shiporder1a.xml" ~:
+         (Shiporder "889923" "John Smith"
+           (Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway")
+           [ Item "Empire Burlesque" (Just "Special Edition") 1 10.9,
+             Item "Hide your heart" Nothing 1 9.9
+           ])
+         @==- p
