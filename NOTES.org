@@ -18,6 +18,8 @@
 * TODO Soon --- go back and document [[./src/QDHXB/Manual.hs][Manual.hs]]
   - Need to make sense of this before adding more XSD features
 
+* TODO Add some tests of the unpicklers as sample XSDs start to load
+  - Can do Shiporder0 and 1 now
 * TODO Unpicklers/picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, four functions for each named element:
