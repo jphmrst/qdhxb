@@ -39,9 +39,13 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
       -- writeNam = mkName $ "write" ++ baseName
   in do
     fileNewItemDefn decl
-    decoder <- [| pullCRefContent $(return $ LitE $ StringL nam) ctxt |]
+    let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
+    decoder <- fmap basicDecoder
+                 [| case pullCRefContent $(return $ LitE $ StringL nam) ctxt of
+                      Nothing -> error "QDHXB: CRef must be present"
+                      Just v -> v |]
     return [
-      TySynD (mkName baseName) [] (xsdTypeNameToType typ),
+      TySynD (mkName baseName) [] haskellType,
 
       -- TODO Decoder
       {- SigD decNam decType, -}
@@ -75,9 +79,10 @@ xsdDeclToHaskell decl@(AttributeRep nam typ usage) =
     fileNewItemDefn decl
     coreDecoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
     decoder <- unpackAttrDecoderForUsage usage coreDecoder
+    let (haskellTyp, _) = xsdTypeNameTranslation typ
     return [
       TySynD (mkName $ rootName ++ "AttrType") []
-             (attrTypeForUsage usage (xsdTypeNameToType typ)),
+             (attrTypeForUsage usage haskellTyp),
 
       -- TODO Decoder
       {- SigD decNam decType, -}
@@ -170,7 +175,8 @@ xsdRefToHaskellExpr param (ElementItem ref occursMin occursMax) =
         (\_ -> throwsError "QDHXB: should not return multiple results")
       return $ casePrefix matches
     _ -> return $ AppE (AppE (VarE $ mkName "map") (decoderExpFor ref))
-                       (subcontentZom ref param)
+                       (AppE (VarE $ mkName "zomToList")
+                             (subcontentZom ref param))
 xsdRefToHaskellExpr param (AttributeItem ref) = xsdRefToHaskellExpr' param ref
 xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
 
@@ -187,7 +193,7 @@ decoderExpFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
 -- decoder function `Exp`ression.
 subcontentZom :: String -> Name -> Exp
 subcontentZom ref param =
-  AppE (AppE (VarE $ mkName "pullContent") (LitE (StringL ref))) (VarE param)
+  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL ref))) (VarE param)
 
 zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> XSDQ [Match]
 zomMatches zeroCase oneCaseF manyCaseF = do
