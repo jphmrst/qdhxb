@@ -30,6 +30,7 @@ library
       QDHXB.Internal.Types
       QDHXB.Internal.XSDQ
       QDHXB.Manual
+      QDHXB.Options
       QDHXB.TH
       QDHXB.UtilMisc
       QDHXB.XMLLight

@@ -1,15 +1,11 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Shiporder0 where
--- import System.IO (readFile')
--- import Text.XML.Light.Input (parseXML)
-import Text.XML.Light.Types
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
-import QDHXB.XMLLight
 
-qdhxb ["shiporder0.xsd"]
+qdhxb' ["shiporder0.xsd"]
 
 testShiporder0 :: TLT IO ()
 testShiporder0 = inGroup "XSD shiporder0" $ do
