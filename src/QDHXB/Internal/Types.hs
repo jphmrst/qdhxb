@@ -7,8 +7,6 @@ module QDHXB.Internal.Types (
   ItemDefn(SimpleRep, AttributeRep, SequenceRep)
   ) where
 
-import Language.Haskell.TH
-
 -- | A reference to an XSD element.
 data ItemRef =
   ElementItem String (Maybe Int) (Maybe Int)

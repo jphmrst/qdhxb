@@ -7,13 +7,14 @@ module QDHXB.Internal.XSDQ (
   -- * XSD loading monad
   QdxhbState, initialQdxhbState,
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
+  fileNewItemDefn,
+  addElementDefn, getElementDefn, addAttrDefn, getAttrDefn,
 
   -- * Miscellaneous
   NameStore, containForBounds)
 where
 
 import Language.Haskell.TH
--- import System.Directory
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
@@ -57,3 +58,34 @@ containForBounds (Just 0) (Just 0) _ = [t|()|]
 containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
 containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
+
+fileNewItemDefn :: ItemDefn -> XSDQ ()
+fileNewItemDefn defn@(SimpleRep n _) = addElementDefn n defn
+fileNewItemDefn defn@(AttributeRep n _) = addAttrDefn n defn
+fileNewItemDefn defn@(SequenceRep n _) = addElementDefn n defn
+
+addElementDefn :: String -> ItemDefn -> XSDQ ()
+addElementDefn name defn = liftStatetoXSDQ $ do
+  (elems, attrs) <- get
+  put ((name, defn) : elems, attrs)
+
+addAttrDefn :: String -> ItemDefn -> XSDQ ()
+addAttrDefn name defn = liftStatetoXSDQ $ do
+  (elems, attrs) <- get
+  put (elems, (name, defn) : attrs)
+
+getElementDefn :: String -> XSDQ (Maybe ItemDefn)
+getElementDefn name = liftStatetoXSDQ $ do
+  (elems, _) <- get
+  return $ lookupFirst elems name
+
+getAttrDefn :: String -> XSDQ (Maybe ItemDefn)
+getAttrDefn name = liftStatetoXSDQ $ do
+  (_, attrs) <- get
+  return $ lookupFirst attrs name
+
+lookupFirst :: [(String, a)] -> String -> Maybe a
+lookupFirst [] _ = Nothing
+lookupFirst ((fnd, x):_) targ | fnd == targ = Just x
+lookupFirst (_:xs) targ = lookupFirst xs targ
+

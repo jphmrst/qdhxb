@@ -21,11 +21,6 @@ where
 import Language.Haskell.TH
 -- import System.Directory
 import Data.Char
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State.Lazy
-import QDHXB.Internal.XSDQ
-
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.

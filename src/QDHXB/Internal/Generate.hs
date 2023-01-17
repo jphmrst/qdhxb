@@ -27,9 +27,11 @@ xsdDeclsToHaskell defns = do
   -- liftIO $ putStrLn $ show defns
   fmap concat $ mapM xsdDeclToHaskell defns
 
--- | Translate one XSD definition to a Template Haskell quotation monad.
+-- | Translate one XSD definition to a Template Haskell quotation
+-- monad, usually updating the internal state to store the new
+-- `ItemDefn`.
 xsdDeclToHaskell :: ItemDefn -> XSDQ [Dec]
-xsdDeclToHaskell (SimpleRep nam typ) =
+xsdDeclToHaskell decl@(SimpleRep nam typ) =
   let baseName = firstToUpper nam
       decNam = mkName $ "decode" ++ baseName
       -- encNam = mkName $ "encode" ++ baseName
@@ -37,6 +39,7 @@ xsdDeclToHaskell (SimpleRep nam typ) =
       -- writeNam = mkName $ "write" ++ baseName
   in do
     decoder <- [| pullCRefContent $(return $ LitE $ StringL nam) ctxt |]
+    fileNewItemDefn decl
     return [
       TySynD (mkName baseName) [] (decodeTypeAttrVal typ),
 
@@ -145,9 +148,9 @@ xsdDeclToHaskell (SequenceRep namStr refs) =
 -- `Exp`ression representation describing the extraction of the given
 -- value.
 xsdRefToHaskellExpr :: Name -> ItemRef -> XSDQ Exp
-xsdRefToHaskellExpr param (ElementItem ref min max) =
+xsdRefToHaskellExpr param (ElementItem ref occursMin occursMax) =
   let casePrefix = CaseE $ subcontentZom ref param
-  in case (min, max) of
+  in case (occursMin, occursMax) of
     (_, Just 0) -> return $ TupE []
     (Just 0, Just 1) -> do
       matches <- zomMatches

@@ -8,7 +8,7 @@ import Language.Haskell.TH (Q, Dec)
 import System.IO
 import Control.Monad.IO.Class
 import Text.XML.Light.Input
-import QDHXB.TH (XSDQ, runXSDQ)
+import QDHXB.Internal.XSDQ (XSDQ, runXSDQ)
 import QDHXB.Manual
 import QDHXB.XMLLight
 
