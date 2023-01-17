@@ -27,7 +27,8 @@ pullAttrFrom _ (CRef _) = Nothing
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRef :: Content -> Maybe String
-pullCRef (CRef str) = Just str
+pullCRef (Text (CData _ str _)) = Just str
+-- pullCRef (CRef str) = Just str
 pullCRef _ = Nothing
 
 -- | Retrieve the named attribute value from a single content element.
