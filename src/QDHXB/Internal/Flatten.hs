@@ -57,12 +57,13 @@ flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
   return (prev, ElementItem nam lower upper)
 flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
                                 lower upper) = do
-  liftIO $ putStrLn $ "CONTENTS " ++ show ctnts
-  liftIO $ putStrLn $ "IFNAME " ++ show maybeName
-  liftIO $ putStrLn $ "IFTYPE " ++ show maybeType
-  liftIO $ putStrLn $ "IFREF " ++ show maybeRef
-  liftIO $ putStrLn $ "LOWER " ++ show lower
-  liftIO $ putStrLn $ "UPPER " ++ show upper
+  liftIO $ do
+    putStrLn $ "CONTENTS " ++ show ctnts
+    putStrLn $ "IFNAME " ++ show maybeName
+    putStrLn $ "IFTYPE " ++ show maybeType
+    putStrLn $ "IFREF " ++ show maybeRef
+    putStrLn $ "LOWER " ++ show lower
+    putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
 flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) _) =
   return ([], AttributeItem ref)
@@ -70,9 +71,10 @@ flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
   return ([AttributeRep nam typ (stringToAttributeUsage useStr)],
           AttributeItem nam)
 flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
-  liftIO $ putStrLn $ "IFNAME " ++ show maybeName
-  liftIO $ putStrLn $ "IFTYPE " ++ show maybeType
-  liftIO $ putStrLn $ "IFREF " ++ show maybeRef
+  liftIO $ do
+    putStrLn $ "IFNAME " ++ show maybeName
+    putStrLn $ "IFTYPE " ++ show maybeType
+    putStrLn $ "IFREF " ++ show maybeRef
   error "TODO flattenSchemaRef > unmatched AttributeScheme"
 flattenSchemaRef (ComplexTypeScheme _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"

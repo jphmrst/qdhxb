@@ -9,7 +9,7 @@ module QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
   fileNewItemDefn,
   addElementDefn, getElementDefn, addAttrDefn, getAttrDefn,
-  getOptions, getUseNewtype, getDebugging,
+  getOptions, getUseNewtype, getDebugging, whenDebugging,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -17,6 +17,7 @@ where
 
 import Language.Haskell.TH
 import Control.Monad.IO.Class
+import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 import QDHXB.Internal.Types
@@ -99,6 +100,12 @@ getUseNewtype = fmap optUseNewType getOptions
 -- |Return whether debugging output should be generated in this run.
 getDebugging :: XSDQ Bool
 getDebugging = fmap optDebugging getOptions
+
+-- |Guard a block executed only when debugging is activated.
+whenDebugging :: XSDQ () -> XSDQ ()
+whenDebugging = whenM getDebugging
+
+-- ------------------------------------------------------------
 
 lookupFirst :: [(String, a)] -> String -> Maybe a
 lookupFirst [] _ = Nothing
