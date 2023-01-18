@@ -26,10 +26,12 @@ source-repository head
 library
   exposed-modules:
       QDHXB
+      QDHXB.Internal.Flatten
       QDHXB.Internal.Generate
+      QDHXB.Internal.Input
+      QDHXB.Internal.NestedTypes
       QDHXB.Internal.Types
       QDHXB.Internal.XSDQ
-      QDHXB.Manual
       QDHXB.Options
       QDHXB.TH
       QDHXB.UtilMisc
