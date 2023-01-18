@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-stack build --file-watch --test
+stack build --file-watch --haddock --test
