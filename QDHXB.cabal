@@ -30,6 +30,7 @@ library
       QDHXB.Internal.Generate
       QDHXB.Internal.Input
       QDHXB.Internal.NestedTypes
+      QDHXB.Internal.Pipeline
       QDHXB.Internal.Types
       QDHXB.Internal.XSDQ
       QDHXB.Options
