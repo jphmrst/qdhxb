@@ -42,7 +42,8 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
     let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
     decoder <- fmap basicDecoder
                  [| case pullCRefContent $(return $ LitE $ StringL nam) ctxt of
-                      Nothing -> error $ "QDHXB: CRef must be present within " ++ nam
+                      Nothing ->
+                        error $ "QDHXB: CRef must be present within " ++ nam
                       Just v -> v |]
     return $
       TySynD (mkName baseName) [] haskellType
@@ -204,7 +205,8 @@ decoderExpFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
 -- decoder function `Exp`ression.
 subcontentZom :: String -> Name -> Exp
 subcontentZom ref param =
-  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL ref))) (VarE param)
+  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL ref)))
+       (VarE param)
 
 zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> XSDQ [Match]
 zomMatches zeroCase oneCaseF manyCaseF = do
