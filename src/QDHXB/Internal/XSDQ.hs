@@ -9,6 +9,7 @@ module QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
   fileNewItemDefn,
   addElementDefn, getElementDefn, addAttrDefn, getAttrDefn,
+  getOptions, getUseNewtype, getDebugging,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -19,16 +20,17 @@ import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 import QDHXB.Internal.Types
+import QDHXB.Options
 
 type NameStore a = [(String, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
-type QdxhbState = (NameStore ItemDefn, NameStore ItemDefn)
+type QdxhbState = (QDHXBOptionSet, NameStore ItemDefn, NameStore ItemDefn)
 
 -- | The initial value of `XSDQ` states.
-initialQdxhbState :: QdxhbState
-initialQdxhbState = ([], [])
+initialQdxhbState :: QDHXBOption -> QdxhbState
+initialQdxhbState optsF = (optsF defaultOptionSet, [], [])
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -48,8 +50,8 @@ instance Quote XSDQ where
   newName = liftQtoXSDQ . newName
 
 -- | Run an `XSDQ` monad, exposing the underlying `Q` computation.
-runXSDQ :: XSDQ a -> Q a
-runXSDQ (XSDQ m) = evalStateT m initialQdxhbState
+runXSDQ :: QDHXBOption -> XSDQ a -> Q a
+runXSDQ optsF (XSDQ m) = evalStateT m $ initialQdxhbState optsF
 
 -- | Transform a Haskell type representation based on the (possibly
 -- absent) lower and upper bounds of an XSD type constraint.
@@ -66,23 +68,37 @@ fileNewItemDefn defn@(SequenceRep n _) = addElementDefn n defn
 
 addElementDefn :: String -> ItemDefn -> XSDQ ()
 addElementDefn name defn = liftStatetoXSDQ $ do
-  (elems, attrs) <- get
-  put ((name, defn) : elems, attrs)
+  (opts, elems, attrs) <- get
+  put (opts, (name, defn) : elems, attrs)
 
 addAttrDefn :: String -> ItemDefn -> XSDQ ()
 addAttrDefn name defn = liftStatetoXSDQ $ do
-  (elems, attrs) <- get
-  put (elems, (name, defn) : attrs)
+  (opts, elems, attrs) <- get
+  put (opts, elems, (name, defn) : attrs)
 
 getElementDefn :: String -> XSDQ (Maybe ItemDefn)
 getElementDefn name = liftStatetoXSDQ $ do
-  (elems, _) <- get
+  (_, elems, _) <- get
   return $ lookupFirst elems name
 
 getAttrDefn :: String -> XSDQ (Maybe ItemDefn)
 getAttrDefn name = liftStatetoXSDQ $ do
-  (_, attrs) <- get
+  (_, _, attrs) <- get
   return $ lookupFirst attrs name
+
+-- |Return the QDHXBOptionSet in effect for this run.
+getOptions :: XSDQ (QDHXBOptionSet)
+getOptions = liftStatetoXSDQ $ do
+  (opts, _, _) <- get
+  return opts
+
+-- |Return whether @newtype@ should be used in this run.
+getUseNewtype :: XSDQ Bool
+getUseNewtype = fmap optUseNewType getOptions
+
+-- |Return whether debugging output should be generated in this run.
+getDebugging :: XSDQ Bool
+getDebugging = fmap optDebugging getOptions
 
 lookupFirst :: [(String, a)] -> String -> Maybe a
 lookupFirst [] _ = Nothing

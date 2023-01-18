@@ -41,9 +41,9 @@ import QDHXB.Options
 -- | Load the given XSD files, translating each into Haskell
 -- declarations.
 qdhxb :: QDHXBOption -> [String] -> Q [Dec]
-qdhxb _ xsds = do
+qdhxb opts xsds = do
   -- liftIO (getCurrentDirectory >>= putStrLn . show)
-  runXSDQ $ fmap concat $ mapM loadFile xsds
+  runXSDQ opts $ fmap concat $ mapM loadFile xsds
 
 -- | Load and translate the given XSD files with the default options.
 qdhxb' :: [String] -> Q [Dec]
