@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 
--- | Template Haskell definitions
+-- | Defines the internal monad for the XSD-to-Haskell rewriting.
 module QDHXB.Internal.XSDQ (
   -- * XSD loading monad
   QdxhbState, initialQdxhbState,

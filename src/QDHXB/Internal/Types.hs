@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Our internal representation of XSD elements.
+-- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
   ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),

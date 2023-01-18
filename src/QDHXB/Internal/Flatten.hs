@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Manual translation of an XSD file into the internal @ItemDefn@
--- representation.
+-- | Internal representation directly reflecting XSD code, in
+-- particular allowing nested definitions.
 module QDHXB.Internal.Flatten (flattenSchemaItems) where
 
 -- import System.Directory

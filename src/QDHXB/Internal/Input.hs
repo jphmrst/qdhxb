@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Manual translation of an XSD file into the internal @ItemDefn@
--- representation.
+-- | Translate parsed but otherwise unstructured XSD into the first
+-- internal representation, allowing nested type definitions.
 module QDHXB.Internal.Input (encodeSchemaItems) where
 
 -- import System.Directory
