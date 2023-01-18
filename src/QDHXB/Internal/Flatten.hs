@@ -12,6 +12,8 @@ import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 
+-- |Rewrite internally-represented XSD definitions, flattening any
+-- nested definitions.
 flattenSchemaItems :: [SchemeRep] -> XSDQ [ItemDefn]
 flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 

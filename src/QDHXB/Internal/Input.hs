@@ -11,6 +11,8 @@ import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.XSDQ
 
+-- |Rewrite otherwise-unstructured parsed XML content structures as a
+-- sequence of internal XSD representations.
 encodeSchemaItems :: [Content] -> XSDQ [SchemeRep]
 encodeSchemaItems items = do
   res <- fmap concat $ mapM encodeSchemaItem items

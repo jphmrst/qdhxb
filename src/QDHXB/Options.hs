@@ -30,6 +30,7 @@ data QDHXBOptionSet = QDHXBOptionSet {
                         -- default.
   }
 
+-- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSet True False
 
