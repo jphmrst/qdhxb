@@ -27,11 +27,16 @@ import Language.Haskell.TH (Q, Dec)
 import System.IO
 import Control.Monad.IO.Class
 import Text.XML.Light.Input (parseXML)
-import Text.XML.Light.Types (Content) -- for re-export only
+import Text.XML.Light.Types (Content) -- For re-export only
+import QDHXB.Internal.Utils.XMLLight (
+  -- Used below
+  isElem,
+  -- Re-exported
+  ZeroOneMany(Zero, One, Many), pullContentFrom, zomToList, loadElement
+  )
 import QDHXB.Internal.XSDQ (XSDQ, runXSDQ)
 import QDHXB.Internal.Pipeline
 import QDHXB.Options
-import QDHXB.XMLLight
 
 -- | Load the given XSD files, translating each into Haskell
 -- declarations.

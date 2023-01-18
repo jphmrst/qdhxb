@@ -15,8 +15,8 @@ import Language.Haskell.TH
 -- import Control.Monad.IO.Class
 -- import Data.Char
 -- import Text.XML.Light.Types
-import QDHXB.TH
-import QDHXB.XMLLight
+import QDHXB.Internal.Utils.TH
+import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 

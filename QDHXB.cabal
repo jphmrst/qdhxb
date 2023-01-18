@@ -32,11 +32,11 @@ library
       QDHXB.Internal.NestedTypes
       QDHXB.Internal.Pipeline
       QDHXB.Internal.Types
+      QDHXB.Internal.Utils.TH
+      QDHXB.Internal.Utils.XMLLight
       QDHXB.Internal.XSDQ
       QDHXB.Options
-      QDHXB.TH
       QDHXB.UtilMisc
-      QDHXB.XMLLight
   other-modules:
       Paths_QDHXB
   hs-source-dirs:

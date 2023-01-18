@@ -7,7 +7,7 @@ module QDHXB.Internal.Input (encodeSchemaItems) where
 -- import System.Directory
 import Control.Monad.IO.Class
 import Text.XML.Light.Types
-import QDHXB.XMLLight
+import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.XSDQ
 

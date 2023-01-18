@@ -1,12 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Utilities based on the @XMLLight@ library.
-module QDHXB.XMLLight (pullAttr, pullAttrFrom, pullContent, pullContentFrom,
-                       pullCRef, pullCRefContent,
-                       isElem,
-                       ZeroOneMany(Zero, One, Many),
-                       zomToList, zappend, lzappend,
-                       loadElement)
+module QDHXB.Internal.Utils.XMLLight (
+  pullAttr, pullAttrFrom, pullContent, pullContentFrom,
+    pullCRef, pullCRefContent,
+    isElem,
+    ZeroOneMany(Zero, One, Many),
+    zomToList, zappend, lzappend,
+    loadElement)
 where
 import System.IO
 import Text.XML.Light.Input

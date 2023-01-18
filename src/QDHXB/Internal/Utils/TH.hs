@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 
 -- | Template Haskell definitions
-module QDHXB.TH (
+module QDHXB.Internal.Utils.TH (
   -- * Possibly-absent integers from XSD text
   xsdTypeNameTranslation,
 
