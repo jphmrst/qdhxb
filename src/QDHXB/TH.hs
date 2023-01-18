@@ -5,7 +5,7 @@
 -- | Template Haskell definitions
 module QDHXB.TH (
   -- * Possibly-absent integers from XSD text
-  decodeIntOrUnbound, decodeMaybeIntOrUnbound1, xsdTypeNameTranslation,
+  xsdTypeNameTranslation,
 
   -- * XSD types
   intType, stringType, floatType, boolType, doubleType,
@@ -26,19 +26,6 @@ where
 import Language.Haskell.TH
 -- import System.Directory
 import Data.Char
-
--- | Decode the `String` representation of an XSD integer as a Haskell
--- `Int`.  Might fail, so the result is `Maybe`-wrapped.
-decodeIntOrUnbound :: String -> Maybe Int
-decodeIntOrUnbound "unbounded" = Nothing
-decodeIntOrUnbound s = Just $ read s
-
--- | Another decoder of the `String` representation of an XSD integer
--- as a Haskell `Int`, where there may be no `String` in the first
--- place.
-decodeMaybeIntOrUnbound1 :: Maybe String -> Maybe Int
-decodeMaybeIntOrUnbound1 Nothing = Just 1
-decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
 -- | Convert the `String` representation of a primitive XSD type to a
 -- Template Haskell `Type`.

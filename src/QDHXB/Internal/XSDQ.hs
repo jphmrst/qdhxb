@@ -18,7 +18,7 @@ import Language.Haskell.TH
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
-import QDHXB.Internal.Types
+import QDHXB.Internal.FlatTypes
 
 type NameStore a = [(String, a)]
 

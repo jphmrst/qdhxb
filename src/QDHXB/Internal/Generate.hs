@@ -17,7 +17,7 @@ import Language.Haskell.TH
 -- import Text.XML.Light.Types
 import QDHXB.TH
 import QDHXB.XMLLight
-import QDHXB.Internal.Types
+import QDHXB.Internal.FlatTypes
 import QDHXB.Internal.XSDQ
 
 -- | Translate a list of XSD definitions to a Template Haskell quotation
