@@ -5,6 +5,7 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
+-- qdhxb useDebugging ["shiporder0.xsd"]
 qdhxb' ["shiporder0.xsd"]
 
 testShiporder0 :: TLT IO ()

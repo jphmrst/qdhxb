@@ -11,7 +11,7 @@ module QDHXB.Internal.Types (
 data ItemRef =
   ElementItem String (Maybe Int) (Maybe Int)
   -- ^ A named element type, possibly with numeric instance bounds.
-  | AttributeItem String
+  | AttributeItem String AttributeUsage
   -- ^ The name of an attribute.
   | ComplexTypeItem String
   -- ^ The name of a complex type.
@@ -21,7 +21,7 @@ data ItemRef =
 data ItemDefn =
   SimpleRep String String
   -- ^ Defining one element to have the same structure as another.
-  | AttributeRep String String AttributeUsage
+  | AttributeRep String String
   -- ^ Defining the type of an attribute to be the same as another.
   | SequenceRep String [ItemRef]
   -- ^ Define an element to contain a sequence of subelements.

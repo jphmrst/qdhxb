@@ -64,7 +64,7 @@ containForBounds _ _ t = [t|[$t]|]
 
 fileNewItemDefn :: ItemDefn -> XSDQ ()
 fileNewItemDefn defn@(SimpleRep n _) = addElementDefn n defn
-fileNewItemDefn defn@(AttributeRep n _ _) = addAttrDefn n defn
+fileNewItemDefn defn@(AttributeRep n _) = addAttrDefn n defn
 fileNewItemDefn defn@(SequenceRep n _) = addElementDefn n defn
 
 addElementDefn :: String -> ItemDefn -> XSDQ ()

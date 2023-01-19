@@ -75,7 +75,7 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
       -}
 
       : []
-xsdDeclToHaskell decl@(AttributeRep nam typ usage) =
+xsdDeclToHaskell decl@(AttributeRep nam typ) =
   let rootName = firstToUpper nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
@@ -84,15 +84,15 @@ xsdDeclToHaskell decl@(AttributeRep nam typ usage) =
       -- writeNam = mkName $ "write" ++ rootName
   in do
     fileNewItemDefn decl
-    coreDecoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
-    decoder <- unpackAttrDecoderForUsage usage coreDecoder
+    decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
+    -- decoder <- unpackAttrDecoderForUsage usage coreDecoder
     let (haskellTyp, _) = xsdTypeNameTranslation typ
     return $
-      TySynD rootTypeName [] (attrTypeForUsage usage haskellTyp)
+      TySynD rootTypeName [] haskellTyp
 
       -- Decoder
       : SigD decNam (fn1Type (ConT $ mkName "Content")
-                             (ConT rootTypeName))
+                             (AppT (ConT $ mkName "Maybe") (ConT rootTypeName)))
       : FunD decNam [Clause [VarP $ mkName "ctxt"] (NormalB decoder) []]
 
       {-
@@ -189,7 +189,20 @@ xsdRefToHaskellExpr param (ElementItem ref occursMin occursMax) =
     _ -> return $ AppE (AppE (VarE $ mkName "map") (decoderExpFor ref))
                        (AppE (VarE $ mkName "zomToList")
                              (subcontentZom ref param))
-xsdRefToHaskellExpr param (AttributeItem ref) = xsdRefToHaskellExpr' param ref
+xsdRefToHaskellExpr param (AttributeItem ref usage) = do
+  core <- xsdRefToHaskellExpr' param ref
+  unpackAttrDecoderForUsage usage core
+  {-
+xsdRefToHaskellExpr _ (AttributeItem _ Forbidden) =
+  return $ TupE []
+xsdRefToHaskellExpr param (AttributeItem ref Optional) =
+  xsdRefToHaskellExpr' param ref
+xsdRefToHaskellExpr param (AttributeItem ref Required) = do
+  core <- xsdRefToHaskellExpr' param ref
+  fmap (CaseE core) $ maybeMatches
+    (throwsError $ "QDHXB: required attribute " ++ ref ++ " must be present")
+    VarE
+-}
 xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
 
 -- | Helper for `xsdRefToHaskellExpr`.
@@ -248,8 +261,10 @@ xsdRefToBangTypeQ (ElementItem ref lower upper) = do
   typ <-
     containForBounds lower upper $ return $ ConT $ mkName $ firstToUpper ref
   return (useBang, typ)
-xsdRefToBangTypeQ (AttributeItem ref) =
-  return (useBang, ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
+xsdRefToBangTypeQ (AttributeItem ref usage) =
+  return (useBang,
+          attrTypeForUsage usage $
+            ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
 xsdRefToBangTypeQ (ComplexTypeItem ref) =
   return (useBang, ConT $ mkName $ firstToUpper ref)
 

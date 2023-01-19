@@ -17,21 +17,31 @@ flattenSchemaItems :: [SchemeRep] -> XSDQ [ItemDefn]
 flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 
 flattenSchemaItem :: SchemeRep -> XSDQ [ItemDefn]
-flattenSchemaItem (ElementScheme [] (Just nam) (Just typ) Nothing _ _) =
-  return [ SimpleRep nam typ ]
-flattenSchemaItem (ElementScheme [ComplexTypeScheme (Sequence steps)
-                                                    ats Nothing]
-                                 (Just nam) Nothing Nothing _ _) =
-  assembleComplexSequence steps ats nam
-flattenSchemaItem (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
-  return [ AttributeRep nam typ (stringToAttributeUsage useStr) ]
-flattenSchemaItem (AttributeScheme _ _ (Just _) _) =
-  return $ error "Reference in attribute"
-flattenSchemaItem (ComplexTypeScheme (Sequence cts) ats (Just nam)) =
-  assembleComplexSequence cts ats nam
-flattenSchemaItem (SimpleTypeScheme base nam) =
-  return $ [ SimpleRep nam base ]
+{-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> Flattening " ++ show s
+  results <- flattenSchemaItem' s
+  whenDebugging $ do
+    liftIO $ putStrLn $ "   `--> " ++ show results
+  return results
+
+flattenSchemaItem' :: SchemeRep -> XSDQ [ItemDefn]
+flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
+  return [ SimpleRep nam typ ]
+flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
+                                                    ats Nothing]
+                                 (Just nam) Nothing Nothing _ _) = do
+  assembleComplexSequence steps ats nam
+flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) = do
+  return [ AttributeRep nam typ ]
+flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
+  return $ error "Reference in attribute"
+flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
+  assembleComplexSequence cts ats nam
+flattenSchemaItem' (SimpleTypeScheme base nam) = do
+  return $ [ SimpleRep nam base ]
+flattenSchemaItem' s = do
   liftIO $ putStrLn $ ">>> " ++ show s
   error "TODO another flatten case"
 
@@ -64,11 +74,11 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
     putStrLn $ "LOWER " ++ show lower
     putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
-flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) _) =
-  return ([], AttributeItem ref)
+flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) useStr) =
+  return ([], AttributeItem ref (stringToAttributeUsage useStr))
 flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
-  return ([AttributeRep nam typ (stringToAttributeUsage useStr)],
-          AttributeItem nam)
+  return ([AttributeRep nam typ],
+          AttributeItem nam (stringToAttributeUsage useStr))
 flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
   liftIO $ do
     putStrLn $ "IFNAME " ++ show maybeName
