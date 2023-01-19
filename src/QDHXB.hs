@@ -14,7 +14,7 @@ module QDHXB (
   -- @QDHXB.Options@ module.
   QDHXBOption,
   -- ** Structure of renamed types
-  useNewType, noUseNewType,
+  useNewType, noUseNewType, useDebugging,
 
   -- * Other re-exported utilities
   --
