@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
 module QDHXB.Internal.Pipeline (xmlToDecs) where

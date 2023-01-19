@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (

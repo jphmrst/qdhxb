@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Miscellaneous helper functions.
 module QDHXB.UtilMisc (applyFst, applySnd) where

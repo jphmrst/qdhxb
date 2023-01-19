@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Internal.Utils.XMLLight (

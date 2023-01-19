@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Internal representation directly reflecting XSD code, in
 -- particular allowing nested definitions.

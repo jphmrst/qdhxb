@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.

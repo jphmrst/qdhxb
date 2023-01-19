@@ -1,4 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
 
 -- | Manual translation of an XSD file into the internal @ItemDefn@
 -- representation.
