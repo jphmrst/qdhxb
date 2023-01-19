@@ -208,6 +208,7 @@ subcontentZom ref param =
   AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL ref)))
        (VarE param)
 
+{- Squash a warning --- for now, this function is not used.
 zomMatches :: Exp -> (Name -> Exp) -> (Name -> Exp) -> XSDQ [Match]
 zomMatches zeroCase oneCaseF manyCaseF = do
   newX <- newName "x"
@@ -215,6 +216,7 @@ zomMatches zeroCase oneCaseF manyCaseF = do
   assembleZomMatches zeroCase
                      (VarP newX) (oneCaseF newX)
                      (VarP newXS) (manyCaseF newXS)
+-}
 
 zomMatch1 :: Exp -> (Name -> Exp) -> Exp -> XSDQ [Match]
 zomMatch1 zeroCase oneCaseF manyCaseExp = do
