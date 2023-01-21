@@ -18,22 +18,23 @@
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
 
-* TODO Soon --- go back and document [[./src/QDHXB/Manual.hs][Manual.hs]]
-  - Need to make sense of this before adding more XSD features
+* TODO Shiporder2
+  For current issue, need to revisit generation
+  - Elements get the current =decode= function signature
+  - Types get a =decodeElementAsZZZZZZZZ= function
+    - Takes the element name and the =Content=
+    - Similar body, but element name can vary
+  - Element =decode= body calls the type's new decode function with
+    their own element name
 
-* TODO Add some tests of the unpicklers as sample XSDs start to load
-  - Can do Shiporder0 now
 * TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, two more functions for most named elements:
     - encodeELEM :: To a piece of parsed XML content (`Content`).
     - writeELEM :: To a file, possibly inline fns using encodeELEM and
       some standardized glue.
+  - But revisit type vs. element signatures
 
-* TODO Shiporder1
-  - Return to test suite
-* TODO Shiporder2
-  - Return to test suite
 * TODO Use class/instance for abstract complex types?
 * TODO Test code
   - Setup for unpicklers/picklers
