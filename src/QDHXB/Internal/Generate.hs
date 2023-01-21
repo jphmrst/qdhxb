@@ -7,14 +7,15 @@ module QDHXB.Internal.Generate (
   ItemDefn(SimpleRep, AttributeRep, SequenceRep),
 
   -- * Code generation from the internal representation
-  xsdDeclsToHaskell)
+  xsdDeclsToHaskell,
+
+  -- * Functions appearing in the generated code
+  __decodeForSimpleType
+  )
 where
 
 import Language.Haskell.TH
--- import System.Directory
--- import Control.Monad.IO.Class
--- import Data.Char
--- import Text.XML.Light.Types
+import Text.XML.Light.Types (Content)
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Types
@@ -41,10 +42,10 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
     fileNewItemDefn decl
     let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
     decoder <- fmap basicDecoder
-                 [| case pullCRefContent $(return $ LitE $ StringL nam) ctxt of
-                      Nothing ->
-                        error $ "QDHXB: CRef must be present within " ++ nam
-                      Just v -> v |]
+                 [| __decodeForSimpleType $(return $ LitE $ StringL nam)
+                        ctxt
+                        $(return $ LitE $ StringL $
+                           "QDHXB: CRef must be present within " ++ nam) |]
     return $
       TySynD (mkName baseName) [] haskellType
 
@@ -204,6 +205,14 @@ xsdRefToHaskellExpr param (AttributeItem ref Required) = do
     VarE
 -}
 xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
+
+-- | Called from generated code.
+__decodeForSimpleType :: String -> Content -> String -> String
+{-# INLINE __decodeForSimpleType #-}
+__decodeForSimpleType elementName ctxt msgIfNothing =
+  case pullCRefContent elementName ctxt of
+    Nothing -> error msgIfNothing
+    Just v -> v
 
 -- | Helper for `xsdRefToHaskellExpr`.
 xsdRefToHaskellExpr' :: Name -> String -> XSDQ Exp

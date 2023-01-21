@@ -5,6 +5,8 @@ module QDHXB.Internal.Input (encodeSchemaItems) where
 
 -- import System.Directory
 import Control.Monad.IO.Class
+import Data.List (intercalate)
+import Text.XML.Light.Output
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.NestedTypes
@@ -19,64 +21,84 @@ encodeSchemaItems items = do
   return res
 
 encodeSchemaItem :: Content -> XSDQ [SchemeRep]
-encodeSchemaItem (Elem (Element (QName "element" _ _) ats content _)) = do
+encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
   included <- encodeSchemaItems $ filter isElem content
-  return [
-    ElementScheme included
+  let res = [
+        ElementScheme included
                   (pullAttr "name" ats) (pullAttr "type" ats)
                   (pullAttr "ref" ats)
                   (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
                   (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-    ]
-encodeSchemaItem (Elem (Element (QName "attribute" _ _) ats [] _)) = do
-  -- liftIO $ putStrLn $ ">>>  encodeSchemaItem attribute"
-  return [
-    AttributeScheme (pullAttr "name" ats) (pullAttr "type" ats)
-      (pullAttr "ref" ats)
-      (case pullAttr "use" ats of
-         Nothing -> "optional"
-         Just s -> s)
-    ]
-encodeSchemaItem (Elem (Element (QName "complexType" _ _) ats ctnts ifLn)) = do
+        ]
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> Encoding element"
+    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+    liftIO $ putStrLn $ "  as " ++ show res
+  return res
+encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+  let res = [
+        AttributeScheme (pullAttr "name" ats) (pullAttr "type" ats)
+          (pullAttr "ref" ats)
+          (case pullAttr "use" ats of
+             Nothing -> "optional"
+             Just s -> s)
+        ]
+  whenDebugging $ do
+    liftIO $ putStrLn "> Encoding attribute"
+    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+    liftIO $ putStrLn $ "  as " ++ show res
+  return res
+encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateComplexTypeContents ctnts' of
     -- <sequence>
     (One intl, Zero, Zero, attrSpecs) -> do
       res <- encodeComplexTypeScheme ats [] intl attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn "> Encoding complexType (case 1)"
+        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+        liftIO $ putStrLn $ "  as " ++ show res
       return res
     -- <complexContent>
     (Zero, One ctnt, Zero, attrSpecs) -> do
       res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 2)"
+        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+        liftIO $ putStrLn $ "  as " ++ show res
       return res
-      -- error $
-      --   "TODO encodeSchemaItem > complexType > other complexContent"
-      --   ++ ifAtLine ifLn
-    -- <simpleContent>
     (Zero, Zero, One ctnt, attrSpecs) -> do
-      liftIO $ putStrLn $ "CTNT " ++ show ctnt
-      liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 3) EEEEEEEE"
+        liftIO $ putStrLn $ "CTNT " ++ show ctnt
+        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
       error $
         "TODO encodeSchemaItem > complexType > simpleContent"
         ++ ifAtLine ifLn
     (seqnce, cplxCtnt, simplCtnt, attrSpecs) -> do
-      liftIO $ putStrLn $ "ATS " ++ show ats
-      liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
-      liftIO $ putStrLn $ "SEQ " ++ show seqnce
-      liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
-      liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
-      liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 4) FFFFFFFF"
+        liftIO $ putStrLn $ "ATS " ++ show ats
+        liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
+        liftIO $ putStrLn $ "SEQ " ++ show seqnce
+        liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
+        liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
+        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn
-encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
+encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr) -> do
-      -- liftIO $ putStrLn $ "     <<< " ++ show ats'
       res <- encodeSimpleTypeByRestriction nam ats restr
-      -- liftIO $ putStrLn $ "     <<< " ++ show res
+      whenDebugging $ do
+        liftIO $ putStrLn "> Encoding simpleType "
+        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+        liftIO $ putStrLn $ "  as " ++ show res
       return res
     (x, y) -> do
+      -- whenDebugging $ do
       liftIO $ putStrLn $ "ATS " ++ show ats
       liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
       liftIO $ putStrLn $ "X " ++ show x
@@ -86,6 +108,8 @@ encodeSchemaItem (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
 encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> GGGGGGGG"
   return []
 encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
     tag == "include" || tag == "import" = do
@@ -94,15 +118,20 @@ encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
     "WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine ifLine
   return []
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
+  {- whenDebugging $ do -}
   liftIO $ putStrLn $ "TAG " ++ show tag
   liftIO $ putStrLn $ "ATS " ++ show ats
   liftIO $ putStrLn $ "CTNTS " ++ show ctnts
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem Text"
+  whenDebugging $ do
+    liftIO $ putStrLn "> Dropping Text entry "
   return $ []
-encodeSchemaItem (CRef _) = do
+encodeSchemaItem (CRef txt) = do
   -- liftIO $ putStrLn $ ">>>  encodeSchemaItem CRef"
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
   return $ []
 
 ifAtLine :: Maybe Line -> String
@@ -186,3 +215,6 @@ decodeIntOrUnbound s = Just $ read s
 decodeMaybeIntOrUnbound1 :: Maybe String -> Maybe Int
 decodeMaybeIntOrUnbound1 Nothing = Just 1
 decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
+
+mlineIndent :: String -> String -> String
+mlineIndent ind str = ind ++ (intercalate ("\n" ++ ind) $ lines str)

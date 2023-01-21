@@ -4,7 +4,7 @@ module QDHXB.Internal.Pipeline (xmlToDecs) where
 
 import Language.Haskell.TH
 -- import System.Directory
--- import Control.Monad.IO.Class
+import Control.Monad.IO.Class
 -- import Data.Char
 -- import Text.XML.Light.Types
 import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
@@ -18,11 +18,17 @@ import QDHXB.Internal.Flatten
 xmlToDecs :: [Content] -> XSDQ [Dec]
 xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
   (Elem (Element (QName "schema" _ _) _ forms _) : []) -> do
+    whenDebugging $ do
+      liftIO $ putStrLn "======================================== INPUT"
     schemaReps <- encodeSchemaItems forms
-    -- liftIO $ putStrLn $ "====== REPS\n" ++ show schemaReps ++ "\n======\n"
+    whenDebugging $ do
+      liftIO $ putStrLn "======================================== FLATTEN"
     ir <- flattenSchemaItems schemaReps
-    -- liftIO $ putStrLn $ "====== IR\n" ++ show ir ++ "\n======\n"
+    whenDebugging $ do
+      liftIO $ putStrLn "======================================== GENERATE"
     decls <- xsdDeclsToHaskell ir
+    whenDebugging $ do
+      liftIO $ putStrLn "======================================== end"
     return decls
   _ -> error "Expected top-level <schema> element"
 xmlToDecs _ = error "Missing <?xml> element"
