@@ -1,6 +1,6 @@
 
--- | Manual translation of an XSD file into the internal @ItemDefn@
--- representation.
+-- | Manual translation of an XSD file into the nested-definition
+-- internal @ScheleRef@ representation.
 module QDHXB.Internal.NestedTypes (
   TypeSchemeRep(Sequence, Restriction, Extension),
   SchemeRep(

@@ -7,7 +7,7 @@ module QDHXB.Internal.XSDQ (
   -- * XSD loading monad
   QdxhbState, initialQdxhbState,
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
-  fileNewItemDefn,
+  fileNewDefinition,
   addElementDefn, getElementDefn, addAttrDefn, getAttrDefn,
   getOptions, getUseNewtype, getDebugging, whenDebugging,
 
@@ -27,7 +27,7 @@ type NameStore a = [(String, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
-type QdxhbState = (QDHXBOptionSet, NameStore ItemDefn, NameStore ItemDefn)
+type QdxhbState = (QDHXBOptionSet, NameStore Definition, NameStore Definition)
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
@@ -62,27 +62,27 @@ containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
 containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
 
-fileNewItemDefn :: ItemDefn -> XSDQ ()
-fileNewItemDefn defn@(SimpleRep n _) = addElementDefn n defn
-fileNewItemDefn defn@(AttributeRep n _) = addAttrDefn n defn
-fileNewItemDefn defn@(SequenceRep n _) = addElementDefn n defn
+fileNewDefinition :: Definition -> XSDQ ()
+fileNewDefinition defn@(SimpleTypeDefn n _) = addElementDefn n defn
+fileNewDefinition defn@(AttributeDefn n _) = addAttrDefn n defn
+fileNewDefinition defn@(SequenceDefn n _) = addElementDefn n defn
 
-addElementDefn :: String -> ItemDefn -> XSDQ ()
+addElementDefn :: String -> Definition -> XSDQ ()
 addElementDefn name defn = liftStatetoXSDQ $ do
   (opts, elems, attrs) <- get
   put (opts, (name, defn) : elems, attrs)
 
-addAttrDefn :: String -> ItemDefn -> XSDQ ()
+addAttrDefn :: String -> Definition -> XSDQ ()
 addAttrDefn name defn = liftStatetoXSDQ $ do
   (opts, elems, attrs) <- get
   put (opts, elems, (name, defn) : attrs)
 
-getElementDefn :: String -> XSDQ (Maybe ItemDefn)
+getElementDefn :: String -> XSDQ (Maybe Definition)
 getElementDefn name = liftStatetoXSDQ $ do
   (_, elems, _) <- get
   return $ lookupFirst elems name
 
-getAttrDefn :: String -> XSDQ (Maybe ItemDefn)
+getAttrDefn :: String -> XSDQ (Maybe Definition)
 getAttrDefn name = liftStatetoXSDQ $ do
   (_, _, attrs) <- get
   return $ lookupFirst attrs name

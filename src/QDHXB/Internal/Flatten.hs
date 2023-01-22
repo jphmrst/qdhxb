@@ -13,10 +13,10 @@ import QDHXB.Internal.XSDQ
 
 -- |Rewrite internally-represented XSD definitions, flattening any
 -- nested definitions.
-flattenSchemaItems :: [SchemeRep] -> XSDQ [ItemDefn]
+flattenSchemaItems :: [SchemeRep] -> XSDQ [Definition]
 flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 
-flattenSchemaItem :: SchemeRep -> XSDQ [ItemDefn]
+flattenSchemaItem :: SchemeRep -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
   whenDebugging $ do
@@ -26,44 +26,44 @@ flattenSchemaItem s = do
     liftIO $ putStrLn $ "   `--> " ++ show results
   return results
 
-flattenSchemaItem' :: SchemeRep -> XSDQ [ItemDefn]
+flattenSchemaItem' :: SchemeRep -> XSDQ [Definition]
 flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
-  return [ SimpleRep nam typ ]
+  return [ SimpleTypeDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
   assembleComplexSequence steps ats nam
 flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) = do
-  return [ AttributeRep nam typ ]
+  return [ AttributeDefn nam typ ]
 flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
   assembleComplexSequence cts ats nam
 flattenSchemaItem' (SimpleTypeScheme base nam) = do
-  return $ [ SimpleRep nam base ]
+  return $ [ SimpleTypeDefn nam base ]
 flattenSchemaItem' s = do
   liftIO $ putStrLn $ ">>> " ++ show s
   error "TODO another flatten case"
 
 assembleComplexSequence ::
-  [SchemeRep] ->  [SchemeRep] -> String -> XSDQ [ItemDefn]
+  [SchemeRep] ->  [SchemeRep] -> String -> XSDQ [Definition]
 assembleComplexSequence steps ats nam = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
-  return $ otherDefs ++ atsDefs ++ [ SequenceRep nam $ atsRefs ++ refs ]
+  return $ otherDefs ++ atsDefs ++ [ SequenceDefn nam $ atsRefs ++ refs ]
 
-flattenSchemaRefs :: [SchemeRep] -> XSDQ ([ItemDefn], [ItemRef])
+flattenSchemaRefs :: [SchemeRep] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
-flattenSchemaRef :: SchemeRep -> XSDQ ([ItemDefn], ItemRef)
+flattenSchemaRef :: SchemeRep -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
-  return ([], ElementItem ref lower upper)
+  return ([], ElementRef ref lower upper)
 flattenSchemaRef (ElementScheme [] (Just nam) (Just typ) Nothing lower upper) =
-  return ([SimpleRep nam typ], ElementItem nam lower upper)
+  return ([SimpleTypeDefn nam typ], ElementRef nam lower upper)
 flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
                                   (Just nam) Nothing Nothing lower upper) = do
   prev <- flattenSchemaItem s
-  return (prev, ElementItem nam lower upper)
+  return (prev, ElementRef nam lower upper)
 flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
                                 lower upper) = do
   liftIO $ do
@@ -75,10 +75,10 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
     putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
 flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) useStr) =
-  return ([], AttributeItem ref (stringToAttributeUsage useStr))
+  return ([], AttributeRef ref (stringToAttributeUsage useStr))
 flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
-  return ([AttributeRep nam typ],
-          AttributeItem nam (stringToAttributeUsage useStr))
+  return ([AttributeDefn nam typ],
+          AttributeRef nam (stringToAttributeUsage useStr))
 flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
   liftIO $ do
     putStrLn $ "IFNAME " ++ show maybeName

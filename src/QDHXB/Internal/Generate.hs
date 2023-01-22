@@ -3,8 +3,8 @@
 -- | Generate Haskell code from the flattened internal representation.
 module QDHXB.Internal.Generate (
   -- * The representation types
-  ItemRef(ElementItem, AttributeItem,  ComplexTypeItem),
-  ItemDefn(SimpleRep, AttributeRep, SequenceRep),
+  Reference(ElementRef, AttributeRef,  ComplexTypeRef),
+  Definition(SimpleTypeDefn, AttributeDefn, SequenceDefn),
 
   -- * Code generation from the internal representation
   xsdDeclsToHaskell,
@@ -23,23 +23,23 @@ import QDHXB.Internal.XSDQ
 
 -- | Translate a list of XSD definitions to a Template Haskell quotation
 -- monad returning top-level declarations.
-xsdDeclsToHaskell :: [ItemDefn] -> XSDQ [Dec]
+xsdDeclsToHaskell :: [Definition] -> XSDQ [Dec]
 xsdDeclsToHaskell defns = do
   -- liftIO $ putStrLn $ show defns
   fmap concat $ mapM xsdDeclToHaskell defns
 
 -- | Translate one XSD definition to a Template Haskell quotation
 -- monad, usually updating the internal state to store the new
--- `ItemDefn`.
-xsdDeclToHaskell :: ItemDefn -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleRep nam typ) =
+-- `Definition`.
+xsdDeclToHaskell :: Definition -> XSDQ [Dec]
+xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
   let baseName = firstToUpper nam
       decNam = mkName $ "decode" ++ baseName
       -- encNam = mkName $ "encode" ++ baseName
       loadNam  = mkName $ "load" ++ baseName
       -- writeNam = mkName $ "write" ++ baseName
   in do
-    fileNewItemDefn decl
+    fileNewDefinition decl
     let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
     decoder <- fmap basicDecoder
                  [| __decodeForSimpleType $(return $ LitE $ StringL nam)
@@ -76,7 +76,7 @@ xsdDeclToHaskell decl@(SimpleRep nam typ) =
       -}
 
       : []
-xsdDeclToHaskell decl@(AttributeRep nam typ) =
+xsdDeclToHaskell decl@(AttributeDefn nam typ) =
   let rootName = firstToUpper nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
@@ -84,7 +84,7 @@ xsdDeclToHaskell decl@(AttributeRep nam typ) =
       -- loadNam  = mkName $ "load" ++ rootName
       -- writeNam = mkName $ "write" ++ rootName
   in do
-    fileNewItemDefn decl
+    fileNewDefinition decl
     decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
     -- decoder <- unpackAttrDecoderForUsage usage coreDecoder
     let (haskellTyp, _) = xsdTypeNameTranslation typ
@@ -113,7 +113,7 @@ xsdDeclToHaskell decl@(AttributeRep nam typ) =
                                                (LitE $ StringL "TODO")) []]
       -}
       : []
-xsdDeclToHaskell decl@(SequenceRep namStr refs) =
+xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decode" ++ nameRoot
@@ -121,12 +121,12 @@ xsdDeclToHaskell decl@(SequenceRep namStr refs) =
       loadNam  = mkName $ "load" ++ nameRoot
       -- writeNam = mkName $ "write" ++ nameRoot
   in do
-    fileNewItemDefn decl
+    fileNewDefinition decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
     -- encType <- [t| $(return $ VarT typNam) -> Content |]
     -- decType <- [t| Content -> [Content] -> $(return $ VarT typNam) |]
     -- decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
-    let binderMapper :: (Name, ItemRef) -> XSDQ Dec
+    let binderMapper :: (Name, Reference) -> XSDQ Dec
         binderMapper (n, r) = do
           body <- xsdRefToHaskellExpr (mkName "ctxt") r
           return $ ValD (VarP n) (NormalB body) []
@@ -169,8 +169,8 @@ xsdDeclToHaskell decl@(SequenceRep namStr refs) =
 -- | Translate a reference to an XSD element type to a Haskell
 -- `Exp`ression representation describing the extraction of the given
 -- value.
-xsdRefToHaskellExpr :: Name -> ItemRef -> XSDQ Exp
-xsdRefToHaskellExpr param (ElementItem ref occursMin occursMax) =
+xsdRefToHaskellExpr :: Name -> Reference -> XSDQ Exp
+xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) =
   let casePrefix = CaseE $ subcontentZom ref param
   in case (occursMin, occursMax) of
     (_, Just 0) -> return $ TupE []
@@ -190,21 +190,21 @@ xsdRefToHaskellExpr param (ElementItem ref occursMin occursMax) =
     _ -> return $ AppE (AppE (VarE $ mkName "map") (decoderExpFor ref))
                        (AppE (VarE $ mkName "zomToList")
                              (subcontentZom ref param))
-xsdRefToHaskellExpr param (AttributeItem ref usage) = do
+xsdRefToHaskellExpr param (AttributeRef ref usage) = do
   core <- xsdRefToHaskellExpr' param ref
   unpackAttrDecoderForUsage usage core
   {-
-xsdRefToHaskellExpr _ (AttributeItem _ Forbidden) =
+xsdRefToHaskellExpr _ (AttributeRef _ Forbidden) =
   return $ TupE []
-xsdRefToHaskellExpr param (AttributeItem ref Optional) =
+xsdRefToHaskellExpr param (AttributeRef ref Optional) =
   xsdRefToHaskellExpr' param ref
-xsdRefToHaskellExpr param (AttributeItem ref Required) = do
+xsdRefToHaskellExpr param (AttributeRef ref Required) = do
   core <- xsdRefToHaskellExpr' param ref
   fmap (CaseE core) $ maybeMatches
     (throwsError $ "QDHXB: required attribute " ++ ref ++ " must be present")
     VarE
 -}
-xsdRefToHaskellExpr param (ComplexTypeItem ref) = xsdRefToHaskellExpr' param ref
+xsdRefToHaskellExpr param (ComplexTypeRef ref) = xsdRefToHaskellExpr' param ref
 
 -- | Called from generated code.
 __decodeForSimpleType :: String -> Content -> String -> String
@@ -265,16 +265,16 @@ maybeMatches zeroCase oneCaseF = do
 
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
-xsdRefToBangTypeQ :: ItemRef -> XSDQ BangType
-xsdRefToBangTypeQ (ElementItem ref lower upper) = do
+xsdRefToBangTypeQ :: Reference -> XSDQ BangType
+xsdRefToBangTypeQ (ElementRef ref lower upper) = do
   typ <-
     containForBounds lower upper $ return $ ConT $ mkName $ firstToUpper ref
   return (useBang, typ)
-xsdRefToBangTypeQ (AttributeItem ref usage) =
+xsdRefToBangTypeQ (AttributeRef ref usage) =
   return (useBang,
           attrTypeForUsage usage $
             ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
-xsdRefToBangTypeQ (ComplexTypeItem ref) =
+xsdRefToBangTypeQ (ComplexTypeRef ref) =
   return (useBang, ConT $ mkName $ firstToUpper ref)
 
 attrTypeForUsage :: AttributeUsage -> Type -> Type
