@@ -13,10 +13,10 @@ import QDHXB.Internal.XSDQ
 
 -- |Rewrite internally-represented XSD definitions, flattening any
 -- nested definitions.
-flattenSchemaItems :: [SchemeRep] -> XSDQ [Definition]
+flattenSchemaItems :: [DataScheme] -> XSDQ [Definition]
 flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 
-flattenSchemaItem :: SchemeRep -> XSDQ [Definition]
+flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
   whenDebugging $ do
@@ -26,7 +26,7 @@ flattenSchemaItem s = do
     liftIO $ putStrLn $ "   `--> " ++ show results
   return results
 
-flattenSchemaItem' :: SchemeRep -> XSDQ [Definition]
+flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
   return [ SimpleTypeDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
@@ -46,16 +46,16 @@ flattenSchemaItem' s = do
   error "TODO another flatten case"
 
 assembleComplexSequence ::
-  [SchemeRep] ->  [SchemeRep] -> String -> XSDQ [Definition]
+  [DataScheme] ->  [DataScheme] -> String -> XSDQ [Definition]
 assembleComplexSequence steps ats nam = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
   return $ otherDefs ++ atsDefs ++ [ SequenceDefn nam $ atsRefs ++ refs ]
 
-flattenSchemaRefs :: [SchemeRep] -> XSDQ ([Definition], [Reference])
+flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
-flattenSchemaRef :: SchemeRep -> XSDQ ([Definition], Reference)
+flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
   return ([], ElementRef ref lower upper)
 flattenSchemaRef (ElementScheme [] (Just nam) (Just typ) Nothing lower upper) =

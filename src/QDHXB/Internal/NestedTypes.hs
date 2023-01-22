@@ -2,19 +2,19 @@
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
 module QDHXB.Internal.NestedTypes (
-  TypeSchemeRep(Sequence, Restriction, Extension),
-  SchemeRep(
+  TypeScheme(Sequence, Restriction, Extension),
+  DataScheme(
       ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme)
 ) where
 
-data TypeSchemeRep = Sequence [SchemeRep]
+data TypeScheme = Sequence [DataScheme]
   | Restriction String -- ^ base
   | Extension String -- ^ base
-              [SchemeRep] -- ^ additional
+              [DataScheme] -- ^ additional
   deriving Show
 
-data SchemeRep =
-  ElementScheme [SchemeRep] -- ^ contents
+data DataScheme =
+  ElementScheme [DataScheme] -- ^ contents
                 (Maybe String) -- ^ ifName
                 (Maybe String) -- ^ ifType
                 (Maybe String) -- ^ ifRef
@@ -25,8 +25,8 @@ data SchemeRep =
                     (Maybe String) -- ^ ifRef
                     String -- ^ use mode: prohibited, optional
                            -- (default), required
-  | ComplexTypeScheme TypeSchemeRep -- ^ typeDetail
-                      [SchemeRep] -- ^ addlAttrs
+  | ComplexTypeScheme TypeScheme -- ^ typeDetail
+                      [DataScheme] -- ^ addlAttrs
                       (Maybe String) -- ^ ifName
   | SimpleTypeScheme String -- ^ baseSpec
                      String -- ^ name

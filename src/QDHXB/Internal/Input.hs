@@ -14,13 +14,13 @@ import QDHXB.Internal.XSDQ
 
 -- |Rewrite otherwise-unstructured parsed XML content structures as a
 -- sequence of internal XSD representations.
-encodeSchemaItems :: [Content] -> XSDQ [SchemeRep]
+encodeSchemaItems :: [Content] -> XSDQ [DataScheme]
 encodeSchemaItems items = do
   res <- fmap concat $ mapM encodeSchemaItem items
   -- liftIO $ putStrLn $ show res
   return res
 
-encodeSchemaItem :: Content -> XSDQ [SchemeRep]
+encodeSchemaItem :: Content -> XSDQ [DataScheme]
 encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
   included <- encodeSchemaItems $ filter isElem content
   let res = [
@@ -155,7 +155,7 @@ separateSimpleTypeContents attrs cts =
   (pullAttr "name" attrs, pullContent "restriction" cts)
 
 encodeComplexTypeScheme ::
-  [Attr] -> [Content] -> Content -> ZeroOneMany Content -> XSDQ [SchemeRep]
+  [Attr] -> [Content] -> Content -> ZeroOneMany Content -> XSDQ [DataScheme]
 encodeComplexTypeScheme ats attrSpecs
                         (Elem (Element (QName tag _ _) ats' ctnts _)) ats'' =
   encodeComplexTypeSchemeElement (ats ++ ats') attrSpecs tag ctnts ats''
@@ -168,7 +168,7 @@ encodeComplexTypeScheme ats attrSpecs s ats'' = do
 
 encodeComplexTypeSchemeElement ::
   [Attr] -> [Content] -> String -> [Content] -> ZeroOneMany Content ->
-    XSDQ [SchemeRep]
+    XSDQ [DataScheme]
 encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' =
   case filter isElem ctnts of
     [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats''
@@ -191,7 +191,7 @@ encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
 
 
 encodeSimpleTypeByRestriction ::
-  Maybe String -> [Attr] -> Content -> XSDQ [SchemeRep]
+  Maybe String -> [Attr] -> Content -> XSDQ [DataScheme]
 encodeSimpleTypeByRestriction -- Note ignoring ats
     (Just nam) _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
   case pullAttr "base" ats' of
