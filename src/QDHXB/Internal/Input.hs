@@ -33,7 +33,7 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
   whenDebugging $ do
     liftIO $ putStrLn $ "> Encoding element"
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ putStrLn $ "  as " ++ show res
+    liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
   return res
 encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
   let res = [
@@ -46,7 +46,7 @@ encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
   whenDebugging $ do
     liftIO $ putStrLn "> Encoding attribute"
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ putStrLn $ "  as " ++ show res
+    liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
   return res
 encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
@@ -57,7 +57,7 @@ encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = d
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding complexType (case 1)"
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ putStrLn $ "  as " ++ show res
+        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
       return res
     -- <complexContent>
     (Zero, One ctnt, Zero, attrSpecs) -> do
@@ -65,7 +65,7 @@ encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = d
       whenDebugging $ do
         liftIO $ putStrLn $ "> Encoding complexType (case 2)"
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ putStrLn $ "  as " ++ show res
+        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
       return res
     (Zero, Zero, One ctnt, attrSpecs) -> do
       whenDebugging $ do
@@ -95,7 +95,7 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding simpleType "
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ putStrLn $ "  as " ++ show res
+        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
       return res
     (x, y) -> do
       -- whenDebugging $ do

@@ -18,13 +18,13 @@ testShiporder0 = inGroup "XSD shiporder0" $ do
   inGroup "Structures" $ do
     do p <- lift $ loadShipto "shiporder0c.xml"
        "Correctly decode <shipto> in shiporder0c.xml" ~:
-         Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway"
+         ShiptoType_ "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway"
            @==- p
     do p <- lift $ loadShiporder "shiporder1a.xml"
        "Correctly decode <shiporder> in shiporder1a.xml" ~:
-         (Shiporder "889923" "John Smith"
-           (Shipto "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway")
-           [ Item "Empire Burlesque" (Just "Special Edition") 1 10.9,
-             Item "Hide your heart" Nothing 1 9.9
+         (ShiporderType_ "889923" "John Smith"
+           (ShiptoType_ "Ola Nordmann" "Langgt 23" "4000 Stavanger" "Norway")
+           [ ItemType_ "Empire Burlesque" (Just "Special Edition") 1 10.9,
+             ItemType_ "Hide your heart" Nothing 1 9.9
            ])
          @==- p

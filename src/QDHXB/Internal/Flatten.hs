@@ -20,15 +20,15 @@ flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
   whenDebugging $ do
-    liftIO $ putStrLn $ "> Flattening " ++ show s
+    liftIO $ putStrLn $ "> Flattening " ++ formatDataScheme' "             " s
   results <- flattenSchemaItem' s
   whenDebugging $ do
-    liftIO $ putStrLn $ "   `--> " ++ show results
+    liftIO $ putStrLn $ "   `--> " ++ pprintDefns' "        " results
   return results
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
-  return [ SimpleTypeDefn nam typ ]
+  return [ ElementDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
@@ -50,20 +50,45 @@ assembleComplexSequence ::
 assembleComplexSequence steps ats nam = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
-  return $ otherDefs ++ atsDefs ++ [ SequenceDefn nam $ atsRefs ++ refs ]
+  let typName = nam ++ "Type_"
+  return $ otherDefs ++ atsDefs ++ [
+    SequenceDefn typName $ atsRefs ++ refs,
+    ElementDefn nam typName
+    ]
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
-flattenSchemaRef (ElementScheme [] Nothing Nothing (Just ref) lower upper) =
-  return ([], ElementRef ref lower upper)
-flattenSchemaRef (ElementScheme [] (Just nam) (Just typ) Nothing lower upper) =
-  return ([SimpleTypeDefn nam typ], ElementRef nam lower upper)
+flattenSchemaRef e@(ElementScheme [] Nothing Nothing (Just r) lower upper) = do
+  let result = ElementRef r lower upper
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening schema ref"
+    liftIO $ putStrLn $ "       " ++ show e
+    liftIO $ putStrLn $ "    to " ++ show result
+  return ([], result)
+flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
+  let intermed = n ++ "Type_"
+      defn1 = SimpleTypeDefn intermed t
+      defn2 = ElementDefn n intermed
+      ref = ElementRef n lo up
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening schema ref"
+    liftIO $ putStrLn $ "       " ++ show e
+    liftIO $ putStrLn $ "    to " ++ show defn1
+    liftIO $ putStrLn $ "       " ++ show defn2
+    liftIO $ putStrLn $ "       " ++ show ref
+  return ([defn1, defn2], ref)
 flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
                                   (Just nam) Nothing Nothing lower upper) = do
   prev <- flattenSchemaItem s
-  return (prev, ElementRef nam lower upper)
+  let ref = ElementRef nam lower upper
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening schema ref"
+    liftIO $ putStrLn $ "       " ++ show s
+    liftIO $ putStrLn $ "    to " ++ show prev
+    liftIO $ putStrLn $ "       " ++ show ref
+  return (prev, ref)
 flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
                                 lower upper) = do
   liftIO $ do
@@ -74,11 +99,22 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
     putStrLn $ "LOWER " ++ show lower
     putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
-flattenSchemaRef (AttributeScheme Nothing Nothing (Just ref) useStr) =
-  return ([], AttributeRef ref (stringToAttributeUsage useStr))
-flattenSchemaRef (AttributeScheme (Just nam) (Just typ) Nothing useStr) =
-  return ([AttributeDefn nam typ],
-          AttributeRef nam (stringToAttributeUsage useStr))
+flattenSchemaRef sr@(AttributeScheme Nothing Nothing (Just ref) useStr) = do
+  let res = AttributeRef ref (stringToAttributeUsage useStr)
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening schema ref"
+    liftIO $ putStrLn $ "       " ++ show sr
+    liftIO $ putStrLn $ "    to " ++ show res
+  return ([], res)
+flattenSchemaRef s@(AttributeScheme (Just nam) (Just typ) Nothing useStr) = do
+  let defn = AttributeDefn nam typ
+      ref = AttributeRef nam (stringToAttributeUsage useStr)
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening schema ref"
+    liftIO $ putStrLn $ "       " ++ show s
+    liftIO $ putStrLn $ "    to " ++ show defn
+    liftIO $ putStrLn $ "       " ++ show ref
+  return ([defn], ref)
 flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
   liftIO $ do
     putStrLn $ "IFNAME " ++ show maybeName

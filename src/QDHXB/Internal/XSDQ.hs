@@ -8,7 +8,7 @@ module QDHXB.Internal.XSDQ (
   QdxhbState, initialQdxhbState,
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
   fileNewDefinition,
-  addElementDefn, getElementDefn, addAttrDefn, getAttrDefn,
+  addElementType, getElementType, getElementTypeOrFail,
   getOptions, getUseNewtype, getDebugging, whenDebugging,
 
   -- * Miscellaneous
@@ -27,11 +27,11 @@ type NameStore a = [(String, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
-type QdxhbState = (QDHXBOptionSet, NameStore Definition, NameStore Definition)
+data QdxhbState = QdxhbState QDHXBOptionSet (NameStore String)
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
-initialQdxhbState optsF = (optsF defaultOptionSet, [], [])
+initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) []
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -63,34 +63,35 @@ containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
 
 fileNewDefinition :: Definition -> XSDQ ()
-fileNewDefinition defn@(SimpleTypeDefn n _) = addElementDefn n defn
-fileNewDefinition defn@(AttributeDefn n _) = addAttrDefn n defn
-fileNewDefinition defn@(SequenceDefn n _) = addElementDefn n defn
+fileNewDefinition (SimpleTypeDefn _ _) = return ()
+fileNewDefinition (AttributeDefn _ _)  = return ()
+fileNewDefinition (SequenceDefn _ _)   = return ()
+fileNewDefinition (ElementDefn n t)    = do
+  whenDebugging $ do
+    liftIO $ putStrLn $ "Filing ElementDefn: " ++ n ++ " :: " ++ t
+  addElementType n t
 
-addElementDefn :: String -> Definition -> XSDQ ()
-addElementDefn name defn = liftStatetoXSDQ $ do
-  (opts, elems, attrs) <- get
-  put (opts, (name, defn) : elems, attrs)
+addElementType :: String -> String -> XSDQ ()
+addElementType name typ = liftStatetoXSDQ $ do
+  (QdxhbState opts elemTypes) <- get
+  put (QdxhbState opts $ (name, typ) : elemTypes)
 
-addAttrDefn :: String -> Definition -> XSDQ ()
-addAttrDefn name defn = liftStatetoXSDQ $ do
-  (opts, elems, attrs) <- get
-  put (opts, elems, (name, defn) : attrs)
+getElementType :: String -> XSDQ (Maybe String)
+getElementType name = liftStatetoXSDQ $ do
+  (QdxhbState _ elemTypes) <- get
+  return $ lookupFirst elemTypes name
 
-getElementDefn :: String -> XSDQ (Maybe Definition)
-getElementDefn name = liftStatetoXSDQ $ do
-  (_, elems, _) <- get
-  return $ lookupFirst elems name
-
-getAttrDefn :: String -> XSDQ (Maybe Definition)
-getAttrDefn name = liftStatetoXSDQ $ do
-  (_, _, attrs) <- get
-  return $ lookupFirst attrs name
+getElementTypeOrFail :: String -> XSDQ String
+getElementTypeOrFail name = do
+  typM <- getElementType name
+  case typM of
+    Just typ -> return typ
+    Nothing -> error $ "Undefined element " ++ name
 
 -- |Return the QDHXBOptionSet in effect for this run.
 getOptions :: XSDQ (QDHXBOptionSet)
 getOptions = liftStatetoXSDQ $ do
-  (opts, _, _) <- get
+  (QdxhbState opts _) <- get
   return opts
 
 -- |Return whether @newtype@ should be used in this run.

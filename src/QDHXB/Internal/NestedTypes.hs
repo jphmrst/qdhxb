@@ -4,14 +4,33 @@
 module QDHXB.Internal.NestedTypes (
   TypeScheme(Sequence, Restriction, Extension),
   DataScheme(
-      ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme)
+      ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme),
+  formatDataScheme, formatDataScheme',
+  formatDataSchemes',
+  formatDataSchemeInd', formatDataSchemesInd'
 ) where
+
+import Data.List (intercalate)
 
 data TypeScheme = Sequence [DataScheme]
   | Restriction String -- ^ base
   | Extension String -- ^ base
               [DataScheme] -- ^ additional
   deriving Show
+
+formatTypeScheme__ :: String -> TypeScheme -> [String]
+formatTypeScheme__ ind (Sequence ds) =
+  "Sequence"
+   : formatDataSchemesInd__ (ind ++ "  ") ds
+formatTypeScheme__ _ (Restriction r) = ["Restriction " ++ r]
+formatTypeScheme__ ind (Extension base ds) =
+  ("Extension " ++ base)
+   : formatDataSchemesInd__ (ind ++ "  ") ds
+
+formatTypeSchemeInd__ :: String -> TypeScheme -> [String]
+formatTypeSchemeInd__ ind s = case formatTypeScheme__ ind s of
+  [] -> []
+  x:xs -> (ind ++ x) : xs
 
 data DataScheme =
   ElementScheme [DataScheme] -- ^ contents
@@ -31,3 +50,81 @@ data DataScheme =
   | SimpleTypeScheme String -- ^ baseSpec
                      String -- ^ name
   deriving Show
+
+formatDataScheme :: DataScheme -> String
+formatDataScheme = formatDataScheme' ""
+
+formatDataScheme' :: String -> DataScheme -> String
+formatDataScheme' ind = intercalate "\n" . formatDataScheme__ ind
+
+formatDataSchemes' :: String -> [DataScheme] -> String
+formatDataSchemes' _ [] = ""
+formatDataSchemes' ind (x:xs) =
+  formatDataScheme' ind x ++ "\n" ++ formatDataSchemesInd' ind xs
+
+formatDataSchemeInd' :: String -> DataScheme -> String
+formatDataSchemeInd' ind ds = ind ++ formatDataScheme' ind ds
+
+formatDataSchemesInd' :: String -> [DataScheme] -> String
+formatDataSchemesInd' ind = intercalate "\n" . map (formatDataSchemeInd' ind)
+
+formatDataScheme__ :: String -> DataScheme -> [String]
+formatDataScheme__ ind (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
+  ("ElementScheme name="
+     ++ (case ifName of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+     ++ " type="
+     ++ (case ifType of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+     ++ " ref="
+     ++ (case ifRef of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+     ++ " min="
+     ++ (case ifMin of
+           Nothing -> "undef"
+           Just s  -> show s)
+     ++ " max="
+     ++ (case ifMax of
+           Nothing -> "undef"
+           Just s  -> show s))
+   : (foldl (++) [] $ map (formatDataSchemeInd__ (ind ++ "  ")) ctnts)
+
+formatDataScheme__ _ (AttributeScheme ifName ifType ifRef usage) = [
+  "AttributeScheme name="
+    ++ (case ifName of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+    ++ " type="
+    ++ (case ifType of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+     ++ " ref="
+     ++ (case ifRef of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\"")
+     ++ " usage=\"" ++ usage ++ "\""
+  ]
+
+formatDataScheme__ ind (ComplexTypeScheme form attrs ifName) =
+  ("ComplexTypeScheme name="
+     ++ (case ifName of
+           Nothing -> "undef"
+           Just s  -> "\"" ++ s ++ "\""))
+  : (formatTypeSchemeInd__ (ind ++ "  ") form
+     ++ (concat $ map (formatDataSchemeInd__ (ind ++ "  ")) attrs))
+
+formatDataScheme__ _ (SimpleTypeScheme base name) = [
+  "SimpleTypeScheme base=\"" ++ base ++ "\" name=\"" ++ name ++ "\""
+  ]
+
+formatDataSchemeInd__ :: String -> DataScheme -> [String]
+formatDataSchemeInd__ ind s = case formatDataScheme__ ind s of
+  [] -> []
+  x:xs -> (ind ++ x) : xs
+
+formatDataSchemesInd__ :: String -> [DataScheme] -> [String]
+formatDataSchemesInd__ ind = concat . map (formatDataSchemeInd__ ind)
+

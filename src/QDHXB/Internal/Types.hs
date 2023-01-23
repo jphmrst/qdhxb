@@ -2,10 +2,13 @@
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
-  Reference(ElementRef, AttributeRef,  ComplexTypeRef),
-  Definition(SimpleTypeDefn, AttributeDefn, SequenceDefn),
-  AttributeUsage(Forbidden, Optional, Required), stringToAttributeUsage
+  Reference(ElementRef, AttributeRef {-, ComplexTypeRef -} ),
+  Definition(SimpleTypeDefn, AttributeDefn, SequenceDefn, ElementDefn),
+  AttributeUsage(Forbidden, Optional, Required), stringToAttributeUsage,
+  pprintDefns'
   ) where
+
+import Data.List (intercalate)
 
 -- | A reference to an XSD element.
 data Reference =
@@ -13,18 +16,22 @@ data Reference =
   -- ^ A named element type, possibly with numeric instance bounds.
   | AttributeRef String AttributeUsage
   -- ^ The name of an attribute.
+{-
   | ComplexTypeRef String
   -- ^ The name of a complex type.
+-}
   deriving Show
 
 -- | The actual definition of an XSD element.
 data Definition =
-  SimpleTypeDefn String String
-  -- ^ Defining one element to have the same structure as another.
+  ElementDefn String String
+  -- ^ Defining an element to be of a particular type.
   | AttributeDefn String String
   -- ^ Defining the type of an attribute to be the same as another.
+  | SimpleTypeDefn String String
+  -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
-  -- ^ Define an element to contain a sequence of subelements.
+  -- ^ Define a complex type as a sequence of subelements.
   deriving Show
 
 data AttributeUsage = Forbidden | Optional | Required
@@ -35,3 +42,5 @@ stringToAttributeUsage "forbidden" = Forbidden
 stringToAttributeUsage "required"  = Required
 stringToAttributeUsage _ = Optional
 
+pprintDefns' :: String -> [Definition] -> String
+pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map show ds
