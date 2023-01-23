@@ -28,7 +28,13 @@ flattenSchemaItem s = do
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
-  return [ ElementDefn nam typ ]
+  let typName = (case nam of
+                   'x':'s':':':nam' -> nam'
+                   _ -> nam) ++ "Type_"
+  return [
+    SimpleTypeDefn typName typ,
+    ElementDefn nam typName
+    ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
