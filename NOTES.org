@@ -18,16 +18,8 @@
 ** Cabal/Stack notes
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
-
-* TODO Shiporder2
-  For current issue, need to revisit generation
-  - Elements get the current =decode= function signature
-  - Types get a =decodeElementAsZZZZZZZZ= function
-    - Takes the element name and the =Content=
-    - Similar body, but element name can vary
-  - Element =decode= body calls the type's new decode function with
-    their own element name
-
+* TODO Clean up IR modules --- lots of disused code there
+* TODO Recognize namespaces
 * TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, two more functions for most named elements:
@@ -37,9 +29,6 @@
   - But revisit type vs. element signatures
 
 * TODO Use class/instance for abstract complex types?
-* TODO Test code
-  - Setup for unpicklers/picklers
-
 * TODO Attribute use in xs:attribute
 * TODO Unions
 * TODO Other complex, simple type forms
