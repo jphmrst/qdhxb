@@ -26,10 +26,11 @@
 * TODO Books example
   - Need to deal with namespaces; it chokes trying to create a class
     with a colon in the name.
+* TODO Bootstrap the whole xsd.xsd
+  - Needs <restriction>, which should be simply a matter of pulling
+    the base type and ignoring the rest of it.
 * TODO OFX test 1
   - Uses xsd:choice
-* TODO Go back to key and keyref elements
-  - See customersorders.xsd example
 * TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, two more functions for most named elements:
@@ -43,4 +44,5 @@
 * TODO Unions
 * TODO Other complex, simple type forms
   - And examples
-* TODO Try the whole xsd.xsd
+* TODO Go back to key and keyref elements
+  - See customersorders.xsd example

@@ -6,6 +6,7 @@ import Shiporder2 (testShiporder2)
 import Books1 (testBooks1)
 import CustomersOrders1 (testCustomersOrders1)
 import OFX1 (testOFX1)
+import XSD1 (testXSD1)
 
 main :: IO ()
 main = do
@@ -16,6 +17,7 @@ main = do
     testBooks1
     testCustomersOrders1
     testOFX1
+    testXSD1
 {-
     inGroup "JTMS tests" $ runJTMST $ do
       testEx1
