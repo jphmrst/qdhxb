@@ -9,6 +9,8 @@ module QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
   fileNewDefinition,
   addElementType, getElementType, getElementTypeOrFail,
+  addTypeDefn, getTypeDefn, isKnownType,
+  ifKnownType, isSimpleType, isComplexType,
   getOptions, getUseNewtype, getDebugging, whenDebugging,
 
   -- * Miscellaneous
@@ -27,11 +29,12 @@ type NameStore a = [(String, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
-data QdxhbState = QdxhbState QDHXBOptionSet (NameStore String)
+data QdxhbState =
+  QdxhbState QDHXBOptionSet (NameStore String) (NameStore Definition)
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
-initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) []
+initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) [] []
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -71,14 +74,51 @@ fileNewDefinition (ElementDefn n t)    = do
     liftIO $ putStrLn $ "Filing ElementDefn: " ++ n ++ " :: " ++ t
   addElementType n t
 
+addTypeDefn :: String -> Definition -> XSDQ ()
+addTypeDefn name defn = liftStatetoXSDQ $ do
+  QdxhbState opts elemTypes typeDefns <- get
+  put (QdxhbState opts elemTypes ((name, defn) : typeDefns))
+
+getTypeDefn :: String -> XSDQ (Maybe Definition)
+getTypeDefn name = liftStatetoXSDQ $ do
+  QdxhbState _ _ typeDefns <- get
+  return $ lookupFirst typeDefns name
+
+isKnownType :: String -> XSDQ Bool
+isKnownType name = do
+  defn <- getTypeDefn name
+  return $ case defn of
+    Just _ -> True
+    _ -> False
+
+ifKnownType :: String -> XSDQ a -> XSDQ a -> XSDQ a
+{-# INLINE ifKnownType #-}
+ifKnownType str thenM elseM = do
+  isKnown <- isKnownType str
+  if isKnown then thenM else elseM
+
+isSimpleType :: String -> XSDQ Bool
+isSimpleType name = do
+  defn <- getTypeDefn name
+  return $ case defn of
+    Just (SimpleTypeDefn _ _) -> True
+    _ -> False
+
+isComplexType :: String -> XSDQ Bool
+isComplexType name = do
+  defn <- getTypeDefn name
+  return $ case defn of
+    Just (SequenceDefn _ _) -> True
+    _ -> False
+
 addElementType :: String -> String -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
-  (QdxhbState opts elemTypes) <- get
-  put (QdxhbState opts $ (name, typ) : elemTypes)
+  QdxhbState opts elemTypes typeDefns <- get
+  put (QdxhbState opts ((name, typ) : elemTypes) typeDefns)
 
 getElementType :: String -> XSDQ (Maybe String)
 getElementType name = liftStatetoXSDQ $ do
-  (QdxhbState _ elemTypes) <- get
+  (QdxhbState _ elemTypes _) <- get
   return $ lookupFirst elemTypes name
 
 getElementTypeOrFail :: String -> XSDQ String
@@ -91,7 +131,7 @@ getElementTypeOrFail name = do
 -- |Return the QDHXBOptionSet in effect for this run.
 getOptions :: XSDQ (QDHXBOptionSet)
 getOptions = liftStatetoXSDQ $ do
-  (QdxhbState opts _) <- get
+  (QdxhbState opts _ _) <- get
   return opts
 
 -- |Return whether @newtype@ should be used in this run.

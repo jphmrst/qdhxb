@@ -19,48 +19,70 @@ flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
-  whenDebugging $ do
-    liftIO $ putStrLn $ "> Flattening " ++ formatDataScheme' "             " s
   results <- flattenSchemaItem' s
   whenDebugging $ do
+    liftIO $ putStrLn $ "> Flattening " ++ formatDataScheme' "             " s
     liftIO $ putStrLn $ "   `--> " ++ pprintDefns' "        " results
   return results
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
-  let typName = (case nam of
-                   'x':'s':':':nam' -> nam'
-                   _ -> nam) ++ "Type_"
-  return [
-    SimpleTypeDefn typName typ,
-    ElementDefn nam typName
-    ]
+  isKnown <- isKnownType typ
+  isSimple <- isSimpleType typ
+  whenDebugging $ do
+    liftIO $ putStrLn $
+      "  - Checking whether " ++ typ ++ " is simple: " ++ show isSimple
+  if isSimple || not isKnown
+    then (do let typName = (case nam of
+                               'x':'s':':':nam' -> nam'
+                               _ -> nam) ++ "Type_"
+                 tyDefn = SimpleTypeDefn typName typ
+             addTypeDefn typName tyDefn
+             return [ tyDefn, ElementDefn nam typName ])
+    else return [ ElementDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
-  assembleComplexSequence steps ats nam
+  (defs, refs) <- musterComplexSequenceComponents steps ats nam
+  let typName = nam ++ "Type_"
+      tyDefn = SequenceDefn typName $ refs
+  addTypeDefn typName tyDefn
+  whenDebugging $ do
+    recheck <- isKnownType typName
+    liftIO $ putStrLn $
+      "  - Have set " ++ typName ++ " to be known; rechecked as "
+      ++ show recheck
+  return $ defs ++ [
+    tyDefn,
+    ElementDefn nam typName
+    ]
 flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) = do
   return [ AttributeDefn nam typ ]
 flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
-  assembleComplexSequence cts ats nam
+  (defs, refs) <- musterComplexSequenceComponents cts ats nam
+  let tyDefn = SequenceDefn nam $ refs
+  addTypeDefn nam tyDefn
+  whenDebugging $ do
+    recheck <- isKnownType nam
+    liftIO $ putStrLn $
+      "  - Have set " ++ nam ++ " to be known; rechecked as " ++ show recheck
+  return $ defs ++ [ tyDefn ]
 flattenSchemaItem' (SimpleTypeScheme base nam) = do
-  return $ [ SimpleTypeDefn nam base ]
+  let tyDefn = SimpleTypeDefn nam base
+  addTypeDefn nam tyDefn
+  return $ [ tyDefn ]
 flattenSchemaItem' s = do
   liftIO $ putStrLn $ ">>> " ++ show s
   error "TODO another flatten case"
 
-assembleComplexSequence ::
-  [DataScheme] ->  [DataScheme] -> String -> XSDQ [Definition]
-assembleComplexSequence steps ats nam = do
+musterComplexSequenceComponents ::
+  [DataScheme] ->  [DataScheme] -> String -> XSDQ ([Definition], [Reference])
+musterComplexSequenceComponents steps ats _ = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
-  let typName = nam ++ "Type_"
-  return $ otherDefs ++ atsDefs ++ [
-    SequenceDefn typName $ atsRefs ++ refs,
-    ElementDefn nam typName
-    ]
+  return (otherDefs ++ atsDefs, atsRefs ++ refs)
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
@@ -74,17 +96,30 @@ flattenSchemaRef e@(ElementScheme [] Nothing Nothing (Just r) lower upper) = do
     liftIO $ putStrLn $ "    to " ++ show result
   return ([], result)
 flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
-  let intermed = n ++ "Type_"
-      defn1 = SimpleTypeDefn intermed t
-      defn2 = ElementDefn n intermed
-      ref = ElementRef n lo up
+  isKnown <- isKnownType t
   whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening schema ref"
-    liftIO $ putStrLn $ "       " ++ show e
-    liftIO $ putStrLn $ "    to " ++ show defn1
-    liftIO $ putStrLn $ "       " ++ show defn2
-    liftIO $ putStrLn $ "       " ++ show ref
-  return ([defn1, defn2], ref)
+    liftIO $ putStrLn $
+      "  - Checking whether " ++ t ++ " is known: " ++ show isKnown
+  if isKnown then (do let defn = ElementDefn n t
+                          ref = ElementRef n lo up
+                      whenDebugging $ do
+                        liftIO $ putStrLn $ "  > Flattening schema ref"
+                        liftIO $ putStrLn $ "       " ++ show e
+                        liftIO $ putStrLn $ "    to " ++ show defn
+                        liftIO $ putStrLn $ "       " ++ show ref
+                      return ([defn], ref))
+    else (do let intermed = n ++ "Type_"
+                 defn1 = SimpleTypeDefn intermed t
+                 defn2 = ElementDefn n intermed
+                 ref = ElementRef n lo up
+             addTypeDefn intermed defn1
+             whenDebugging $ do
+               liftIO $ putStrLn $ "  > Flattening schema ref"
+               liftIO $ putStrLn $ "       " ++ show e
+               liftIO $ putStrLn $ "    to " ++ show defn1
+               liftIO $ putStrLn $ "       " ++ show defn2
+               liftIO $ putStrLn $ "       " ++ show ref
+             return ([defn1, defn2], ref))
 flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
                                   (Just nam) Nothing Nothing lower upper) = do
   prev <- flattenSchemaItem s

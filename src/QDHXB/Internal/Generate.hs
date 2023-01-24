@@ -44,13 +44,6 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
   in do
     fileNewDefinition decl
     let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
-    {-
-    decoder <- fmap basicDecoder
-                 [| __decodeForSimpleType $(return $ LitE $ StringL nam)
-                        ctxt
-                        $(return $ LitE $ StringL $
-                           "QDHXB: CRef must be present within " ++ nam) |]
-    -}
     decodeAs <- fmap basicDecoder
                   [| __decodeForSimpleType e
                          ctxt

@@ -5,12 +5,11 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-testShiporder2 :: TLT IO ()
-testShiporder2 = return ()
+-- testShiporder2 :: TLT IO ()
+-- testShiporder2 = return ()
 
-  {-
-qdhxb useDebugging ["shiporder2.xsd"]
--- qdhxb' ["shiporder2.xsd"]
+-- qdhxb useDebugging ["shiporder2.xsd"]
+qdhxb' ["shiporder2.xsd"]
 
 testShiporder2 :: TLT IO ()
 testShiporder2 = inGroup "XSD shiporder2" $ do
@@ -32,4 +31,3 @@ testShiporder2 = inGroup "XSD shiporder2" $ do
              Itemtype "Hide your heart" Nothing 1 9.9
            ])
          @==- p
--}
