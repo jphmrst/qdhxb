@@ -5,8 +5,8 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["shiporder1.xsd"]
--- qdhxb' ["shiporder1.xsd"]
+-- qdhxb useDebugging ["shiporder1.xsd"]
+qdhxb' ["shiporder1.xsd"]
 
 testShiporder1 :: TLT IO ()
 testShiporder1 = inGroup "XSD shiporder1" $ do
