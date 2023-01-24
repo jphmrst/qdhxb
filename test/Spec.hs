@@ -3,6 +3,9 @@ import Test.TLT
 import Shiporder0 (testShiporder0)
 import Shiporder1 (testShiporder1)
 import Shiporder2 (testShiporder2)
+import Books1 (testBooks1)
+import CustomersOrders1 (testCustomersOrders1)
+import OFX1 (testOFX1)
 
 main :: IO ()
 main = do
@@ -10,6 +13,9 @@ main = do
     testShiporder0
     testShiporder1
     testShiporder2
+    testBooks1
+    testCustomersOrders1
+    testOFX1
 {-
     inGroup "JTMS tests" $ runJTMST $ do
       testEx1

@@ -117,6 +117,11 @@ encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
   liftIO $ putStrLn $
     "WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine ifLine
   return []
+encodeSchemaItem (Elem (Element (QName tagname _ _) _ _ _))
+  | tagname == "key" || tagname == "keyref" = do
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> Dropping <" ++ tagname ++ "> entry "
+  return []
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   {- whenDebugging $ do -}
   liftIO $ putStrLn $ "TAG " ++ show tag
@@ -124,20 +129,18 @@ encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   liftIO $ putStrLn $ "CTNTS " ++ show ctnts
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
-  -- liftIO $ putStrLn $ ">>>  encodeSchemaItem Text"
   whenDebugging $ do
     liftIO $ putStrLn "> Dropping Text entry "
-  return $ []
+  return []
 encodeSchemaItem (CRef txt) = do
-  -- liftIO $ putStrLn $ ">>>  encodeSchemaItem CRef"
   whenDebugging $ do
     liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
-  return $ []
+  return []
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
                     Nothing -> ""
-                    Just line -> " at line " ++ show line
+                    Just line -> " at XSD line " ++ show line
 
 separateComplexTypeContents ::
   [Content] ->

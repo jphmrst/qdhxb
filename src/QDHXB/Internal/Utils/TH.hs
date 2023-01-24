@@ -135,7 +135,8 @@ zonedTimeType = ConT (mkName "ZonedTime")
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
-zonedTimeBasicDecoder _ = error "TODO"
+zonedTimeBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
+                                  (ConT (mkName "ZonedTime"))
 
 -- | TH `Data.Time.LocalTime.DiffTime` type representation
 diffTimeType :: Type

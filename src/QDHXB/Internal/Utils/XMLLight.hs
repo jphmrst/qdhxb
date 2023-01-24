@@ -103,5 +103,6 @@ loadElement decoder xmlFile = do
         e:[] -> return $ decoder e
         _:_  -> error "Expected a single top-level element, found multiple"
         _    -> error "Missing top-level element"
-    _ -> error "Missing <?xml> element"
+    [e] -> return $ decoder e
+    _ -> error "No elements in XML file"
 

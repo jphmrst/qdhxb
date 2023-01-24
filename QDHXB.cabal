@@ -73,6 +73,9 @@ test-suite QDHXB-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Books1
+      CustomersOrders1
+      OFX1
       Shiporder0
       Shiporder1
       Shiporder2

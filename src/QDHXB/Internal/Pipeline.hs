@@ -17,18 +17,24 @@ import QDHXB.Internal.Flatten
 -- Haskell declarations.
 xmlToDecs :: [Content] -> XSDQ [Dec]
 xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
-  (Elem (Element (QName "schema" _ _) _ forms _) : []) -> do
-    whenDebugging $ do
-      liftIO $ putStrLn "======================================== INPUT"
-    schemaReps <- encodeSchemaItems forms
-    whenDebugging $ do
-      liftIO $ putStrLn "======================================== FLATTEN"
-    ir <- flattenSchemaItems schemaReps
-    whenDebugging $ do
-      liftIO $ putStrLn "======================================== GENERATE"
-    decls <- xsdDeclsToHaskell ir
-    whenDebugging $ do
-      liftIO $ putStrLn "======================================== end"
-    return decls
+  (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) -> elementToDecs e
   _ -> error "Expected top-level <schema> element"
+xmlToDecs (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) =
+  elementToDecs e
 xmlToDecs _ = error "Missing <?xml> element"
+
+elementToDecs :: Content -> XSDQ [Dec]
+elementToDecs (Elem (Element (QName "schema" _ _) _ forms _)) = do
+  whenDebugging $ do
+    liftIO $ putStrLn "======================================== INPUT"
+  schemaReps <- encodeSchemaItems forms
+  whenDebugging $ do
+    liftIO $ putStrLn "======================================== FLATTEN"
+  ir <- flattenSchemaItems schemaReps
+  whenDebugging $ do
+    liftIO $ putStrLn "======================================== GENERATE"
+  decls <- xsdDeclsToHaskell ir
+  whenDebugging $ do
+    liftIO $ putStrLn "======================================== end"
+  return decls
+elementToDecs _ = error "Unexpected form in elementToDecs"

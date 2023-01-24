@@ -18,8 +18,19 @@
 ** Cabal/Stack notes
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
+* TODO Customers/orders example
+  - For now at least, dropping the key/keyref elements
+  - Re-uses names in nested declarations.  Need to disambiguate new
+    type and element names when flattening.
+* TODO Books example
+  - Need to deal with namespaces; it chokes trying to create a class
+    with a colon in the name.
+* TODO OFX test 1
+  - Uses xsd:choice
 * TODO Clean up IR modules --- lots of disused code there
 * TODO Recognize namespaces
+* TODO Go back to key and keyref elements
+  - See customersorders.xsd example
 * TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, two more functions for most named elements:
