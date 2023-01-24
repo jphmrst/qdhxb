@@ -186,26 +186,36 @@ booleanTestBinding name =
 todoStr :: String
 todoStr = "TODO"
 
+-- | TH `Name` for "Nothing"
 nothingName :: Name
 nothingName = mkName "Nothing"
 
+-- | TH `Name` for "Just"
 justName :: Name
 justName = mkName "Just"
 
+-- | TH `Name` for "Zero"
 zeroName :: Name
 zeroName = mkName "Zero"
 
+-- | TH `Name` for "One"
 oneName :: Name
 oneName = mkName "One"
 
+-- | TH `Name` for "Many"
 manyName :: Name
 manyName = mkName "Many"
 
+-- | TH `Exp` which will throw an exception with the given name.
 throwsError :: String -> Exp
 throwsError msg = AppE (VarE $ mkName "error") (LitE $ StringL msg)
 
+-- | TH `Type` for the one-argument function type of the given
+-- argument and result.
 fn1Type :: Type -> Type -> Type
 fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
 
+-- | TH `Type` for the two-argument function type of the given
+-- (curried) arguments and result.
 fn2Type :: Type -> Type -> Type -> Type
 fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT

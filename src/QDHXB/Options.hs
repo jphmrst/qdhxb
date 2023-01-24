@@ -10,8 +10,8 @@ module QDHXB.Options (
 
   -- * Options
   --
-  -- | These options for the `qdhxb` function are re-exported from the
-  -- @QDHXB.Options@ module.
+  -- | These options to the top-level function are re-exported from
+  -- the @QDHXB.Options@ module.
   QDHXBOption,
   -- ** Structure of renamed types
   useNewType, noUseNewType, useDebugging
@@ -34,7 +34,7 @@ data QDHXBOptionSet = QDHXBOptionSet {
 defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSet True False
 
--- | Type of one configuration step for options to the `qdhxb`
+-- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
 type QDHXBOption = QDHXBOptionSet -> QDHXBOptionSet
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
 
--- | Defines the internal monad for the XSD-to-Haskell rewriting.
+-- | Internal monad for the XSD-to-Haskell rewriting.
 module QDHXB.Internal.XSDQ (
   -- * XSD loading monad
   QdxhbState, initialQdxhbState,
@@ -25,6 +25,8 @@ import Control.Monad.Trans.State.Lazy
 import QDHXB.Internal.Types
 import QDHXB.Options
 
+-- | Synonym for an association list from `String` to the argument
+-- type.
 type NameStore a = [(String, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
@@ -41,15 +43,20 @@ initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) [] []
 newtype XSDQ a = XSDQ (StateT QdxhbState Q a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
+-- | Lift a computation from the `IO` monad to the `XSDQ` wrapper.
 liftIOtoXSDQ :: IO a -> XSDQ a
 liftIOtoXSDQ = XSDQ . lift . liftIO
 
+-- | Lift a computation from the `Q` monad to the `XSDQ` wrapper.
 liftQtoXSDQ :: Q a -> XSDQ a
 liftQtoXSDQ = XSDQ . lift
 
+-- | Lift a computation from the `StateT` layer to the `XSDQ` wrapper.
 liftStatetoXSDQ :: StateT QdxhbState Q a -> XSDQ a
 liftStatetoXSDQ = XSDQ
 
+-- | Provide the `newName` function from the internal `Q` layer to
+-- top-level `XSDQ` computations.
 instance Quote XSDQ where
   newName = liftQtoXSDQ . newName
 
@@ -65,6 +72,8 @@ containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
 containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
 
+-- | Register a `Definition` with the tracking tables in the `XSDQ`
+-- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition (SimpleTypeDefn _ _) = return ()
 fileNewDefinition (AttributeDefn _ _)  = return ()
@@ -74,16 +83,22 @@ fileNewDefinition (ElementDefn n t)    = do
     liftIO $ putStrLn $ "Filing ElementDefn: " ++ n ++ " :: " ++ t
   addElementType n t
 
+-- | Register the `Definition` of an XSD type with the tracking tables
+-- in the `XSDQ` state.
 addTypeDefn :: String -> Definition -> XSDQ ()
 addTypeDefn name defn = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns <- get
   put (QdxhbState opts elemTypes ((name, defn) : typeDefns))
 
+-- | Return the `Definition` of an XSD type from the tracking tables
+-- in the `XSDQ` state.
 getTypeDefn :: String -> XSDQ (Maybe Definition)
 getTypeDefn name = liftStatetoXSDQ $ do
   QdxhbState _ _ typeDefns <- get
   return $ lookupFirst typeDefns name
 
+-- | Return `True` if the string argument names an XSD type known to
+-- the tracking tables in the `XSDQ` state.
 isKnownType :: String -> XSDQ Bool
 isKnownType name = do
   defn <- getTypeDefn name
@@ -91,12 +106,15 @@ isKnownType name = do
     Just _ -> True
     _ -> False
 
+-- | Boolean test based on `isKnownType`.
 ifKnownType :: String -> XSDQ a -> XSDQ a -> XSDQ a
 {-# INLINE ifKnownType #-}
 ifKnownType str thenM elseM = do
   isKnown <- isKnownType str
   if isKnown then thenM else elseM
 
+-- | Return `True` if the string argument names a simple XSD type
+-- known to the tracking tables in the `XSDQ` state.
 isSimpleType :: String -> XSDQ Bool
 isSimpleType name = do
   defn <- getTypeDefn name
@@ -104,6 +122,8 @@ isSimpleType name = do
     Just (SimpleTypeDefn _ _) -> True
     _ -> False
 
+-- | Return `True` if the string argument names a complex XSD type
+-- known to the tracking tables in the `XSDQ` state.
 isComplexType :: String -> XSDQ Bool
 isComplexType name = do
   defn <- getTypeDefn name
@@ -111,16 +131,24 @@ isComplexType name = do
     Just (SequenceDefn _ _) -> True
     _ -> False
 
+-- | Register the type name associated with an element tag with the
+-- tracking tables in the `XSDQ` state.
 addElementType :: String -> String -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns <- get
   put (QdxhbState opts ((name, typ) : elemTypes) typeDefns)
 
+-- | Get the type name associated with an element tag from the
+-- tracking tables in the `XSDQ` state, or `Nothing` if there is no
+-- such element name.
 getElementType :: String -> XSDQ (Maybe String)
 getElementType name = liftStatetoXSDQ $ do
   (QdxhbState _ elemTypes _) <- get
   return $ lookupFirst elemTypes name
 
+-- | Get the type name associated with an element tag from the
+-- tracking tables in the `XSDQ` state, throwing an error if there is
+-- no such element name.
 getElementTypeOrFail :: String -> XSDQ String
 getElementTypeOrFail name = do
   typM <- getElementType name

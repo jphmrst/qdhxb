@@ -34,13 +34,17 @@ data Definition =
   -- ^ Define a complex type as a sequence of subelements.
   deriving Show
 
+-- | Enumeration encoding the valid values of the XSD attribute
+-- definition's "usage" attribute.
 data AttributeUsage = Forbidden | Optional | Required
   deriving (Eq, Show)
 
+-- | Convert a `String` to an `AttributeUsage` value.
 stringToAttributeUsage :: String -> AttributeUsage
 stringToAttributeUsage "forbidden" = Forbidden
 stringToAttributeUsage "required"  = Required
 stringToAttributeUsage _ = Optional
 
+-- | Display a list of `Definition` in more human-readable text.
 pprintDefns' :: String -> [Definition] -> String
 pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map show ds

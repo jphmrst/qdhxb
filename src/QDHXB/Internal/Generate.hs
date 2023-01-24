@@ -226,7 +226,7 @@ __decodeForSimpleType elementName ctxt msgIfNothing =
     Nothing -> error msgIfNothing
     Just v -> v
 
--- | Helper for `xsdRefToHaskellExpr`.
+-- | Helper for @xsdRefToHaskellExpr@.
 xsdRefToHaskellExpr' :: Name -> String -> XSDQ Exp
 xsdRefToHaskellExpr' param ref = return $ AppE (decoderExpFor ref) (VarE param)
 

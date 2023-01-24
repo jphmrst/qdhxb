@@ -12,10 +12,16 @@ module QDHXB.Internal.NestedTypes (
 
 import Data.List (intercalate)
 
-data TypeScheme = Sequence [DataScheme]
-  | Restriction String -- ^ base
-  | Extension String -- ^ base
-              [DataScheme] -- ^ additional
+-- | Representation of certain definitions of one XSD type based on
+-- another type.
+data TypeScheme =
+  Sequence -- ^ The <sequence> complex type.
+    [DataScheme] -- ^ List of associated definitions
+  | Restriction -- ^ One type with certain values excluded.
+    String -- ^ Base type
+  | Extension -- ^ One type extended with additional elements.
+    String -- ^ Base type
+    [DataScheme] -- ^ Additional elements
   deriving Show
 
 formatTypeScheme__ :: String -> TypeScheme -> [String]
@@ -32,6 +38,7 @@ formatTypeSchemeInd__ ind s = case formatTypeScheme__ ind s of
   [] -> []
   x:xs -> (ind ++ x) : xs
 
+-- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
   ElementScheme [DataScheme] -- ^ contents
                 (Maybe String) -- ^ ifName
@@ -51,20 +58,29 @@ data DataScheme =
                      String -- ^ name
   deriving Show
 
+-- | Pretty-print a `DataScheme`.
 formatDataScheme :: DataScheme -> String
 formatDataScheme = formatDataScheme' ""
 
+-- | Pretty-print a `DataScheme` with the given indentation (except
+-- the first line not indented).
 formatDataScheme' :: String -> DataScheme -> String
 formatDataScheme' ind = intercalate "\n" . formatDataScheme__ ind
 
+-- | Pretty-print and vertically-align a list of `DataScheme` elements
+-- (except the first line not indented).
 formatDataSchemes' :: String -> [DataScheme] -> String
 formatDataSchemes' _ [] = ""
 formatDataSchemes' ind (x:xs) =
   formatDataScheme' ind x ++ "\n" ++ formatDataSchemesInd' ind xs
 
+-- | Pretty-print a `DataScheme` with the given indentation on all
+-- lines.
 formatDataSchemeInd' :: String -> DataScheme -> String
 formatDataSchemeInd' ind ds = ind ++ formatDataScheme' ind ds
 
+-- | Pretty-print and vertically-align a list of `DataScheme` elements
+-- on all lines.
 formatDataSchemesInd' :: String -> [DataScheme] -> String
 formatDataSchemesInd' ind = intercalate "\n" . map (formatDataSchemeInd' ind)
 
