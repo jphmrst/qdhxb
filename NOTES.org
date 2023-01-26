@@ -24,8 +24,10 @@
   - Re-uses names in nested declarations.  Need to disambiguate new
     type and element names when flattening.
 * TODO Books example
-  - Need to deal with namespaces; it chokes trying to create a class
-    with a colon in the name.
+  - See first debugging section under FLATTEN:
+    - Need to decode the string given for the type for its prefix
+    - Should identify the prefix URI as the XSD defn and translate
+      "string" to Haskell ''String.
 * TODO Bootstrap the whole xsd.xsd
   - Needs <restriction>, which should be simply a matter of pulling
     the base type and ignoring the rest of it.

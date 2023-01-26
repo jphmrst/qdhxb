@@ -12,6 +12,8 @@ module QDHXB.Internal.XSDQ (
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
   getOptions, getUseNewtype, getDebugging, whenDebugging,
+  pushNamespaces, popNamespaces, getNamespaces, getDefaultNamespace,
+  decodePrefixedName,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -22,6 +24,8 @@ import Control.Monad.IO.Class
 import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
+import Text.XML.Light.Types
+import QDHXB.Internal.Utils.Namespaces
 import QDHXB.Internal.Types
 import QDHXB.Options
 
@@ -33,10 +37,11 @@ type NameStore a = [(String, a)]
 -- the names of XSD entities and their definitions.
 data QdxhbState =
   QdxhbState QDHXBOptionSet (NameStore String) (NameStore Definition)
+             [Maybe String] [Namespaces]
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
-initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) [] []
+initialQdxhbState optsF = QdxhbState (optsF defaultOptionSet) [] [] [] []
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -87,14 +92,14 @@ fileNewDefinition (ElementDefn n t)    = do
 -- in the `XSDQ` state.
 addTypeDefn :: String -> Definition -> XSDQ ()
 addTypeDefn name defn = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns <- get
-  put (QdxhbState opts elemTypes ((name, defn) : typeDefns))
+  QdxhbState opts elemTypes typeDefns dfts nss <- get
+  put (QdxhbState opts elemTypes ((name, defn) : typeDefns) dfts nss)
 
 -- | Return the `Definition` of an XSD type from the tracking tables
 -- in the `XSDQ` state.
 getTypeDefn :: String -> XSDQ (Maybe Definition)
 getTypeDefn name = liftStatetoXSDQ $ do
-  QdxhbState _ _ typeDefns <- get
+  QdxhbState _ _ typeDefns _ _ <- get
   return $ lookupFirst typeDefns name
 
 -- | Return `True` if the string argument names an XSD type known to
@@ -135,15 +140,15 @@ isComplexType name = do
 -- tracking tables in the `XSDQ` state.
 addElementType :: String -> String -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns <- get
-  put (QdxhbState opts ((name, typ) : elemTypes) typeDefns)
+  QdxhbState opts elemTypes typeDefns dfts nss <- get
+  put (QdxhbState opts ((name, typ) : elemTypes) typeDefns dfts nss)
 
 -- | Get the type name associated with an element tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
 -- such element name.
 getElementType :: String -> XSDQ (Maybe String)
 getElementType name = liftStatetoXSDQ $ do
-  (QdxhbState _ elemTypes _) <- get
+  (QdxhbState _ elemTypes _ _ _) <- get
   return $ lookupFirst elemTypes name
 
 -- | Get the type name associated with an element tag from the
@@ -159,7 +164,7 @@ getElementTypeOrFail name = do
 -- |Return the QDHXBOptionSet in effect for this run.
 getOptions :: XSDQ (QDHXBOptionSet)
 getOptions = liftStatetoXSDQ $ do
-  (QdxhbState opts _ _) <- get
+  (QdxhbState opts _ _ _ _) <- get
   return opts
 
 -- |Return whether @newtype@ should be used in this run.
@@ -173,6 +178,65 @@ getDebugging = fmap optDebugging getOptions
 -- |Guard a block executed only when debugging is activated.
 whenDebugging :: XSDQ () -> XSDQ ()
 whenDebugging = whenM getDebugging
+
+pushNamespaces :: [Attr] -> XSDQ ()
+pushNamespaces attrs = do
+  liftStatetoXSDQ $ do
+    QdxhbState opts elemTypes typeDefns dfts nss <- get
+    let (thisNS, thisDft) = decodeAttrsForNamespaces attrs
+    put $ QdxhbState opts elemTypes typeDefns (thisDft : dfts) (thisNS : nss)
+  whenDebugging $ do
+    nss <- getNamespaces
+    dft <- getDefaultNamespace
+    liftIO $ putStrLn $ "Default namespace: " ++ show dft
+    forM_ nss $ \ns -> do
+      liftIO $ putStrLn $ "----------------------------------------"
+      forM_ ns $ \(p,u) ->
+        liftIO $ putStrLn $ p ++ " --> " ++ u
+
+popNamespaces :: XSDQ ()
+popNamespaces = liftStatetoXSDQ $ do
+  QdxhbState opts elemTypes typeDefns dfts nss <- get
+  case nss of
+    [] -> return ()
+    (_:nss') -> put $ QdxhbState opts elemTypes typeDefns dfts nss'
+
+getNamespaces :: XSDQ [Namespaces]
+getNamespaces = liftStatetoXSDQ $ do
+  QdxhbState _ _ _ _ nss <- get
+  return nss
+
+getDefaultNamespace :: XSDQ (Maybe String)
+getDefaultNamespace = liftStatetoXSDQ $ do
+  QdxhbState _ _ _ dfts _ <- get
+  getFirstActual dfts
+    where getFirstActual [] = return Nothing
+          getFirstActual (r@(Just _) : _) = return r
+          getFirstActual (Nothing : ds) = getFirstActual ds
+
+decodePrefixedName :: String -> XSDQ QName
+decodePrefixedName str = do
+  nss <- getNamespaces
+  dft <- getDefaultNamespace
+  let compress :: Maybe (Maybe a) -> Maybe a
+      compress Nothing = Nothing
+      compress (Just v) = v
+      dftPrefix :: Maybe String
+      dftPrefix = compress $ fmap (\s -> getFirst getPrefixForURI s nss) dft
+  return $ decodePrefixed dftPrefix dft [] nss str
+
+getFirst ::
+  (String -> Namespaces -> Maybe String) -> String -> [Namespaces] ->
+    Maybe String
+getFirst _ _ [] = Nothing
+getFirst fn val (ns:nss) = case fn val ns of
+                             Nothing -> getFirst fn val nss
+                             res -> res
+
+getPrefixForURI :: String -> Namespaces -> Maybe String
+getPrefixForURI _ [] = Nothing
+getPrefixForURI target ((p,u):_) | target == u = Just p
+getPrefixForURI target (_:ns) = getPrefixForURI target ns
 
 -- ------------------------------------------------------------
 

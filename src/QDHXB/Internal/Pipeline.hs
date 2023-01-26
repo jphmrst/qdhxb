@@ -24,7 +24,8 @@ xmlToDecs (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) =
 xmlToDecs _ = error "Missing <?xml> element"
 
 elementToDecs :: Content -> XSDQ [Dec]
-elementToDecs (Elem (Element (QName "schema" _ _) _ forms _)) = do
+elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
+  pushNamespaces attrs
   whenDebugging $ do
     liftIO $ putStrLn "======================================== INPUT"
   schemaReps <- encodeSchemaItems forms
