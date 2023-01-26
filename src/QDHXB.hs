@@ -22,13 +22,13 @@ module QDHXB (
   -- `qdhxb'`, and therefore are re-exported here for convenience.
   Content,
   ZeroOneMany(Zero, One, Many),
-  pullContentFrom, zomToList, loadElement,
+  pullContentFrom, zomToList, __loadElement,
   __decodeForSimpleType
   ) where
 
 import Text.XML.Light.Types (Content)
 import QDHXB.Internal.Utils.XMLLight (
-  ZeroOneMany(Zero, One, Many), pullContentFrom, zomToList, loadElement
+  ZeroOneMany(Zero, One, Many), pullContentFrom, zomToList, __loadElement
   )
 import QDHXB.Internal.Generate (
   __decodeForSimpleType

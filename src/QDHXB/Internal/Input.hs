@@ -32,6 +32,7 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
         ]
   whenDebugging $ do
     liftIO $ putStrLn $ "> Encoding element"
+    liftIO $ putStrLn $ mlineIndent "    " (show e)
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
     liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
   return res

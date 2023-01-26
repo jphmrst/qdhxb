@@ -42,23 +42,23 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
     decodeAs <- fmap basicDecoder
                   [| __decodeForSimpleType e
                          ctxt
-                         $(return $ LitE $ StringL $
+                         $(return $ quoteStr $
                             "QDHXB: CRef must be present within " ++ nam) |]
     let res = (
           TySynD (mkName baseName) [] haskellType
 
           -- Decoder
-          : SigD decAsNam (fn2Type (ConT $ mkName "String")
-                                   (ConT $ mkName "Content")
+          : SigD decAsNam (fn2Type stringConT
+                                   contentConT
                                    (ConT $ mkName baseName))
-          : FunD decAsNam [Clause [VarP $ mkName "e", VarP $ mkName "ctxt"]
+          : FunD decAsNam [Clause [VarP eName, VarP ctxtName]
                                   (NormalB decodeAs) []]
 
           {-
           -- TODO Encoder
           SigD encNam encType
-          FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                                 (LitE $ StringL "TODO")) []]
+          FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                                 (quoteStr "TODO")) []]
           -}
 
           : [])
@@ -74,35 +74,35 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
       loadNam = mkName $ "load" ++ baseName
   fileNewDefinition decl
   decoder <- [| $(return $ VarE $ mkName $ "decodeAs" ++ typBaseName)
-                   $(return $ LitE $ StringL nam)
+                   $(return $ quoteStr nam)
                      ctxt |]
   let res = (
         -- TySynD (mkName baseName) [] haskellType
 
         -- Decoder
-        SigD decNam (fn1Type (ConT $ mkName "Content")
+        SigD decNam (fn1Type contentConT
                                (ConT $ mkName typBaseName))
-        : FunD decNam [Clause [VarP $ mkName "ctxt"] (NormalB decoder) []]
+        : FunD decNam [Clause [VarP ctxtName] (NormalB decoder) []]
 
         {-
         -- TODO Encoder
         SigD encNam encType
-        FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                               (LitE $ StringL "TODO")) []]
+        FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                               (quoteStr "TODO")) []]
         -}
 
         -- Reader
-        : SigD loadNam (fn1Type (ConT $ mkName "String")
-                                (AppT (ConT $ mkName "IO")
+        : SigD loadNam (fn1Type stringConT
+                                (AppT contentConT
                                       (ConT $ mkName typBaseName)))
-        : FunD loadNam [Clause [] (NormalB $ AppE (VarE $ mkName "loadElement")
+        : FunD loadNam [Clause [] (NormalB $ AppE (VarE $ loadElementName)
                                                   (VarE decNam)) []]
 
         {-
         -- TODO Writer
-        (SigD writeNam $ VarT $ mkName "a")
-        FunD writeNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                                 (LitE $ StringL "TODO")) []]
+        (SigD writeNam $ VarT aName)
+        FunD writeNam [Clause [] (NormalB $ AppE errorVarE
+                                                 (quoteStr "TODO")) []]
         -}
 
         : [])
@@ -117,21 +117,21 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
       decNam = mkName $ "decode" ++ rootName
   in do
     fileNewDefinition decl
-    decoder <- [| pullAttrFrom $(return $ LitE $ StringL nam) ctxt |]
+    decoder <- [| pullAttrFrom $(return $ quoteStr nam) ctxt |]
     let (haskellTyp, _) = xsdTypeNameTranslation typ
     let res = (
           TySynD rootTypeName [] haskellTyp
 
           -- Decoder
-          : SigD decNam (fn1Type (ConT $ mkName "Content")
-                                 (AppT (ConT $ mkName "Maybe") (ConT rootTypeName)))
-          : FunD decNam [Clause [VarP $ mkName "ctxt"] (NormalB decoder) []]
+          : SigD decNam (fn1Type contentConT
+                                 (AppT maybeConT (ConT rootTypeName)))
+          : FunD decNam [Clause [VarP ctxtName] (NormalB decoder) []]
 
           {-
           -- TODO Encoder
           SigD encNam encType
-          FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                                 (LitE $ StringL "TODO")) []]
+          FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                                 (quoteStr "TODO")) []]
           -}
           : [])
     whenDebugging $ do
@@ -148,7 +148,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
     hrefOut <- mapM xsdRefToBangTypeQ refs
     let binderMapper :: (Name, Reference) -> XSDQ Dec
         binderMapper (n, r) = do
-          body <- xsdRefToHaskellExpr (mkName "ctxt") r
+          body <- xsdRefToHaskellExpr ctxtName r
           return $ ValD (VarP n) (NormalB body) []
     let subNames = map (mkName . ("s" ++) . show) [1..length refs]
     binders <- mapM binderMapper $ zip subNames refs
@@ -157,20 +157,19 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
     let res = (
           -- Type declaration
           DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
-                [DerivClause Nothing [ConT $ mkName "Eq", ConT $ mkName "Show"]]
+                [DerivClause Nothing [eqConT, showConT]]
 
           -- Decoder
            : SigD decNam
-                  (fn2Type (ConT $ mkName "String") (ConT $ mkName "Content")
-                           (ConT $ mkName nameRoot))
-           : FunD decNam [Clause [WildP, VarP $ mkName "ctxt"]
+                  (fn2Type stringConT contentConT (ConT $ mkName nameRoot))
+           : FunD decNam [Clause [WildP, VarP ctxtName]
                                  (NormalB decoder) []]
 
            {-
           -- TODO Encoder
            : SigD encNam encType
-           : FunD encNam [Clause [] (NormalB $ AppE (VarE $ mkName "error")
-                                                    (LitE $ StringL "TODO")) []]
+           : FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                                    (quoteStr "TODO")) []]
            -}
 
            : [])
@@ -194,26 +193,23 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) =
       (_, Just 0) -> return $ TupE []
       (Just 0, Just 1) -> do
         matches <- zomMatch1
-          (ConE $ mkName "Nothing")
-          (\paramName -> AppE (ConE $ mkName "Just")
+          (ConE nothingName)
+          (\paramName -> AppE (ConE justName)
                               (AppE (AppE (decoderAsExpFor typeName)
-                                          (LitE $ StringL ref))
+                                          (quoteStr ref))
                                     (VarE paramName)))
           (throwsError "QDHXB: should not return multiple results")
         return $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
           (throwsError "QDHXB: should not return zero results")
-          (\paramName -> AppE (AppE (decoderAsExpFor typeName)
-                                          (LitE $ StringL ref))
-                                    (VarE paramName))
+          (\paramName -> AppE (AppE (decoderAsExpFor typeName) (quoteStr ref))
+                              (VarE paramName))
           (throwsError "QDHXB: should not return multiple results")
         return $ casePrefix matches
-      _ -> return $ AppE (AppE (VarE $ mkName "map")
-                               (AppE (decoderAsExpFor typeName)
-                                     (LitE $ StringL ref)))
-                         (AppE (VarE $ mkName "zomToList")
-                               (subcontentZom ref param))
+      _ -> return $ AppE (AppE mapVarE
+                               (AppE (decoderAsExpFor typeName) (quoteStr ref)))
+                         (AppE zomToListVarE (subcontentZom ref param))
 xsdRefToHaskellExpr param (AttributeRef ref usage) = do
   core <- xsdRefToHaskellExpr' param ref
   unpackAttrDecoderForUsage usage core
@@ -288,15 +284,14 @@ xsdRefToBangTypeQ (AttributeRef ref usage) =
 
 attrTypeForUsage :: AttributeUsage -> Type -> Type
 attrTypeForUsage Forbidden _ = TupleT 0
-attrTypeForUsage Optional typ = AppT (ConT $ mkName "Maybe") typ
+attrTypeForUsage Optional typ = AppT maybeConT typ
 attrTypeForUsage Required typ = typ
 
 unpackAttrDecoderForUsage :: AttributeUsage -> Exp -> XSDQ Exp
 unpackAttrDecoderForUsage Forbidden _ = return $ TupE []
 unpackAttrDecoderForUsage Optional expr = return expr
 unpackAttrDecoderForUsage Required expr = fmap (CaseE expr) $
-  maybeMatches (throwsError "QDHXB: should not return Nothing")
-               (\paramName -> VarE paramName)
+  maybeMatches (throwsError "QDHXB: should not return Nothing") VarE
 
 -- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang

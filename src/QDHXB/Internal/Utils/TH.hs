@@ -14,7 +14,14 @@ module QDHXB.Internal.Utils.TH (
   qnameBasicDecoder,
 
   -- * Utilities for building expressions for ZOM types
-  zeroName, oneName, manyName, nothingName, justName,
+  zeroName, oneName, manyName, zomToListName,
+  nothingName, justName, maybeName,
+  stringName, errorName, eqName, showName, intName, floatName, boolName,
+  mapName, zonedTimeName,
+  contentName, ioName, aName, eName, ctxtName, readName,
+  stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT,
+  readVarE, errorVarE, mapVarE, zomToListVarE,
+  quoteStr,
 
   -- * Miscellaneous
   firstToUpper, todoStr, throwsError, fn1Type, fn2Type)
@@ -79,16 +86,15 @@ xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, id)
 
 -- | TH `Int` type representation
 intType :: Type
-intType = ConT (mkName "Int")
+intType = ConT intName
 
 -- | TH `Int` type converter from `String`
 intBasicDecoder :: Exp -> Exp
-intBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
-                            (ConT (mkName "Int"))
+intBasicDecoder expr = SigE (AppE readVarE expr) intType
 
 -- | TH `String` type representation
 stringType :: Type
-stringType = ConT (mkName "String")
+stringType = ConT stringName
 
 -- | TH `String` type converter from `String`
 stringBasicDecoder :: Exp -> Exp
@@ -108,8 +114,7 @@ floatType = ConT (mkName "Float")
 
 -- | TH `Float` converter from `String`.
 floatBasicDecoder :: Exp -> Exp
-floatBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
-                              (ConT (mkName "Float"))
+floatBasicDecoder expr = SigE (AppE readVarE expr) floatType
 
 -- | TH `Bool` type representation
 boolType :: Type
@@ -117,8 +122,7 @@ boolType = ConT (mkName "Bool")
 
 -- | TH `Bool` converter from `String`.
 boolBasicDecoder :: Exp -> Exp
-boolBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
-                             (ConT (mkName "Bool"))
+boolBasicDecoder expr = SigE (AppE readVarE expr) boolType
 
 -- | TH `Double` type representation
 doubleType :: Type
@@ -126,17 +130,15 @@ doubleType = ConT (mkName "Double")
 
 -- | TH `Double` converter from `String`.
 doubleBasicDecoder :: Exp -> Exp
-doubleBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
-                               (ConT (mkName "Double"))
+doubleBasicDecoder expr = SigE (AppE readVarE expr) doubleType
 
 -- | TH `Data.Time.LocalTime.ZonedTime` type representation
 zonedTimeType :: Type
-zonedTimeType = ConT (mkName "ZonedTime")
+zonedTimeType = zonedTimeConT
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
-zonedTimeBasicDecoder expr = SigE (AppE (VarE $ mkName "read") expr)
-                                  (ConT (mkName "ZonedTime"))
+zonedTimeBasicDecoder expr = SigE (AppE readVarE expr) zonedTimeConT
 
 -- | TH `Data.Time.LocalTime.DiffTime` type representation
 diffTimeType :: Type
@@ -198,6 +200,18 @@ justName = mkName "Just"
 zeroName :: Name
 zeroName = mkName "Zero"
 
+-- | TH `Name` for "Int"
+intName :: Name
+intName = mkName "Int"
+
+-- | TH `Name` for "Float"
+floatName :: Name
+floatName = mkName "Float"
+
+-- | TH `Name` for "Bool"
+boolName :: Name
+boolName = mkName "Bool"
+
 -- | TH `Name` for "One"
 oneName :: Name
 oneName = mkName "One"
@@ -206,9 +220,105 @@ oneName = mkName "One"
 manyName :: Name
 manyName = mkName "Many"
 
+-- | TH `Name` for "String"
+stringName :: Name
+stringName = mkName "String"
+
+-- | TH `Name` for "Content"
+contentName :: Name
+contentName = mkName "Content"
+
+-- | TH `Name` for "IO"
+ioName :: Name
+ioName = mkName "IO"
+
+-- | TH `Name` for "e"
+eName :: Name
+eName = mkName "e"
+
+-- | TH `Name` for "ctxt"
+ctxtName :: Name
+ctxtName = mkName "ctxt"
+
+-- | TH `Name` for "error"
+errorName :: Name
+errorName = mkName "error"
+
+-- | TH `Name` for "Maybe"
+maybeName :: Name
+maybeName = mkName "Maybe"
+
+-- | TH `Name` for "Eq"
+eqName :: Name
+eqName = mkName "Eq"
+
+-- | TH `Name` for "Show"
+showName :: Name
+showName = mkName "Show"
+
+-- | TH `Name` for "ZonedTime"
+zonedTimeName :: Name
+zonedTimeName = mkName "ZonedTime"
+
+-- | TH `Name` for "map"
+mapName :: Name
+mapName = mkName "map"
+
+-- | TH `Name` for "read"
+readName :: Name
+readName = mkName "read"
+
+-- | TH `Name` for "zomToList"
+zomToListName :: Name
+zomToListName = mkName "zomToList"
+
+-- | TH `Name` for "a"
+aName :: Name
+aName = mkName "a"
+
+-- | TH `Expr` for function `read`
+readVarE :: Exp
+readVarE = VarE readName
+
+-- | TH `Expr` for function `zomToList`
+zomToListVarE :: Exp
+zomToListVarE = VarE zomToListName
+
+-- | TH `Expr` for function `map`
+mapVarE :: Exp
+mapVarE = VarE mapName
+
+-- | TH `Expr` for function `error`
+errorVarE :: Exp
+errorVarE = VarE errorName
+
+-- | TH `Type` for `String`
+stringConT :: Type
+stringConT = ConT stringName
+
+-- | TH `Type` for `ZonedTime`
+zonedTimeConT :: Type
+zonedTimeConT = ConT zonedTimeName
+
+-- | TH `Type` for `Content`
+contentConT :: Type
+contentConT = ConT contentName
+
+-- | TH `Type` for `Maybe`
+maybeConT :: Type
+maybeConT = ConT maybeName
+
+-- | TH `Type` for `Show`
+showConT :: Type
+showConT = ConT showName
+
+-- | TH `Type` for `Eq`
+eqConT :: Type
+eqConT = ConT eqName
+
 -- | TH `Exp` which will throw an exception with the given name.
 throwsError :: String -> Exp
-throwsError msg = AppE (VarE $ mkName "error") (LitE $ StringL msg)
+throwsError msg = AppE errorVarE (LitE $ StringL msg)
 
 -- | TH `Type` for the one-argument function type of the given
 -- argument and result.
@@ -219,3 +329,6 @@ fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
 -- (curried) arguments and result.
 fn2Type :: Type -> Type -> Type -> Type
 fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT
+
+quoteStr :: String -> Exp
+quoteStr = LitE . StringL

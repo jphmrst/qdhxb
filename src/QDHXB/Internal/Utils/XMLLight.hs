@@ -6,8 +6,9 @@ module QDHXB.Internal.Utils.XMLLight (
     isElem,
     ZeroOneMany(Zero, One, Many),
     zomToList, zappend, lzappend,
-    loadElement)
+    __loadElement, loadElementName)
 where
+import Language.Haskell.TH (mkName, Name)
 import System.IO
 import Text.XML.Light.Input
 import Text.XML.Light.Types
@@ -94,8 +95,8 @@ lzappend ms  (Many ns) = Many $ ms ++ ns
 
 -- | Using the given decoder for an XMLLight `Content` structure,
 -- extract a decoded value from an XML file.
-loadElement :: (Content -> a) -> String -> IO a
-loadElement decoder xmlFile = do
+__loadElement :: (Content -> a) -> String -> IO a
+__loadElement decoder xmlFile = do
   xml <- fmap parseXML $ readFile' xmlFile
   case filter isElem xml of
     ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) ->
@@ -106,3 +107,5 @@ loadElement decoder xmlFile = do
     [e] -> return $ decoder e
     _ -> error "No elements in XML file"
 
+loadElementName :: Name
+loadElementName = mkName "__loadElement"
