@@ -4,6 +4,13 @@
 -- This module simply re-exports bindings made elsewhere: the
 -- top-level QDHXB calls, configuration options, and definitions used
 -- in the code to which the macros expand.
+--
+-- Certain XSD types will require additional @import@s in a module
+-- calling `qdhxb` or `qdhxb'`.
+--
+--  - @date@, @time@, and the other timekeeping types:
+--    @import Data.Time.Calendar@
+--  - @QName@: @import Text.XML.Light.Types@
 module QDHXB (
   -- * Invoking QDHXB
   qdhxb, qdhxb',
