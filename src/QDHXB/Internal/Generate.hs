@@ -17,8 +17,9 @@ where
 import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Language.Haskell.TH
-import Text.XML.Light.Types (Content)
+import Text.XML.Light.Types (QName, Content, qName)
 import QDHXB.Internal.Utils.TH
+import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
@@ -34,16 +35,16 @@ xsdDeclsToHaskell defns = do
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
-  let baseName = firstToUpper nam
+  let baseName = firstToUpper $ qName nam
       decAsNam = mkName $ "decodeAs" ++ baseName
   in do
     fileNewDefinition decl
-    let (haskellType, basicDecoder) = xsdTypeNameTranslation typ
+    let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
     decodeAs <- fmap basicDecoder
                   [| __decodeForSimpleType e
                          ctxt
                          $(return $ quoteStr $
-                            "QDHXB: CRef must be present within " ++ nam) |]
+                            "QDHXB: CRef must be present within " ++ show nam) |]
     let res = (
           TySynD (mkName baseName) [] haskellType
 
@@ -68,13 +69,13 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
       liftIO $ putStrLn $ "  to " ++ indCode "     " res
     return res
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
-  let baseName = firstToUpper nam
-      typBaseName = firstToUpper typ
-      decNam = mkName $ "decode" ++ baseName
-      loadNam = mkName $ "load" ++ baseName
+  let baseName = qFirstToUpper nam
+      typBaseName = firstToUpper $ qName typ
+      decNam = mkName $ "decode" ++ qName baseName
+      loadNam = mkName $ "load" ++ qName baseName
   fileNewDefinition decl
   decoder <- [| $(return $ VarE $ mkName $ "decodeAs" ++ typBaseName)
-                   $(return $ quoteStr nam)
+                   $(return $ quoteStr $ qName nam)
                      ctxt |]
   let res = (
         -- TySynD (mkName baseName) [] haskellType
@@ -112,13 +113,13 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
     liftIO $ putStrLn $ "  to " ++ indCode "     " res
   return res
 xsdDeclToHaskell decl@(AttributeDefn nam typ) =
-  let rootName = firstToUpper nam
+  let rootName = firstToUpper $ qName nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
   in do
     fileNewDefinition decl
-    decoder <- [| pullAttrFrom $(return $ quoteStr nam) ctxt |]
-    let (haskellTyp, _) = xsdTypeNameTranslation typ
+    decoder <- [| pullAttrFrom $(return $ quoteStr $ qName nam) ctxt |]
+    let (haskellTyp, _) = xsdTypeNameTranslation $ qName typ
     let res = (
           TySynD rootTypeName [] haskellTyp
 
@@ -188,30 +189,32 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) =
   in do
     typeName <- getElementTypeOrFail ref
     whenDebugging $ liftIO $ putStrLn $
-      "Retrieving type " ++ typeName ++ " for " ++ ref
+      "Retrieving type " ++ qName typeName ++ " for " ++ show ref
     case (occursMin, occursMax) of
       (_, Just 0) -> return $ TupE []
       (Just 0, Just 1) -> do
         matches <- zomMatch1
           (ConE nothingName)
           (\paramName -> AppE (ConE justName)
-                              (AppE (AppE (decoderAsExpFor typeName)
-                                          (quoteStr ref))
+                              (AppE (AppE (decoderAsExpFor $ qName typeName)
+                                          (quoteStr $ qName ref))
                                     (VarE paramName)))
           (throwsError "QDHXB: should not return multiple results")
         return $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
           (throwsError "QDHXB: should not return zero results")
-          (\paramName -> AppE (AppE (decoderAsExpFor typeName) (quoteStr ref))
+          (\paramName -> AppE (AppE (decoderAsExpFor $ qName typeName)
+                                    (quoteStr $ qName ref))
                               (VarE paramName))
           (throwsError "QDHXB: should not return multiple results")
         return $ casePrefix matches
       _ -> return $ AppE (AppE mapVarE
-                               (AppE (decoderAsExpFor typeName) (quoteStr ref)))
+                               (AppE (decoderAsExpFor $ qName typeName)
+                                     (quoteStr $ qName ref)))
                          (AppE zomToListVarE (subcontentZom ref param))
 xsdRefToHaskellExpr param (AttributeRef ref usage) = do
-  core <- xsdRefToHaskellExpr' param ref
+  core <- xsdRefToHaskellExpr' param $ qName ref
   unpackAttrDecoderForUsage usage core
 
 -- | Called from generated code.
@@ -241,9 +244,9 @@ decoderAsExpFor typ = VarE $ mkName $ "decodeAs" ++ firstToUpper typ
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.
-subcontentZom :: String -> Name -> Exp
+subcontentZom :: QName -> Name -> Exp
 subcontentZom ref param =
-  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL ref)))
+  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL $ qName ref)))
        (VarE param)
 
 zomMatch1 :: Exp -> (Name -> Exp) -> Exp -> XSDQ [Match]
@@ -275,12 +278,12 @@ xsdRefToBangTypeQ :: Reference -> XSDQ BangType
 xsdRefToBangTypeQ (ElementRef ref lower upper) = do
   typeName <- getElementTypeOrFail ref
   typ <- containForBounds lower upper $ return $ ConT $ mkName $
-         firstToUpper typeName
+         firstToUpper $ qName typeName
   return (useBang, typ)
 xsdRefToBangTypeQ (AttributeRef ref usage) =
   return (useBang,
           attrTypeForUsage usage $
-            ConT $ mkName $ firstToUpper $ ref ++ "AttrType")
+            ConT $ mkName $ firstToUpper $ qName ref ++ "AttrType")
 
 attrTypeForUsage :: AttributeUsage -> Type -> Type
 attrTypeForUsage Forbidden _ = TupleT 0

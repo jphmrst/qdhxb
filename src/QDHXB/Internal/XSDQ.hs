@@ -13,7 +13,7 @@ module QDHXB.Internal.XSDQ (
   ifKnownType, isSimpleType, isComplexType,
   getOptions, getUseNewtype, getDebugging, whenDebugging,
   pushNamespaces, popNamespaces, getNamespaces, getDefaultNamespace,
-  decodePrefixedName,
+  decodePrefixedName, getURIprefix,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -26,17 +26,22 @@ import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.Namespaces
+import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Types
 import QDHXB.Options
 
--- | Synonym for an association list from `String` to the argument
+-- | Synonym for an association list from a `String` to the argument
 -- type.
 type NameStore a = [(String, a)]
+
+-- | Synonym for an association list from a `QName` to the argument
+-- type.
+type QNameStore a = [(QName, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
 data QdxhbState =
-  QdxhbState QDHXBOptionSet (NameStore String) (NameStore Definition)
+  QdxhbState QDHXBOptionSet (QNameStore QName) (QNameStore Definition)
              [Maybe String] [Namespaces]
 
 -- | The initial value of `XSDQ` states.
@@ -85,26 +90,26 @@ fileNewDefinition (AttributeDefn _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _)   = return ()
 fileNewDefinition (ElementDefn n t)    = do
   whenDebugging $ do
-    liftIO $ putStrLn $ "Filing ElementDefn: " ++ n ++ " :: " ++ t
+    liftIO $ putStrLn $ "Filing ElementDefn: " ++ show n ++ " :: " ++ show t
   addElementType n t
 
 -- | Register the `Definition` of an XSD type with the tracking tables
 -- in the `XSDQ` state.
-addTypeDefn :: String -> Definition -> XSDQ ()
+addTypeDefn :: QName -> Definition -> XSDQ ()
 addTypeDefn name defn = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns dfts nss <- get
   put (QdxhbState opts elemTypes ((name, defn) : typeDefns) dfts nss)
 
 -- | Return the `Definition` of an XSD type from the tracking tables
 -- in the `XSDQ` state.
-getTypeDefn :: String -> XSDQ (Maybe Definition)
+getTypeDefn :: QName -> XSDQ (Maybe Definition)
 getTypeDefn name = liftStatetoXSDQ $ do
   QdxhbState _ _ typeDefns _ _ <- get
   return $ lookupFirst typeDefns name
 
 -- | Return `True` if the string argument names an XSD type known to
 -- the tracking tables in the `XSDQ` state.
-isKnownType :: String -> XSDQ Bool
+isKnownType :: QName -> XSDQ Bool
 isKnownType name = do
   defn <- getTypeDefn name
   return $ case defn of
@@ -112,7 +117,7 @@ isKnownType name = do
     _ -> False
 
 -- | Boolean test based on `isKnownType`.
-ifKnownType :: String -> XSDQ a -> XSDQ a -> XSDQ a
+ifKnownType :: QName -> XSDQ a -> XSDQ a -> XSDQ a
 {-# INLINE ifKnownType #-}
 ifKnownType str thenM elseM = do
   isKnown <- isKnownType str
@@ -120,7 +125,7 @@ ifKnownType str thenM elseM = do
 
 -- | Return `True` if the string argument names a simple XSD type
 -- known to the tracking tables in the `XSDQ` state.
-isSimpleType :: String -> XSDQ Bool
+isSimpleType :: QName -> XSDQ Bool
 isSimpleType name = do
   defn <- getTypeDefn name
   return $ case defn of
@@ -129,7 +134,7 @@ isSimpleType name = do
 
 -- | Return `True` if the string argument names a complex XSD type
 -- known to the tracking tables in the `XSDQ` state.
-isComplexType :: String -> XSDQ Bool
+isComplexType :: QName -> XSDQ Bool
 isComplexType name = do
   defn <- getTypeDefn name
   return $ case defn of
@@ -138,7 +143,7 @@ isComplexType name = do
 
 -- | Register the type name associated with an element tag with the
 -- tracking tables in the `XSDQ` state.
-addElementType :: String -> String -> XSDQ ()
+addElementType :: QName -> QName -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns dfts nss <- get
   put (QdxhbState opts ((name, typ) : elemTypes) typeDefns dfts nss)
@@ -146,7 +151,7 @@ addElementType name typ = liftStatetoXSDQ $ do
 -- | Get the type name associated with an element tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
 -- such element name.
-getElementType :: String -> XSDQ (Maybe String)
+getElementType :: QName -> XSDQ (Maybe QName)
 getElementType name = liftStatetoXSDQ $ do
   (QdxhbState _ elemTypes _ _ _) <- get
   return $ lookupFirst elemTypes name
@@ -154,12 +159,12 @@ getElementType name = liftStatetoXSDQ $ do
 -- | Get the type name associated with an element tag from the
 -- tracking tables in the `XSDQ` state, throwing an error if there is
 -- no such element name.
-getElementTypeOrFail :: String -> XSDQ String
+getElementTypeOrFail :: QName -> XSDQ QName
 getElementTypeOrFail name = do
   typM <- getElementType name
   case typM of
     Just typ -> return typ
-    Nothing -> error $ "Undefined element " ++ name
+    Nothing -> error $ "Undefined element " ++ show name
 
 -- |Return the QDHXBOptionSet in effect for this run.
 getOptions :: XSDQ (QDHXBOptionSet)
@@ -227,11 +232,9 @@ decodePrefixedName :: String -> XSDQ QName
 decodePrefixedName str = do
   nss <- getNamespaces
   dft <- getDefaultNamespace
-  let compress :: Maybe (Maybe a) -> Maybe a
-      compress Nothing = Nothing
-      compress (Just v) = v
-      dftPrefix :: Maybe String
-      dftPrefix = compress $ fmap (\s -> getFirst getPrefixForURI s nss) dft
+  let dftPrefix :: Maybe String
+      dftPrefix = compressMaybe $
+        fmap (\s -> getFirst lookupPrefixForURI s nss) dft
   return $ decodePrefixed dftPrefix dft [] nss str
 
 getFirst ::
@@ -242,14 +245,19 @@ getFirst fn val (ns:nss) = case fn val ns of
                              Nothing -> getFirst fn val nss
                              res -> res
 
-getPrefixForURI :: String -> Namespaces -> Maybe String
-getPrefixForURI _ [] = Nothing
-getPrefixForURI target ((p,u):_) | target == u = Just p
-getPrefixForURI target (_:ns) = getPrefixForURI target ns
+getURIprefix :: String -> XSDQ (Maybe String)
+getURIprefix uri = do
+  nss <- getNamespaces
+  return $ getFirst lookupPrefixForURI uri nss
+
+lookupPrefixForURI :: String -> Namespaces -> Maybe String
+lookupPrefixForURI _ [] = Nothing
+lookupPrefixForURI target ((p,u):_) | target == u = Just p
+lookupPrefixForURI target (_:ns) = lookupPrefixForURI target ns
 
 -- ------------------------------------------------------------
 
-lookupFirst :: [(String, a)] -> String -> Maybe a
+lookupFirst :: Eq k => [(k, a)] -> k -> Maybe a
 lookupFirst [] _ = Nothing
 lookupFirst ((fnd, x):_) targ | fnd == targ = Just x
 lookupFirst (_:xs) targ = lookupFirst xs targ

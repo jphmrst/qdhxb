@@ -23,12 +23,16 @@ encodeSchemaItems items = do
 encodeSchemaItem :: Content -> XSDQ [DataScheme]
 encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
   included <- encodeSchemaItems $ filter isElem content
+  let givenType = pullAttr "type" ats
+  typeQName <- mapM decodePrefixedName givenType
+  let givenRef = pullAttr "ref" ats
+  refQName <- mapM decodePrefixedName givenRef
+  let givenName = pullAttr "name" ats
+  nameQName <- mapM decodePrefixedName givenName
   let res = [
-        ElementScheme included
-                  (pullAttr "name" ats) (pullAttr "type" ats)
-                  (pullAttr "ref" ats)
-                  (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
-                  (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
+        ElementScheme included nameQName typeQName refQName
+                      (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
+                      (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
         ]
   whenDebugging $ do
     liftIO $ putStrLn $ "> Encoding element"
@@ -37,9 +41,11 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
     liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
   return res
 encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+  typeQName <- mapM decodePrefixedName $ pullAttr "type" ats
+  refQName <- mapM decodePrefixedName $ pullAttr "ref" ats
+  nameQname <- mapM decodePrefixedName $ pullAttr "name" ats
   let res = [
-        AttributeScheme (pullAttr "name" ats) (pullAttr "type" ats)
-          (pullAttr "ref" ats)
+        AttributeScheme nameQname typeQName refQName
           (case pullAttr "use" ats of
              Nothing -> "optional"
              Just s -> s)
@@ -92,7 +98,8 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr) -> do
-      res <- encodeSimpleTypeByRestriction nam ats restr
+      qnam <- mapM decodePrefixedName nam
+      res <- encodeSimpleTypeByRestriction qnam ats restr
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding simpleType "
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
@@ -182,8 +189,10 @@ encodeComplexTypeSchemeElement ats _ "sequence" ctnts ats'' = do
   included <- encodeSchemaItems ctnts
   atrSpecs <- encodeSchemaItems $ zomToList ats''
   -- liftIO $ putStrLn ">>> encodeComplexTypeScheme"
+  let nameAttrGiven = pullAttr "name" ats
+  nameAttrQName <- mapM decodePrefixedName nameAttrGiven
   return [
-    ComplexTypeScheme (Sequence included) atrSpecs (pullAttr "name" ats)
+    ComplexTypeScheme (Sequence included) atrSpecs nameAttrQName
     ]
 encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
   liftIO $ putStrLn $ "ATS "       ++ show ats
@@ -195,11 +204,13 @@ encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
 
 
 encodeSimpleTypeByRestriction ::
-  Maybe String -> [Attr] -> Content -> XSDQ [DataScheme]
+  Maybe QName -> [Attr] -> Content -> XSDQ [DataScheme]
 encodeSimpleTypeByRestriction -- Note ignoring ats
     (Just nam) _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
   case pullAttr "base" ats' of
-    Just base -> return [ SimpleTypeScheme base nam ]
+    Just base -> do
+      baseQName <- decodePrefixedName base
+      return [ SimpleTypeScheme baseQName nam ]
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam ats s = do
   liftIO $ putStrLn $ ">>> IFNAM " ++ show ifNam

@@ -9,12 +9,13 @@ module QDHXB.Internal.Types (
   ) where
 
 import Data.List (intercalate)
+import Text.XML.Light.Types
 
 -- | A reference to an XSD element.
 data Reference =
-  ElementRef String (Maybe Int) (Maybe Int)
+  ElementRef QName (Maybe Int) (Maybe Int)
   -- ^ A named element type, possibly with numeric instance bounds.
-  | AttributeRef String AttributeUsage
+  | AttributeRef QName AttributeUsage
   -- ^ The name of an attribute.
 {-
   | ComplexTypeRef String
@@ -24,11 +25,11 @@ data Reference =
 
 -- | The actual definition of an XSD element.
 data Definition =
-  ElementDefn String String
+  ElementDefn QName QName
   -- ^ Defining an element to be of a particular type.
-  | AttributeDefn String String
+  | AttributeDefn QName QName
   -- ^ Defining the type of an attribute to be the same as another.
-  | SimpleTypeDefn String String
+  | SimpleTypeDefn QName QName
   -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
   -- ^ Define a complex type as a sequence of subelements.

@@ -11,6 +11,7 @@ import QDHXB.UtilMisc
 import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
+import QDHXB.Internal.Utils.Misc
 
 -- |Rewrite internally-represented XSD definitions, flattening any
 -- nested definitions.
@@ -32,30 +33,36 @@ flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
   isSimple <- isSimpleType typ
   whenDebugging $ do
     liftIO $ putStrLn $
-      "  - Checking whether " ++ typ ++ " is simple: " ++ show isSimple
+      "  - Checking whether " ++ show typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
-    then (do let typName = (case nam of
+    then (do uri <- getDefaultNamespace
+             pfx <- mapM getURIprefix uri
+             let typName = (case qName nam of
                                'x':'s':':':nam' -> nam'
-                               _ -> nam) ++ "Type_"
-                 tyDefn = SimpleTypeDefn typName typ
-             addTypeDefn typName tyDefn
-             return [ tyDefn, ElementDefn nam typName ])
+                               n -> n) ++ "Type_"
+                 typQName = QName typName uri $ compressMaybe pfx
+                 tyDefn = SimpleTypeDefn typQName typ
+             addTypeDefn typQName tyDefn
+             return [ tyDefn, ElementDefn nam typQName ])
     else return [ ElementDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
   (defs, refs) <- musterComplexSequenceComponents steps ats nam
-  let typName = nam ++ "Type_"
+  let typName = qName nam ++ "Type_"
       tyDefn = SequenceDefn typName $ refs
-  addTypeDefn typName tyDefn
+  uri <- getDefaultNamespace
+  pfx <- mapM getURIprefix uri
+  let typQName = QName typName uri $ compressMaybe pfx
+  addTypeDefn typQName tyDefn
   whenDebugging $ do
-    recheck <- isKnownType typName
+    recheck <- isKnownType typQName
     liftIO $ putStrLn $
       "  - Have set " ++ typName ++ " to be known; rechecked as "
       ++ show recheck
   return $ defs ++ [
     tyDefn,
-    ElementDefn nam typName
+    ElementDefn nam typQName
     ]
 flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) = do
   return [ AttributeDefn nam typ ]
@@ -63,12 +70,12 @@ flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
   (defs, refs) <- musterComplexSequenceComponents cts ats nam
-  let tyDefn = SequenceDefn nam $ refs
+  let tyDefn = SequenceDefn (qName nam) $ refs
   addTypeDefn nam tyDefn
   whenDebugging $ do
     recheck <- isKnownType nam
     liftIO $ putStrLn $
-      "  - Have set " ++ nam ++ " to be known; rechecked as " ++ show recheck
+      "  - Have set " ++ qName nam ++ " to be known; rechecked as " ++ show recheck
   return $ defs ++ [ tyDefn ]
 flattenSchemaItem' (SimpleTypeScheme base nam) = do
   let tyDefn = SimpleTypeDefn nam base
@@ -79,7 +86,7 @@ flattenSchemaItem' s = do
   error "TODO another flatten case"
 
 musterComplexSequenceComponents ::
-  [DataScheme] ->  [DataScheme] -> String -> XSDQ ([Definition], [Reference])
+  [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])
 musterComplexSequenceComponents steps ats _ = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
@@ -96,13 +103,12 @@ flattenSchemaRef e@(ElementScheme [] Nothing Nothing (Just r) lower upper) = do
     liftIO $ putStrLn $ "       " ++ show e
     liftIO $ putStrLn $ "    to " ++ show result
   return ([], result)
-flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
-  QName resolvedName _resolvedURI _ <- decodePrefixedName t
-  isKnown <- isKnownType resolvedName
+flattenSchemaRef e@(ElementScheme [] (Just n) (Just t@(QName resolvedName _resolvedURI _)) Nothing lo up) = do
+  isKnown <- isKnownType t
   whenDebugging $ do
     liftIO $ putStrLn $
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-  if isKnown then (do let defn = ElementDefn n resolvedName
+  if isKnown then (do let defn = ElementDefn n t
                           ref = ElementRef n lo up
                       whenDebugging $ do
                         liftIO $ putStrLn $ "  > Flattening schema with type"
@@ -110,8 +116,8 @@ flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
                         liftIO $ putStrLn $ "    to " ++ show defn
                         liftIO $ putStrLn $ "       " ++ show ref
                       return ([defn], ref))
-    else (do let intermed = n ++ "Type_"
-                 defn1 = SimpleTypeDefn intermed resolvedName
+    else (do let intermed = qTransformName (++ "Type_") n
+                 defn1 = SimpleTypeDefn intermed t
                  defn2 = ElementDefn n intermed
                  ref = ElementRef n lo up
              addTypeDefn intermed defn1
@@ -151,8 +157,7 @@ flattenSchemaRef sr@(AttributeScheme Nothing Nothing (Just ref) useStr) = do
     liftIO $ putStrLn $ "    to " ++ show res
   return ([], res)
 flattenSchemaRef s@(AttributeScheme (Just nam) (Just typ) Nothing useStr) = do
-  QName resolvedTypeName _resolvedTypeURI _ <- decodePrefixedName typ
-  let defn = AttributeDefn nam resolvedTypeName
+  let defn = AttributeDefn nam typ
       ref = AttributeRef nam (stringToAttributeUsage useStr)
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening attribute schema with name and type"

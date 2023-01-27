@@ -11,6 +11,7 @@ module QDHXB.Internal.NestedTypes (
 ) where
 
 import Data.List (intercalate)
+import Text.XML.Light.Types (QName)
 
 -- | Representation of certain definitions of one XSD type based on
 -- another type.
@@ -18,9 +19,9 @@ data TypeScheme =
   Sequence -- ^ The <sequence> complex type.
     [DataScheme] -- ^ List of associated definitions
   | Restriction -- ^ One type with certain values excluded.
-    String -- ^ Base type
+    QName -- ^ Base type
   | Extension -- ^ One type extended with additional elements.
-    String -- ^ Base type
+    QName -- ^ Base type
     [DataScheme] -- ^ Additional elements
   deriving Show
 
@@ -28,9 +29,9 @@ formatTypeScheme__ :: String -> TypeScheme -> [String]
 formatTypeScheme__ ind (Sequence ds) =
   "Sequence"
    : formatDataSchemesInd__ (ind ++ "  ") ds
-formatTypeScheme__ _ (Restriction r) = ["Restriction " ++ r]
+formatTypeScheme__ _ (Restriction r) = ["Restriction " ++ show r]
 formatTypeScheme__ ind (Extension base ds) =
-  ("Extension " ++ base)
+  ("Extension " ++ show base)
    : formatDataSchemesInd__ (ind ++ "  ") ds
 
 formatTypeSchemeInd__ :: String -> TypeScheme -> [String]
@@ -41,21 +42,21 @@ formatTypeSchemeInd__ ind s = case formatTypeScheme__ ind s of
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
   ElementScheme [DataScheme] -- ^ contents
-                (Maybe String) -- ^ ifName
-                (Maybe String) -- ^ ifType
-                (Maybe String) -- ^ ifRef
+                (Maybe QName) -- ^ ifName
+                (Maybe QName) -- ^ ifType
+                (Maybe QName) -- ^ ifRef
                 (Maybe Int) -- ^ ifMin
                 (Maybe Int) -- ^ ifMax
-  | AttributeScheme (Maybe String) -- ^ ifName
-                    (Maybe String) -- ^ ifType
-                    (Maybe String) -- ^ ifRef
+  | AttributeScheme (Maybe QName) -- ^ ifName
+                    (Maybe QName) -- ^ ifType
+                    (Maybe QName) -- ^ ifRef
                     String -- ^ use mode: prohibited, optional
                            -- (default), required
   | ComplexTypeScheme TypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
-                      (Maybe String) -- ^ ifName
-  | SimpleTypeScheme String -- ^ baseSpec
-                     String -- ^ name
+                      (Maybe QName) -- ^ ifName
+  | SimpleTypeScheme QName -- ^ baseSpec
+                     QName -- ^ name
   deriving Show
 
 -- | Pretty-print a `DataScheme`.
@@ -89,15 +90,15 @@ formatDataScheme__ ind (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
   ("ElementScheme name="
      ++ (case ifName of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
      ++ " type="
      ++ (case ifType of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
      ++ " ref="
      ++ (case ifRef of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
      ++ " min="
      ++ (case ifMin of
            Nothing -> "undef"
@@ -112,15 +113,15 @@ formatDataScheme__ _ (AttributeScheme ifName ifType ifRef usage) = [
   "AttributeScheme name="
     ++ (case ifName of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
     ++ " type="
     ++ (case ifType of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
      ++ " ref="
      ++ (case ifRef of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\"")
+           Just s  -> "\"" ++ show s ++ "\"")
      ++ " usage=\"" ++ usage ++ "\""
   ]
 
@@ -128,12 +129,12 @@ formatDataScheme__ ind (ComplexTypeScheme form attrs ifName) =
   ("ComplexTypeScheme name="
      ++ (case ifName of
            Nothing -> "undef"
-           Just s  -> "\"" ++ s ++ "\""))
+           Just s  -> "\"" ++ show s ++ "\""))
   : (formatTypeSchemeInd__ (ind ++ "  ") form
      ++ (concat $ map (formatDataSchemeInd__ (ind ++ "  ")) attrs))
 
 formatDataScheme__ _ (SimpleTypeScheme base name) = [
-  "SimpleTypeScheme base=\"" ++ base ++ "\" name=\"" ++ name ++ "\""
+  "SimpleTypeScheme base=\"" ++ show base ++ "\" name=\"" ++ show name ++ "\""
   ]
 
 formatDataSchemeInd__ :: String -> DataScheme -> [String]
