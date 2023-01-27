@@ -23,12 +23,9 @@ encodeSchemaItems items = do
 encodeSchemaItem :: Content -> XSDQ [DataScheme]
 encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
   included <- encodeSchemaItems $ filter isElem content
-  let givenType = pullAttr "type" ats
-  typeQName <- mapM decodePrefixedName givenType
-  let givenRef = pullAttr "ref" ats
-  refQName <- mapM decodePrefixedName givenRef
-  let givenName = pullAttr "name" ats
-  nameQName <- mapM decodePrefixedName givenName
+  typeQName <- pullAttrQName "type" ats
+  nameQName <- pullAttrQName "name" ats
+  refQName <- pullAttrQName "ref" ats
   let res = [
         ElementScheme included nameQName typeQName refQName
                       (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
@@ -41,9 +38,9 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
     liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
   return res
 encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
-  typeQName <- mapM decodePrefixedName $ pullAttr "type" ats
-  refQName <- mapM decodePrefixedName $ pullAttr "ref" ats
-  nameQname <- mapM decodePrefixedName $ pullAttr "name" ats
+  typeQName <- pullAttrQName "type" ats
+  refQName <- pullAttrQName "ref" ats
+  nameQname <- pullAttrQName "name" ats
   let res = [
         AttributeScheme nameQname typeQName refQName
           (case pullAttr "use" ats of
@@ -189,11 +186,16 @@ encodeComplexTypeSchemeElement ats _ "sequence" ctnts ats'' = do
   included <- encodeSchemaItems ctnts
   atrSpecs <- encodeSchemaItems $ zomToList ats''
   -- liftIO $ putStrLn ">>> encodeComplexTypeScheme"
-  let nameAttrGiven = pullAttr "name" ats
-  nameAttrQName <- mapM decodePrefixedName nameAttrGiven
+  nameAttrQName <- pullAttrQName "name" ats
   return [
     ComplexTypeScheme (Sequence included) atrSpecs nameAttrQName
     ]
+encodeComplexTypeSchemeElement ats _ "restriction" _ctnts _ats'' = do
+  nameAttr <- pullAttrQName "name" ats
+  baseType <- pullAttrQName "base" ats
+  case baseType of
+    Nothing -> error "Attribute base required in <restriction> element"
+    Just t -> return [ ComplexTypeScheme (Restriction t) [] nameAttr ]
 encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
   liftIO $ putStrLn $ "ATS "       ++ show ats
   liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
@@ -233,3 +235,6 @@ decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
 mlineIndent :: String -> String -> String
 mlineIndent ind str = ind ++ (intercalate ("\n" ++ ind) $ lines str)
+
+pullAttrQName :: String -> [Attr] -> XSDQ (Maybe QName)
+pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
