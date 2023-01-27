@@ -245,6 +245,8 @@ getFirst fn val (ns:nss) = case fn val ns of
                              Nothing -> getFirst fn val nss
                              res -> res
 
+-- |Given the string of a URI, return the associated prefix in the
+-- current namespaces.
 getURIprefix :: String -> XSDQ (Maybe String)
 getURIprefix uri = do
   nss <- getNamespaces

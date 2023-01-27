@@ -18,7 +18,6 @@
 ** Cabal/Stack notes
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
-* TODO Recognize namespaces
 * TODO Books example
   :PROPERTIES:
   :VISIBILITY: content
@@ -51,9 +50,9 @@
   - But revisit type vs. element signatures
 
 * TODO Use class/instance for abstract complex types?
-* TODO Attribute use in xs:attribute
 * TODO Unions
 * TODO Other complex, simple type forms
   - And examples
 * TODO Go back to key and keyref elements
   - See customersorders.xsd example
+* DONE Recognize namespaces
