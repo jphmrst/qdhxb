@@ -19,20 +19,29 @@
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
 * TODO Recognize namespaces
-* TODO Customers/orders example
+* TODO Books example
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+  - It's the order in the inmodified XSD that's a problem
+  - Need to do away with relying on the accumulation of type
+    definitions --- it's got to be just the existence and alignment of
+    names.
+* TODO Bootstrap the whole xsd.xsd
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+  - Needs <restriction> next, which should be simply a matter of
+    pulling the base type and ignoring the rest of it.
+* TODO OFX test 1
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+  - Need xsd:choice
+* TODO Customers/orders example --- key/keyref elements
   - For now at least, dropping the key/keyref elements
   - Re-uses names in nested declarations.  Need to disambiguate new
     type and element names when flattening.
-* TODO Books example
-  - See first debugging section under FLATTEN:
-    - Need to decode the string given for the type for its prefix
-    - Should identify the prefix URI as the XSD defn and translate
-      "string" to Haskell ''String.
-* TODO Bootstrap the whole xsd.xsd
-  - Needs <restriction>, which should be simply a matter of pulling
-    the base type and ignoring the rest of it.
-* TODO OFX test 1
-  - Uses xsd:choice
 * TODO Picklers
   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
   - Probably, two more functions for most named elements:
