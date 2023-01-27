@@ -6,8 +6,8 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["books-mod1.xsd"]
--- qdhxb' ["books-mod1.xsd"]
+-- qdhxb useDebugging ["books-mod1.xsd"]
+qdhxb' ["books-mod1.xsd"]
 
 testBooks1 :: TLT IO ()
 testBooks1 = inGroup "XSD books 1" $ do
