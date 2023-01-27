@@ -179,6 +179,8 @@ getDebugging = fmap optDebugging getOptions
 whenDebugging :: XSDQ () -> XSDQ ()
 whenDebugging = whenM getDebugging
 
+-- |Create a new namespace scope on the `XSDQ` state corresponding to
+-- the attributes, presumably from an XSD element schema.
 pushNamespaces :: [Attr] -> XSDQ ()
 pushNamespaces attrs = do
   liftStatetoXSDQ $ do
@@ -194,6 +196,8 @@ pushNamespaces attrs = do
       forM_ ns $ \(p,u) ->
         liftIO $ putStrLn $ p ++ " --> " ++ u
 
+-- |Remove a namespace scope, corrsponding to finishing the processing
+-- of a file.
 popNamespaces :: XSDQ ()
 popNamespaces = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns dfts nss <- get
@@ -201,11 +205,14 @@ popNamespaces = liftStatetoXSDQ $ do
     [] -> return ()
     (_:nss') -> put $ QdxhbState opts elemTypes typeDefns dfts nss'
 
+-- |Return the stack of `Namespaces` currently known to the `XSDQ`
+-- state.
 getNamespaces :: XSDQ [Namespaces]
 getNamespaces = liftStatetoXSDQ $ do
   QdxhbState _ _ _ _ nss <- get
   return nss
 
+-- |Return the current target namespace URI.
 getDefaultNamespace :: XSDQ (Maybe String)
 getDefaultNamespace = liftStatetoXSDQ $ do
   QdxhbState _ _ _ dfts _ <- get
@@ -214,6 +221,8 @@ getDefaultNamespace = liftStatetoXSDQ $ do
           getFirstActual (r@(Just _) : _) = return r
           getFirstActual (Nothing : ds) = getFirstActual ds
 
+-- |Given a string which may be namespace-prefixed, reconstruct the
+-- corresponding `QName` according to the current `XSDQ` state.
 decodePrefixedName :: String -> XSDQ QName
 decodePrefixedName str = do
   nss <- getNamespaces

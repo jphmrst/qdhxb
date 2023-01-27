@@ -19,7 +19,7 @@ module QDHXB.Internal.Utils.TH (
   stringName, errorName, eqName, showName, intName, floatName, boolName,
   mapName, zonedTimeName,
   contentName, ioName, aName, eName, ctxtName, readName,
-  stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT,
+  stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT, ioConT,
   readVarE, errorVarE, mapVarE, zomToListVarE,
   quoteStr,
 
@@ -140,13 +140,13 @@ zonedTimeType = zonedTimeConT
 zonedTimeBasicDecoder :: Exp -> Exp
 zonedTimeBasicDecoder expr = SigE (AppE readVarE expr) zonedTimeConT
 
--- | TH `Data.Time.LocalTime.DiffTime` type representation
+-- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeType :: Type
 diffTimeType = ConT (mkName "DiffTime")
 
--- | TH `Data.Time.LocalTime.DiffTime` converter from `String`.
+-- | TH `Data.Time.Clock.DiffTime` converter from `String`.
 diffTimeBasicDecoder :: Exp -> Exp
-diffTimeBasicDecoder _ = error "TODO"
+diffTimeBasicDecoder expr = SigE (AppE readVarE expr) diffTimeType
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
@@ -154,15 +154,15 @@ timeOfDayType = ConT (mkName "TimeOfDay")
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` converter from `String`.
 timeOfDayBasicDecoder :: Exp -> Exp
-timeOfDayBasicDecoder _ = error "TODO"
+timeOfDayBasicDecoder expr = SigE (AppE readVarE expr) timeOfDayType
 
--- | TH `Data.Time.LocalTime.Day` type representation
+-- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayType :: Type
 dayType = ConT (mkName "Day")
 
--- | TH `Data.Time.LocalTime.Day` converter from `String`.
+-- | TH `Data.Time.Calendar.OrdinalDate.Day` converter from `String`.
 dayBasicDecoder :: Exp -> Exp
-dayBasicDecoder _ = error "TODO"
+dayBasicDecoder expr = SigE (AppE readVarE expr) dayType
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
@@ -224,7 +224,7 @@ manyName = mkName "Many"
 stringName :: Name
 stringName = mkName "String"
 
--- | TH `Name` for "Content"
+-- | TH `Name` for `Text.XML.Light.Types.Content`
 contentName :: Name
 contentName = mkName "Content"
 
@@ -256,7 +256,7 @@ eqName = mkName "Eq"
 showName :: Name
 showName = mkName "Show"
 
--- | TH `Name` for "ZonedTime"
+-- | TH `Name` for `Data.Time.LocalTime.ZonedTime`
 zonedTimeName :: Name
 zonedTimeName = mkName "ZonedTime"
 
@@ -268,7 +268,7 @@ mapName = mkName "map"
 readName :: Name
 readName = mkName "read"
 
--- | TH `Name` for "zomToList"
+-- | TH `Name` for `QDHXB.Internal.Utils.XMLLight.zomToList`
 zomToListName :: Name
 zomToListName = mkName "zomToList"
 
@@ -276,19 +276,19 @@ zomToListName = mkName "zomToList"
 aName :: Name
 aName = mkName "a"
 
--- | TH `Expr` for function `read`
+-- | TH `Exp` for function `read`
 readVarE :: Exp
 readVarE = VarE readName
 
--- | TH `Expr` for function `zomToList`
+-- | TH `Exp` for function `QDHXB.Internal.Utils.XMLLight.zomToList`
 zomToListVarE :: Exp
 zomToListVarE = VarE zomToListName
 
--- | TH `Expr` for function `map`
+-- | TH `Exp` for function `map`
 mapVarE :: Exp
 mapVarE = VarE mapName
 
--- | TH `Expr` for function `error`
+-- | TH `Exp` for function `error`
 errorVarE :: Exp
 errorVarE = VarE errorName
 
@@ -296,13 +296,17 @@ errorVarE = VarE errorName
 stringConT :: Type
 stringConT = ConT stringName
 
--- | TH `Type` for `ZonedTime`
+-- | TH `Type` for `Data.Time.LocalTime.ZonedTime`
 zonedTimeConT :: Type
 zonedTimeConT = ConT zonedTimeName
 
--- | TH `Type` for `Content`
+-- | TH `Type` for `Text.XML.Light.Types.Content`
 contentConT :: Type
 contentConT = ConT contentName
+
+-- | TH `Type` for `IO`
+ioConT :: Type
+ioConT = ConT ioName
 
 -- | TH `Type` for `Maybe`
 maybeConT :: Type
@@ -330,5 +334,7 @@ fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
 fn2Type :: Type -> Type -> Type -> Type
 fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT
 
+-- | Convert a `String` into a Template Haskell `Exp`ression
+-- representing that string literal.
 quoteStr :: String -> Exp
 quoteStr = LitE . StringL

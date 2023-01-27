@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module BooksMod1 where
+import Data.Time.Calendar.OrdinalDate
+import Data.Time.Calendar
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB

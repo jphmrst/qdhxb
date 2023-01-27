@@ -107,5 +107,6 @@ __loadElement decoder xmlFile = do
     [e] -> return $ decoder e
     _ -> error "No elements in XML file"
 
+-- | Template Haskell `Name` for the `__loadElement` method.
 loadElementName :: Name
 loadElementName = mkName "__loadElement"

@@ -93,7 +93,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
 
         -- Reader
         : SigD loadNam (fn1Type stringConT
-                                (AppT contentConT
+                                (AppT ioConT
                                       (ConT $ mkName typBaseName)))
         : FunD loadNam [Clause [] (NormalB $ AppE (VarE $ loadElementName)
                                                   (VarE decNam)) []]

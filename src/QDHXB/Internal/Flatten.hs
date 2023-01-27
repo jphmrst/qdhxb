@@ -5,6 +5,7 @@ module QDHXB.Internal.Flatten (flattenSchemaItems) where
 
 -- import System.Directory
 import Control.Monad.IO.Class
+import Text.XML.Light.Types
 import QDHXB.Internal.Generate
 import QDHXB.UtilMisc
 import QDHXB.Internal.NestedTypes
@@ -96,11 +97,12 @@ flattenSchemaRef e@(ElementScheme [] Nothing Nothing (Just r) lower upper) = do
     liftIO $ putStrLn $ "    to " ++ show result
   return ([], result)
 flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
-  isKnown <- isKnownType t
+  QName resolvedName _resolvedURI _ <- decodePrefixedName t
+  isKnown <- isKnownType resolvedName
   whenDebugging $ do
     liftIO $ putStrLn $
-      "  - Checking whether " ++ t ++ " is known: " ++ show isKnown
-  if isKnown then (do let defn = ElementDefn n t
+      "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
+  if isKnown then (do let defn = ElementDefn n resolvedName
                           ref = ElementRef n lo up
                       whenDebugging $ do
                         liftIO $ putStrLn $ "  > Flattening schema with type"
@@ -109,7 +111,7 @@ flattenSchemaRef e@(ElementScheme [] (Just n) (Just t) Nothing lo up) = do
                         liftIO $ putStrLn $ "       " ++ show ref
                       return ([defn], ref))
     else (do let intermed = n ++ "Type_"
-                 defn1 = SimpleTypeDefn intermed t
+                 defn1 = SimpleTypeDefn intermed resolvedName
                  defn2 = ElementDefn n intermed
                  ref = ElementRef n lo up
              addTypeDefn intermed defn1
@@ -149,7 +151,8 @@ flattenSchemaRef sr@(AttributeScheme Nothing Nothing (Just ref) useStr) = do
     liftIO $ putStrLn $ "    to " ++ show res
   return ([], res)
 flattenSchemaRef s@(AttributeScheme (Just nam) (Just typ) Nothing useStr) = do
-  let defn = AttributeDefn nam typ
+  QName resolvedTypeName _resolvedTypeURI _ <- decodePrefixedName typ
+  let defn = AttributeDefn nam resolvedTypeName
       ref = AttributeRef nam (stringToAttributeUsage useStr)
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening attribute schema with name and type"
