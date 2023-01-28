@@ -17,6 +17,7 @@ where
 import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Language.Haskell.TH
+import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName)
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.Misc
@@ -145,7 +146,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
     hrefOut <- mapM xsdRefToBangTypeQ refs
     let binderMapper :: (Name, Reference) -> XSDQ Dec
         binderMapper (n, r) = do
-          body <- xsdRefToHaskellExpr ctxtName r
+          body <- xsdRefToHaskellExpr ctxtName r namStr
           return $ ValD (VarP n) (NormalB body) []
     let subNames = map (mkName . ("s" ++) . show) [1..length refs]
     binders <- mapM binderMapper $ zip subNames refs
@@ -179,8 +180,8 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
 -- | Translate a reference to an XSD element type to a Haskell
 -- `Exp`ression representation describing the extraction of the given
 -- value.
-xsdRefToHaskellExpr :: Name -> Reference -> XSDQ Exp
-xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) =
+xsdRefToHaskellExpr :: Name -> Reference -> String -> XSDQ Exp
+xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
   let casePrefix = CaseE $ subcontentZom ref param
   in do
     typeName <- getElementTypeOrFail ref
@@ -195,21 +196,27 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) =
                               (AppE (AppE (decoderAsExpFor $ qName typeName)
                                           (quoteStr $ qName ref))
                                     (VarE paramName)))
-          (throwsError "QDHXB: should not return multiple results")
+          (throwsError $
+           "QDHXB: " ++ show ref ++ " should not occur more than once in "
+           ++ ctxt ++ " element")
         return $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
-          (throwsError "QDHXB: should not return zero results")
+          (throwsError $
+           "QDHXB: element " ++ showQName ref ++ " must be present in "
+           ++ ctxt ++ " element")
           (\paramName -> AppE (AppE (decoderAsExpFor $ qName typeName)
                                     (quoteStr $ qName ref))
                               (VarE paramName))
-          (throwsError "QDHXB: should not return multiple results")
+          (throwsError $
+           "QDHXB: " ++ show ref ++ " should not occur more than once in "
+           ++ ctxt ++ " element")
         return $ casePrefix matches
       _ -> return $ AppE (AppE mapVarE
                                (AppE (decoderAsExpFor $ qName typeName)
                                      (quoteStr $ qName ref)))
                          (AppE zomToListVarE (subcontentZom ref param))
-xsdRefToHaskellExpr param (AttributeRef ref usage) = do
+xsdRefToHaskellExpr param (AttributeRef ref usage) _ = do
   core <- xsdRefToHaskellExpr' param $ qName ref
   unpackAttrDecoderForUsage usage core
 
