@@ -38,7 +38,6 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
   let baseName = firstToUpper $ qName nam
       decAsNam = mkName $ "decodeAs" ++ baseName
   in do
-    fileNewDefinition decl
     let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
     decodeAs <- fmap basicDecoder
                   [| __decodeForSimpleType e
@@ -73,7 +72,6 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
       typBaseName = firstToUpper $ qName typ
       decNam = mkName $ "decode" ++ qName baseName
       loadNam = mkName $ "load" ++ qName baseName
-  fileNewDefinition decl
   decoder <- [| $(return $ VarE $ mkName $ "decodeAs" ++ typBaseName)
                    $(return $ quoteStr $ qName nam)
                      ctxt |]
@@ -117,7 +115,6 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
   in do
-    fileNewDefinition decl
     decoder <- [| pullAttrFrom $(return $ quoteStr $ qName nam) ctxt |]
     let (haskellTyp, _) = xsdTypeNameTranslation $ qName typ
     let res = (
@@ -145,7 +142,6 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
   in do
-    fileNewDefinition decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
     let binderMapper :: (Name, Reference) -> XSDQ Dec
         binderMapper (n, r) = do

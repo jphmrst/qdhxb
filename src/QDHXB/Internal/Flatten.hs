@@ -43,7 +43,9 @@ flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
                  typQName = QName typName uri $ compressMaybe pfx
                  tyDefn = SimpleTypeDefn typQName typ
              addTypeDefn typQName tyDefn
-             return [ tyDefn, ElementDefn nam typQName ])
+             let elemDefn = ElementDefn nam typQName
+             fileNewDefinition elemDefn
+             return [ tyDefn, elemDefn ])
     else return [ ElementDefn nam typ ]
 flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
@@ -60,12 +62,13 @@ flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
     liftIO $ putStrLn $
       "  - Have set " ++ typName ++ " to be known; rechecked as "
       ++ show recheck
-  return $ defs ++ [
-    tyDefn,
-    ElementDefn nam typQName
-    ]
-flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) = do
-  return [ AttributeDefn nam typ ]
+  let elemDefn = ElementDefn nam typQName
+  fileNewDefinition elemDefn
+  return $ defs ++ [tyDefn, elemDefn]
+flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) =
+  let attrDefn = AttributeDefn nam typ
+  in do fileNewDefinition attrDefn
+        return [attrDefn]
 flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
@@ -110,6 +113,7 @@ flattenSchemaRef e@(ElementScheme [] (Just n) (Just t@(QName resolvedName _resol
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
   if isKnown then (do let defn = ElementDefn n t
                           ref = ElementRef n lo up
+                      fileNewDefinition defn
                       whenDebugging $ do
                         liftIO $ putStrLn $ "  > Flattening schema with type"
                         liftIO $ putStrLn $ "       " ++ show e
@@ -121,6 +125,7 @@ flattenSchemaRef e@(ElementScheme [] (Just n) (Just t@(QName resolvedName _resol
                  defn2 = ElementDefn n intermed
                  ref = ElementRef n lo up
              addTypeDefn intermed defn1
+             fileNewDefinition defn2
              whenDebugging $ do
                liftIO $ putStrLn $
                  "  > Flattening element schema with name and type"
