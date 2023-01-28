@@ -186,7 +186,7 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
   in do
     typeName <- getElementTypeOrFail ref
     whenDebugging $ liftIO $ putStrLn $
-      "Retrieving type " ++ qName typeName ++ " for " ++ show ref
+      "Retrieving type " ++ qName typeName ++ " for " ++ showQName ref
     case (occursMin, occursMax) of
       (_, Just 0) -> return $ TupE []
       (Just 0, Just 1) -> do
@@ -197,7 +197,7 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
                                           (quoteStr $ qName ref))
                                     (VarE paramName)))
           (throwsError $
-           "QDHXB: " ++ show ref ++ " should not occur more than once in "
+           "QDHXB: " ++ showQName ref ++ " should not occur more than once in "
            ++ ctxt ++ " element")
         return $ casePrefix matches
       (_, Just 1) -> do
@@ -209,7 +209,7 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
                                     (quoteStr $ qName ref))
                               (VarE paramName))
           (throwsError $
-           "QDHXB: " ++ show ref ++ " should not occur more than once in "
+           "QDHXB: " ++ showQName ref ++ " should not occur more than once in "
            ++ ctxt ++ " element")
         return $ casePrefix matches
       _ -> return $ AppE (AppE mapVarE
