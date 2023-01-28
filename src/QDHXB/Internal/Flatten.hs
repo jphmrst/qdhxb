@@ -45,7 +45,7 @@ flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
                                                     ats Nothing]
                                  (Just nam) Nothing Nothing _ _) = do
   (defs, refs) <- musterComplexSequenceComponents steps ats nam
-  let typName = qName nam ++ "Type_"
+  let typName = qName nam
       tyDefn = SequenceDefn typName $ refs
   uri <- getDefaultNamespace
   pfx <- mapM getURIprefix uri
