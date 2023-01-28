@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 
 -- qdhxb useDebugging ["ofx/OFX2_Protocol.xsd"]
--- qdhxb' ["ofx/OFX2_Protocol.xsd"]
+qdhxb' ["ofx/OFX2_Protocol.xsd"]
 
 testOFX1 :: TLT IO ()
 testOFX1 = inGroup "OFX test 1" $ do

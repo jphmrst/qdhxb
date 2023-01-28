@@ -93,6 +93,11 @@ encodeSchemaItem (Elem (Element (QName tagname _ _) _ _ _))
   return []
 encodeSchemaItem c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
   separateAndDispatchComplexContents [c] e ats ifLn
+encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts ifLn)) = do
+  {- whenDebugging $ do -}
+  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent ctnts)
+  error $ "TODO encodeSchemaItem > group" ++ ifAtLine ifLn
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   {- whenDebugging $ do -}
   liftIO $ putStrLn $ "TAG " ++ show tag
@@ -142,14 +147,18 @@ separateAndDispatchComplexContents contents e ats ifLn =
         "TODO encodeSchemaItem > complexType > simpleContent"
         ++ ifAtLine ifLn
     (seqnce, cplxCtnt, simplCtnt, attrSpecs) -> do
-      whenDebugging $ do
-        liftIO $ putStrLn $ "> Encoding complexType (case 4) FFFFFFFF"
-        liftIO $ putStrLn $ "ATS " ++ show ats
-        liftIO $ putStrLn $ "CTNTS' " ++ show contents
-        liftIO $ putStrLn $ "SEQ " ++ show seqnce
-        liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
-        liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
-        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+      {- whenDebugging $ do -}
+      liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+      liftIO $ putStrLn $ "CTNTS' " ++
+        (intercalate "\n    " $ map ppContent contents)
+      liftIO $ putStrLn $ "SEQ " ++
+        (intercalate "\n    " $ map ppContent $ zomToList seqnce)
+      liftIO $ putStrLn $ "CPLXCTNT " ++
+        (intercalate "\n    " $ map ppContent $ zomToList cplxCtnt)
+      liftIO $ putStrLn $ "SIMPLCTNT " ++
+        (intercalate "\n    " $ map ppContent $ zomToList simplCtnt)
+      liftIO $ putStrLn $ "ATTRSPECS " ++
+        (intercalate "\n    " $ map ppContent $ zomToList attrSpecs)
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn
