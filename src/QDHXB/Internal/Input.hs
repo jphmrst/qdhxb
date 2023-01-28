@@ -54,43 +54,7 @@ encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
   return res
 encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
-  case separateComplexTypeContents ctnts' of
-    -- <sequence>
-    (One intl, Zero, Zero, attrSpecs) -> do
-      res <- encodeComplexTypeScheme ats [] intl attrSpecs
-      whenDebugging $ do
-        liftIO $ putStrLn "> Encoding complexType (case 1)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
-      return res
-    -- <complexContent>
-    (Zero, One ctnt, Zero, attrSpecs) -> do
-      res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
-      whenDebugging $ do
-        liftIO $ putStrLn $ "> Encoding complexType (case 2)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
-      return res
-    (Zero, Zero, One ctnt, attrSpecs) -> do
-      whenDebugging $ do
-        liftIO $ putStrLn $ "> Encoding complexType (case 3) EEEEEEEE"
-        liftIO $ putStrLn $ "CTNT " ++ show ctnt
-        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
-      error $
-        "TODO encodeSchemaItem > complexType > simpleContent"
-        ++ ifAtLine ifLn
-    (seqnce, cplxCtnt, simplCtnt, attrSpecs) -> do
-      whenDebugging $ do
-        liftIO $ putStrLn $ "> Encoding complexType (case 4) FFFFFFFF"
-        liftIO $ putStrLn $ "ATS " ++ show ats
-        liftIO $ putStrLn $ "CTNTS' " ++ show ctnts'
-        liftIO $ putStrLn $ "SEQ " ++ show seqnce
-        liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
-        liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
-        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
-      error $
-        "TODO encodeSchemaItem > complexType > another separation case"
-        ++ ifAtLine ifLn
+  separateAndDispatchComplexContents ctnts' e ats ifLn
 encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
@@ -127,11 +91,13 @@ encodeSchemaItem (Elem (Element (QName tagname _ _) _ _ _))
   whenDebugging $ do
     liftIO $ putStrLn $ "> Dropping <" ++ tagname ++ "> entry "
   return []
+encodeSchemaItem c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
+  separateAndDispatchComplexContents [c] e ats ifLn
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   {- whenDebugging $ do -}
   liftIO $ putStrLn $ "TAG " ++ show tag
-  liftIO $ putStrLn $ "ATS " ++ show ats
-  liftIO $ putStrLn $ "CTNTS " ++ show ctnts
+  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent ctnts)
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
   whenDebugging $ do
@@ -146,6 +112,47 @@ ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
                     Nothing -> ""
                     Just line -> " at XSD line " ++ show line
+
+separateAndDispatchComplexContents ::
+  [Content] -> Element -> [Attr] -> Maybe Line -> XSDQ [DataScheme]
+separateAndDispatchComplexContents contents e ats ifLn =
+  case separateComplexTypeContents contents of
+    -- <sequence>
+    (One intl, Zero, Zero, attrSpecs) -> do
+      res <- encodeComplexTypeScheme ats [] intl attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn "> Encoding complexType (case 1)"
+        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
+      return res
+    -- <complexContent>
+    (Zero, One ctnt, Zero, attrSpecs) -> do
+      res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 2)"
+        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+        liftIO $ putStrLn $ "  as " ++ formatDataSchemes' "     " res
+      return res
+    (Zero, Zero, One ctnt, attrSpecs) -> do
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 3) EEEEEEEE"
+        liftIO $ putStrLn $ "CTNT " ++ show ctnt
+        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+      error $
+        "TODO encodeSchemaItem > complexType > simpleContent"
+        ++ ifAtLine ifLn
+    (seqnce, cplxCtnt, simplCtnt, attrSpecs) -> do
+      whenDebugging $ do
+        liftIO $ putStrLn $ "> Encoding complexType (case 4) FFFFFFFF"
+        liftIO $ putStrLn $ "ATS " ++ show ats
+        liftIO $ putStrLn $ "CTNTS' " ++ show contents
+        liftIO $ putStrLn $ "SEQ " ++ show seqnce
+        liftIO $ putStrLn $ "CPLXCTNT " ++ show cplxCtnt
+        liftIO $ putStrLn $ "SIMPLCTNT " ++ show simplCtnt
+        liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
+      error $
+        "TODO encodeSchemaItem > complexType > another separation case"
+        ++ ifAtLine ifLn
 
 separateComplexTypeContents ::
   [Content] ->
@@ -196,6 +203,13 @@ encodeComplexTypeSchemeElement ats _ "restriction" _ctnts _ats'' = do
   case baseType of
     Nothing -> error "Attribute base required in <restriction> element"
     Just t -> return [ ComplexTypeScheme (Restriction t) [] nameAttr ]
+encodeComplexTypeSchemeElement ats _ "extension" ctnts _ats'' = do
+  nameAttr <- pullAttrQName "name" ats
+  baseType <- pullAttrQName "base" ats
+  included <- encodeSchemaItems ctnts
+  case baseType of
+    Nothing -> error "Attribute base required in <extension> element"
+    Just t -> return [ ComplexTypeScheme (Extension t included) [] nameAttr ]
 encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
   liftIO $ putStrLn $ "ATS "       ++ show ats
   liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
