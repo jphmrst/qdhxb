@@ -35,15 +35,9 @@ flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
     liftIO $ putStrLn $
       "  - Checking whether " ++ show typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
-    then (do uri <- getDefaultNamespace
-             pfx <- mapM getURIprefix uri
-             let typName = (case qName nam of
-                               'x':'s':':':nam' -> nam'
-                               n -> n) ++ "Type_"
-                 typQName = QName typName uri $ compressMaybe pfx
-                 tyDefn = SimpleTypeDefn typQName typ
-             addTypeDefn typQName tyDefn
-             let elemDefn = ElementDefn nam typQName
+    then (do let tyDefn = SimpleTypeDefn nam typ
+             addTypeDefn nam tyDefn
+             let elemDefn = ElementDefn nam nam
              fileNewDefinition elemDefn
              return [ tyDefn, elemDefn ])
     else return [ ElementDefn nam typ ]
@@ -120,11 +114,10 @@ flattenSchemaRef e@(ElementScheme [] (Just n) (Just t@(QName resolvedName _resol
                         liftIO $ putStrLn $ "    to " ++ show defn
                         liftIO $ putStrLn $ "       " ++ show ref
                       return ([defn], ref))
-    else (do let intermed = qTransformName (++ "Type_") n
-                 defn1 = SimpleTypeDefn intermed t
-                 defn2 = ElementDefn n intermed
+    else (do let defn1 = SimpleTypeDefn n t
+                 defn2 = ElementDefn n n
                  ref = ElementRef n lo up
-             addTypeDefn intermed defn1
+             addTypeDefn n defn1
              fileNewDefinition defn2
              whenDebugging $ do
                liftIO $ putStrLn $
