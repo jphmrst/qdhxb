@@ -77,7 +77,6 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
                    $(return $ quoteStr $ qName nam)
                      ctxt |]
   let res = (
-        -- TySynD (mkName baseName) [] haskellType
 
         -- Decoder
         SigD decNam (fn1Type contentConT
@@ -142,6 +141,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
+      tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
   in do
     hrefOut <- mapM xsdRefToBangTypeQ refs
     let binderMapper :: (Name, Reference) -> XSDQ Dec
@@ -152,10 +152,18 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
     binders <- mapM binderMapper $ zip subNames refs
     let decoder = LetE binders $
                     foldl (\x y -> AppE x y) (ConE typNam) (map VarE subNames)
+    safeDecoder <- assembleTryDecoder refs subNames ctxtName (ConE typNam) []
     let res = (
           -- Type declaration
           DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
                 [DerivClause Nothing [eqConT, showConT]]
+
+          -- Safe decoder
+           : SigD tryDecNam
+                  (fn2Type stringConT contentConT
+                           (AppT maybeConT (ConT $ mkName nameRoot)))
+           : FunD tryDecNam [Clause [WildP, VarP ctxtName]
+                                    (NormalB safeDecoder) []]
 
           -- Decoder
            : SigD decNam
@@ -177,6 +185,66 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
       liftIO $ putStrLn $ "  to " ++ indCode "     " res
     return res
 
+assembleTryDecoder :: [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ Exp
+assembleTryDecoder [] _ _ constructor appNamesR =
+  return $
+    AppE justConE $ foldl (\x y -> AppE x y) constructor (reverse appNamesR)
+assembleTryDecoder (r:refs) (s:subnames) ctxt constructor appNamesR = do
+  safeVal <- xsdRefToSafeHaskellExpr ctxt r
+  encl <- assembleTryDecoder refs subnames ctxt constructor
+                             (VarE s:appNamesR)
+  return $ case r of
+    ElementRef _ _ _ -> CaseE safeVal [
+      Match nothingPat (NormalB nothingConE) [],
+      Match (justPat s) (NormalB encl) []
+      ]
+    AttributeRef _ _ -> LetE [ValD (VarP s) (NormalB safeVal) []] encl
+assembleTryDecoder _ [] _ _ _ =
+  error "This should be impossible when passing an arbitrarily long list for subnames"
+
+-- | Translate a reference to an XSD element type to a Haskell
+-- `Exp`ression representation describing the extraction of the given
+-- value.
+xsdRefToSafeHaskellExpr :: Name -> Reference -> XSDQ Exp
+xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) =
+  let casePrefix = CaseE $ subcontentZom ref param
+  in do
+    typeName <- getElementTypeOrFail ref
+    whenDebugging $ liftIO $ putStrLn $
+      "Retrieving type " ++ qName typeName ++ " for " ++ showQName ref
+    case (occursMin, occursMax) of
+      (_, Just 0) -> return $ AppE justConE $ TupE []
+      (Just 0, Just 1) -> do
+        matches <- zomMatch1
+          (AppE justConE $ nothingConE)
+          (\paramName ->
+             AppE justConE $ AppE justConE
+                               (AppE (AppE (decoderAsExpFor $ qName typeName)
+                                           (quoteStr $ qName ref))
+                                     (VarE paramName)))
+          nothingConE
+        return $ casePrefix matches
+      (_, Just 1) -> do
+        matches <- zomMatch1
+          nothingConE
+          (\paramName -> AppE justConE $
+                           AppE (AppE (decoderAsExpFor $ qName typeName)
+                                      (quoteStr $ qName ref))
+                                (VarE paramName))
+          nothingConE
+        return $ casePrefix matches
+      _ -> return $ AppE justConE $
+                      AppE (AppE mapVarE
+                                 (AppE (decoderAsExpFor $ qName typeName)
+                                       (quoteStr $ qName ref)))
+                           (AppE zomToListVarE (subcontentZom ref param))
+xsdRefToSafeHaskellExpr param (AttributeRef ref usage) = do
+  core <- xsdRefToSafeHaskellExpr' param $ qName ref
+  unpackAttrDecoderForUsage usage core
+  where xsdRefToSafeHaskellExpr' :: Name -> String -> XSDQ Exp
+        xsdRefToSafeHaskellExpr' p r =
+          return $ AppE (decoderExpFor r) (VarE p)
+
 -- | Translate a reference to an XSD element type to a Haskell
 -- `Exp`ression representation describing the extraction of the given
 -- value.
@@ -191,8 +259,8 @@ xsdRefToHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
       (_, Just 0) -> return $ TupE []
       (Just 0, Just 1) -> do
         matches <- zomMatch1
-          (ConE nothingName)
-          (\paramName -> AppE (ConE justName)
+          nothingConE
+          (\paramName -> AppE justConE
                               (AppE (AppE (decoderAsExpFor $ qName typeName)
                                           (quoteStr $ qName ref))
                                     (VarE paramName)))
@@ -220,6 +288,10 @@ xsdRefToHaskellExpr param (AttributeRef ref usage) _ = do
   core <- xsdRefToHaskellExpr' param $ qName ref
   unpackAttrDecoderForUsage usage core
 
+-- | Helper for @xsdRefToHaskellExpr@.
+xsdRefToHaskellExpr' :: Name -> String -> XSDQ Exp
+xsdRefToHaskellExpr' param ref = return $ AppE (decoderExpFor ref) (VarE param)
+
 -- | Called from generated code.
 __decodeForSimpleType :: String -> Content -> String -> String
 {-# INLINE __decodeForSimpleType #-}
@@ -227,10 +299,6 @@ __decodeForSimpleType elementName ctxt msgIfNothing =
   case pullCRefContent elementName ctxt of
     Nothing -> error msgIfNothing
     Just v -> v
-
--- | Helper for @xsdRefToHaskellExpr@.
-xsdRefToHaskellExpr' :: Name -> String -> XSDQ Exp
-xsdRefToHaskellExpr' param ref = return $ AppE (decoderExpFor ref) (VarE param)
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.

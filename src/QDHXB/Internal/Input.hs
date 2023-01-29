@@ -77,8 +77,7 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
 encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
-  whenDebugging $ do
-    liftIO $ putStrLn $ "> GGGGGGGG"
+  whenDebugging $ liftIO $ putStrLn $ "> Dropping <annotation> element"
   return []
 encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
     tag == "include" || tag == "import" = do
@@ -92,26 +91,48 @@ encodeSchemaItem (Elem (Element (QName tagname _ _) _ _ _))
     liftIO $ putStrLn $ "> Dropping <" ++ tagname ++ "> entry "
   return []
 encodeSchemaItem c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
+  whenDebugging $ liftIO $ putStrLn "> For <sequence> schema:"
   separateAndDispatchComplexContents [c] e ats ifLn
-encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts ifLn)) = do
-  {- whenDebugging $ do -}
+encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
+  whenDebugging $ do
+    liftIO $ putStrLn "> For <group> schema:"
+  name <- pullAttrQName "name" ats
   liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent ctnts)
-  error $ "TODO encodeSchemaItem > group" ++ ifAtLine ifLn
+  liftIO $ putStrLn $ "NAME " ++ show (fmap showQName name)
+  liftIO $ putStrLn $ "CTNTS " ++
+    (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+  case filter isElem ctnts of
+    (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] ->
+        error $ "TODO encodeSchemaItem > group with sequence" ++ ifAtLine ifLn'
+    (Elem (Element (QName "choice" _ _) attrs' ctnts' _ifLn')):[] -> do
+      ts <- encodeChoiceTypeScheme (fmap qName name) attrs' ctnts'
+      return $ [Group name $ Just ts]
+    (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] ->
+        error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
+    _ -> return $ [Group name Nothing]
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
-  {- whenDebugging $ do -}
+  whenDebugging $ do
+    liftIO $ putStrLn $ "> For <" ++ tag ++ "> element (ZZZ):"
   liftIO $ putStrLn $ "TAG " ++ show tag
   liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent ctnts)
+  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
-  whenDebugging $ do
-    liftIO $ putStrLn "> Dropping Text entry "
+  whenDebugging $ liftIO $ putStrLn "> Dropping Text entry "
   return []
 encodeSchemaItem (CRef txt) = do
-  whenDebugging $ do
-    liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
+  whenDebugging $ liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
   return []
+
+encodeChoiceTypeScheme ::
+  Maybe String -> [Attr] -> [Content] -> XSDQ TypeScheme
+encodeChoiceTypeScheme ifNam attrs allCtnts = do
+  let ctnts = filter isElem allCtnts
+  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
+  liftIO $ putStrLn $ "IFNAM " ++ show ifNam
+  liftIO $ putStrLn $ "CTNTS " ++
+    (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+  error $ "TODO encodeChoiceTypeScheme"
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
@@ -150,15 +171,15 @@ separateAndDispatchComplexContents contents e ats ifLn =
       {- whenDebugging $ do -}
       liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
       liftIO $ putStrLn $ "CTNTS' " ++
-        (intercalate "\n    " $ map ppContent contents)
+        (intercalate "\n    " $ map ppContent $ filter isElem contents)
       liftIO $ putStrLn $ "SEQ " ++
-        (intercalate "\n    " $ map ppContent $ zomToList seqnce)
+        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList seqnce)
       liftIO $ putStrLn $ "CPLXCTNT " ++
-        (intercalate "\n    " $ map ppContent $ zomToList cplxCtnt)
+        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList cplxCtnt)
       liftIO $ putStrLn $ "SIMPLCTNT " ++
-        (intercalate "\n    " $ map ppContent $ zomToList simplCtnt)
+        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList simplCtnt)
       liftIO $ putStrLn $ "ATTRSPECS " ++
-        (intercalate "\n    " $ map ppContent $ zomToList attrSpecs)
+        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList attrSpecs)
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn

@@ -17,10 +17,11 @@ module QDHXB.Internal.Utils.TH (
   zeroName, oneName, manyName, zomToListName,
   nothingName, justName, maybeName,
   stringName, errorName, eqName, showName, intName, floatName, boolName,
-  mapName, zonedTimeName,
+  mapName, zonedTimeName, xName, xVarE, justMatchId,
   contentName, ioName, aName, eName, ctxtName, readName,
   stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT, ioConT,
-  readVarE, errorVarE, mapVarE, zomToListVarE,
+  readVarE, errorVarE, mapVarE, zomToListVarE, justConE, nothingConE,
+  nothingPat, justPat,
   quoteStr,
 
   -- * Miscellaneous
@@ -188,6 +189,17 @@ booleanTestBinding name =
 todoStr :: String
 todoStr = "TODO"
 
+-- | TH `Name` for "x"
+xName :: Name
+xName = mkName "x"
+
+-- | TH `Exp` for "x"
+xVarE :: Exp
+xVarE = VarE xName
+
+justMatchId :: Match
+justMatchId = Match (justPat xName) (NormalB xVarE) []
+
 -- | TH `Name` for "Nothing"
 nothingName :: Name
 nothingName = mkName "Nothing"
@@ -291,6 +303,22 @@ mapVarE = VarE mapName
 -- | TH `Exp` for function `error`
 errorVarE :: Exp
 errorVarE = VarE errorName
+
+-- | TH `Exp` for constructor `Just`
+justConE :: Exp
+justConE = ConE justName
+
+-- | TH `Exp` for constructor `Nothing`
+nothingConE :: Exp
+nothingConE = ConE nothingName
+
+-- | TH `Pat` for matching constructor `Nothing`
+nothingPat :: Pat
+nothingPat = ConP nothingName [] []
+
+-- | TH `Pat` for matching constructor `Nothing`
+justPat :: Name -> Pat
+justPat n = ConP justName [] [VarP n]
 
 -- | TH `Type` for `String`
 stringConT :: Type

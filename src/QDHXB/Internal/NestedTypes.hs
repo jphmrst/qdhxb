@@ -4,7 +4,8 @@
 module QDHXB.Internal.NestedTypes (
   TypeScheme(Sequence, Restriction, Extension),
   DataScheme(
-      ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme),
+      ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme,
+      Group),
   formatDataScheme, formatDataScheme',
   formatDataSchemes',
   formatDataSchemeInd', formatDataSchemesInd'
@@ -57,6 +58,8 @@ data DataScheme =
                       (Maybe QName) -- ^ ifName
   | SimpleTypeScheme QName -- ^ baseSpec
                      QName -- ^ name
+  | Group (Maybe QName) -- ^ name
+          (Maybe TypeScheme) -- ^ contents
   deriving Show
 
 -- | Pretty-print a `DataScheme`.
@@ -135,6 +138,13 @@ formatDataScheme__ ind (ComplexTypeScheme form attrs ifName) =
 
 formatDataScheme__ _ (SimpleTypeScheme base name) = [
   "SimpleTypeScheme base=\"" ++ show base ++ "\" name=\"" ++ show name ++ "\""
+  ]
+
+formatDataScheme__ _ (Group base (Just ts)) = [
+  "Group " ++ show base ++ " with contents", "  " ++ show ts
+  ]
+formatDataScheme__ _ (Group base Nothing) = [
+  "Group " ++ show base ++ " with no contents"
   ]
 
 formatDataSchemeInd__ :: String -> DataScheme -> [String]
