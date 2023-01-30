@@ -15,46 +15,44 @@ module QDHXB.Internal.Utils.TH (
 
   -- * Utilities for building expressions for other standard Haskell types and values
   -- ** Primitive types
-  stringName, intName, floatName, boolName, stringConT, quoteStr,
+  stringConT, quoteStr,
   -- ** Primitive functions
-  errorName, errorVarE,  throwsError, throwsErrorExp,
+  errorVarE, throwsError, throwsErrorExp,
   -- ** `Eq`
-  eqName, eqConT,
+  eqConT,
   -- ** `Read` and `Show`
-  showName, readName, showConT, readVarE,
+  showConT, readVarE,
   -- ** `Maybe`
-  maybeName,
+  maybeConT,
   -- *** With `Nothing`
-  nothingName, nothingConE, nothingPat,
+  nothingConE, nothingPat,
   -- *** With `Just`
-  justName, justConE, justMatchId, justPat,
+  justConE, justMatchId, justPat,
   -- ** `Data.List`
-  mapName, mapVarE,
+  mapVarE,
   -- ** @Calendar@
-  zonedTimeName, zonedTimeConT,
+  zonedTimeConT,
   -- ** `IO`
-  ioName, ioConT, maybeConT,
+  ioConT,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
-  exceptName, exceptConT, applyExceptCon,
+  exceptConT, applyExceptCon,
   -- *** With `Control.Monad.Except.runAccept`
-  runExceptName, runExceptVarE, applyRunExceptExp,
-  resultOrThrow,
+  runExceptVarE, applyRunExceptExp, resultOrThrow,
   -- *** With `Control.Monad.Except.throwError`
-  throwName, throwVarE, applyThrowStmt, applyThrowStrStmt,
+  throwVarE, applyThrowStmt, applyThrowStrStmt,
   applyThrowExp, applyThrowStrExp,
   -- *** With `Control.Monad.Except.catchError`
-  catchErrorName, catchErrorVarE,
-  applyCatchErrorExp,
+  catchErrorVarE, applyCatchErrorExp,
   -- *** Monadic statements
-  throwsExc, returnName, returnExp, applyReturn,
+  throwsExc, returnExp, applyReturn,
   -- ** Miscellaneous expression builders
   fn1Type, fn2Type, app2Exp,
 
-  -- * `ZeroOneMany`
-  zeroName, oneName, manyName, zomToListName, zomToListVarE,
+  -- * `QDHXB.Internal.Utils.ZeroOneMany`
+  zeroPat, onePat, manyPat, zomToListVarE,
 
   -- * @XMLLight@
-  contentName, contentConT,
+  contentConT,
 
   -- * Local names
   xName, yName, xVarE, yVarE, aName, eName, ctxtName,
@@ -256,10 +254,23 @@ justName = mkName "Just"
 zeroName :: Name
 zeroName = mkName "Zero"
 
+-- | TH `Pat` for "Zero"
+zeroPat :: Pat
+zeroPat = ConP zeroName [] []
+
+-- | TH `Pat` for "One"
+onePat :: Pat -> Pat
+onePat p = ConP oneName [] [p]
+
+-- | TH `Pat` for "Many"
+manyPat :: Pat -> Pat
+manyPat p = ConP manyName [] [p]
+
 -- | TH `Name` for "Int"
 intName :: Name
 intName = mkName "Int"
 
+{-
 -- | TH `Name` for "Float"
 floatName :: Name
 floatName = mkName "Float"
@@ -267,6 +278,7 @@ floatName = mkName "Float"
 -- | TH `Name` for "Bool"
 boolName :: Name
 boolName = mkName "Bool"
+-}
 
 -- | TH `Name` for "One"
 oneName :: Name

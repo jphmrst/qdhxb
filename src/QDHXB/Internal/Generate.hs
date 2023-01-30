@@ -326,17 +326,17 @@ zomMatch1 zeroCase oneCaseF manyCaseExp = do
 assembleZomMatches :: Exp -> Pat -> Exp -> Pat -> Exp -> XSDQ [Match]
 assembleZomMatches zeroCase onePattern oneCase manyPattern manyCase =
   return $ [
-    Match (ConP zeroName [] []) (NormalB zeroCase) [],
-    Match (ConP oneName [] [onePattern]) (NormalB oneCase) [],
-    Match (ConP manyName [] [manyPattern]) (NormalB manyCase) []
+    Match zeroPat (NormalB zeroCase) [],
+    Match (onePat onePattern) (NormalB oneCase) [],
+    Match (manyPat manyPattern) (NormalB manyCase) []
     ]
 
 maybeMatches :: Exp -> (Name -> Exp) -> XSDQ [Match]
 maybeMatches zeroCase oneCaseF = do
   newX <- newName "x"
   return $ [
-    Match (ConP nothingName [] []) (NormalB zeroCase) [],
-    Match (ConP justName [] [VarP newX]) (NormalB $ oneCaseF newX) []
+    Match nothingPat (NormalB zeroCase) [],
+    Match (justPat newX) (NormalB $ oneCaseF newX) []
     ]
 
 -- | Translate a reference to an XSD element type to a Template Haskell
