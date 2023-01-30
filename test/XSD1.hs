@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 
 -- qdhxb useDebugging ["xsd.xsd"]
-qdhxb' ["xsd.xsd"]
+-- qdhxb' ["xsd.xsd"]
 
 testXSD1 :: TLT IO ()
 testXSD1 = inGroup "XSD test 1" $ do

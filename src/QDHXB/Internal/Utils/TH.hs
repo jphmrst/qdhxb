@@ -23,6 +23,13 @@ module QDHXB.Internal.Utils.TH (
   readVarE, errorVarE, mapVarE, zomToListVarE, justConE, nothingConE,
   nothingPat, justPat,
   quoteStr,
+  exceptName, exceptConT, applyExceptCon,
+  runExceptName, runExceptVarE, applyrunExceptExp,
+  throwName, throwVarE,
+  applyThrowStmt, applyThrowStrStmt, applyThrowExp, applyThrowStrExp,
+  catchErrorName, catchErrorVarE, applyCatchErrorExp,
+  returnName, returnExp, applyReturn,
+  throwsExc,
 
   -- * Miscellaneous
   firstToUpper, todoStr, throwsError, fn1Type, fn2Type)
@@ -348,7 +355,66 @@ showConT = ConT showName
 eqConT :: Type
 eqConT = ConT eqName
 
+exceptName :: Name
+exceptName = mkName "Except"
+
+exceptConT :: Type
+exceptConT = ConT exceptName
+
+applyExceptCon :: Type -> Type -> Type
+applyExceptCon excT valT = AppT (AppT exceptConT excT) valT
+
+returnName :: Name
+returnName = mkName "return"
+
+returnExp :: Exp
+returnExp = VarE returnName
+
+applyReturn :: Exp -> Exp
+applyReturn = AppE returnExp
+
+runExceptName :: Name
+runExceptName = mkName "runExcept"
+
+runExceptVarE :: Exp
+runExceptVarE = VarE runExceptName
+
+applyrunExceptExp :: Exp -> Exp
+applyrunExceptExp = AppE runExceptVarE
+
+throwName :: Name
+throwName = mkName "throwError"
+
+throwVarE :: Exp
+throwVarE = VarE throwName
+
+applyThrowStmt :: Exp -> Stmt
+applyThrowStmt = NoBindS . applyThrowExp
+
+applyThrowExp :: Exp -> Exp
+applyThrowExp = AppE throwVarE
+
+applyThrowStrStmt :: String -> Stmt
+applyThrowStrStmt = NoBindS . applyThrowStrExp
+
+applyThrowStrExp :: String -> Exp
+applyThrowStrExp = AppE throwVarE . quoteStr
+
+catchErrorName :: Name
+catchErrorName = mkName "catchError"
+
+catchErrorVarE :: Exp
+catchErrorVarE = VarE catchErrorName
+
+infixl `applyCatchErrorExp`
+applyCatchErrorExp :: Exp -> Exp -> Exp
+applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
+
 -- | TH `Exp` which will throw an exception with the given name.
+throwsExc :: String -> Stmt
+throwsExc msg = NoBindS $ AppE errorVarE (LitE $ StringL msg)
+
+-- | TH `Exp` which will throw a program-ending error with the given name.
 throwsError :: String -> Exp
 throwsError msg = AppE errorVarE (LitE $ StringL msg)
 
