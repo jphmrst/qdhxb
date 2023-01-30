@@ -13,39 +13,54 @@ module QDHXB.Internal.Utils.TH (
   diffTimeBasicDecoder, timeOfDayBasicDecoder, dayBasicDecoder,
   qnameBasicDecoder,
 
-  -- * Utilities for building expressions for ZOM types
+  -- * Utilities for building expressions for other standard Haskell types and values
+  -- ** Primitive types
+  stringName, intName, floatName, boolName, stringConT, quoteStr,
+  -- ** Primitive functions
+  errorName, errorVarE,  throwsError, throwsErrorExp,
+  -- ** `Eq`
+  eqName, eqConT,
+  -- ** `Read` and `Show`
+  showName, readName, showConT, readVarE,
+  -- ** `Maybe`
+  maybeName,
+  -- *** With `Nothing`
+  nothingName, nothingConE, nothingPat,
+  -- *** With `Just`
+  justName, justConE, justMatchId, justPat,
+  -- ** `Data.List`
+  mapName, mapVarE,
+  -- ** @Calendar@
+  zonedTimeName, zonedTimeConT,
+  -- ** `IO`
+  ioName, ioConT, maybeConT,
+  -- ** Utilities for building expressions with `Control.Monad.Except.Except`
+  exceptName, exceptConT, applyExceptCon,
+  -- *** With `Control.Monad.Except.runAccept`
+  runExceptName, runExceptVarE, applyRunExceptExp,
+  resultOrThrow,
+  -- *** With `Control.Monad.Except.throwError`
+  throwName, throwVarE, applyThrowStmt, applyThrowStrStmt,
+  applyThrowExp, applyThrowStrExp,
+  -- *** With `Control.Monad.Except.catchError`
+  catchErrorName, catchErrorVarE,
+  applyCatchErrorExp,
+  -- *** Monadic statements
+  throwsExc, returnName, returnExp, applyReturn,
+  -- ** Miscellaneous expression builders
+  fn1Type, fn2Type, app2Exp,
+
+  -- * `ZeroOneMany`
   zeroName, oneName, manyName, zomToListName, zomToListVarE,
 
-  -- * Utilities for building expressions for `Maybe` types
-  nothingName, justName, maybeName,
-  justMatchId, justConE, nothingConE, nothingPat, justPat,
-
-  -- * Utilities for building expressions for standard Haskell types and values
-  stringName, errorName, eqName, showName, intName, floatName, boolName,
-  mapName, zonedTimeName,
-
-  -- * Utilities for building expressions for monadic statements
-  returnName, returnExp, applyReturn,
-
-  -- * Utilities for building expressions with `Except`
-  exceptName, exceptConT, applyExceptCon, runExceptName, runExceptVarE,
-  applyRunExceptExp, throwName, throwVarE, applyThrowStmt, applyThrowStrStmt,
-  applyThrowExp, applyThrowStrExp, catchErrorName, catchErrorVarE,
-  applyCatchErrorExp, throwsExc, resultOrThrow,
-
-  -- * Utilities for expressions over @XMLLight@ types
+  -- * @XMLLight@
   contentName, contentConT,
-
-  -- * Utilities for building other standard Haskell types and expressions over their values
-  readName, ioName, errorVarE, quoteStr, stringConT, maybeConT,
-  showConT, eqConT, zonedTimeConT, ioConT, readVarE, mapVarE,
 
   -- * Local names
   xName, yName, xVarE, yVarE, aName, eName, ctxtName,
 
-  -- * Miscellaneous
-  firstToUpper, todoStr, throwsError, throwsErrorExp, fn1Type, fn2Type,
-  app2Exp)
+  -- * Other
+  firstToUpper, todoStr)
 where
 
 import Language.Haskell.TH
