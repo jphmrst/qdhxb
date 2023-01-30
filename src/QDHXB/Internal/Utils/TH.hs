@@ -14,22 +14,34 @@ module QDHXB.Internal.Utils.TH (
   qnameBasicDecoder,
 
   -- * Utilities for building expressions for ZOM types
-  zeroName, oneName, manyName, zomToListName,
+  zeroName, oneName, manyName, zomToListName, zomToListVarE,
+
+  -- * Utilities for building expressions for `Maybe` types
   nothingName, justName, maybeName,
+  justMatchId, justConE, nothingConE, nothingPat, justPat,
+
+  -- * Utilities for building expressions for standard Haskell types and values
   stringName, errorName, eqName, showName, intName, floatName, boolName,
-  mapName, zonedTimeName, xName, yName, xVarE, yVarE, justMatchId,
-  contentName, ioName, aName, eName, ctxtName, readName,
-  stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT, ioConT,
-  readVarE, errorVarE, mapVarE, zomToListVarE, justConE, nothingConE,
-  nothingPat, justPat,
-  quoteStr,
-  exceptName, exceptConT, applyExceptCon,
-  runExceptName, runExceptVarE, applyRunExceptExp,
-  throwName, throwVarE,
-  applyThrowStmt, applyThrowStrStmt, applyThrowExp, applyThrowStrExp,
-  catchErrorName, catchErrorVarE, applyCatchErrorExp,
+  mapName, zonedTimeName,
+
+  -- * Utilities for building expressions for monadic statements
   returnName, returnExp, applyReturn,
-  throwsExc, resultOrThrow,
+
+  -- * Utilities for building expressions with `Except`
+  exceptName, exceptConT, applyExceptCon, runExceptName, runExceptVarE,
+  applyRunExceptExp, throwName, throwVarE, applyThrowStmt, applyThrowStrStmt,
+  applyThrowExp, applyThrowStrExp, catchErrorName, catchErrorVarE,
+  applyCatchErrorExp, throwsExc, resultOrThrow,
+
+  -- * Utilities for expressions over @XMLLight@ types
+  contentName, contentConT,
+
+  -- * Utilities for building other standard Haskell types and expressions over their values
+  readName, ioName, errorVarE, quoteStr, stringConT, maybeConT,
+  showConT, eqConT, zonedTimeConT, ioConT, readVarE, mapVarE,
+
+  -- * Local names
+  xName, yName, xVarE, yVarE, aName, eName, ctxtName,
 
   -- * Miscellaneous
   firstToUpper, todoStr, throwsError, throwsErrorExp, fn1Type, fn2Type,
