@@ -213,6 +213,7 @@ xVarE = VarE xName
 yVarE :: Exp
 yVarE = VarE yName
 
+-- | TH `Match` clause that returns whatever it matches.
 justMatchId :: Match
 justMatchId = Match (justPat xName) (NormalB xVarE) []
 
@@ -364,66 +365,99 @@ showConT = ConT showName
 eqConT :: Type
 eqConT = ConT eqName
 
+-- | TH `Name` for "Except"
 exceptName :: Name
 exceptName = mkName "Except"
 
+-- | TH `Type` for `Control.Monad.Except.Except`
 exceptConT :: Type
 exceptConT = ConT exceptName
 
+-- | Given two TH `Type`s, return the TH `Type` corresponding to apply
+-- `Control.Monad.Except.Except` to the two argument types.
 applyExceptCon :: Type -> Type -> Type
 applyExceptCon excT valT = AppT (AppT exceptConT excT) valT
 
+-- | TH `Name` for "return"
 returnName :: Name
 returnName = mkName "return"
 
+-- | TH `Exp` for the `returnExp` function
 returnExp :: Exp
 returnExp = VarE returnName
 
+-- | Given a TH `Exp`, return the TH `Exp` which applies the `return`
+-- function to the argument.
 applyReturn :: Exp -> Exp
 applyReturn = AppE returnExp
 
+-- | TH `Name` for "runExcept"
 runExceptName :: Name
 runExceptName = mkName "runExcept"
 
+-- | TH `Exp` for the `Control.Monad.Except.runExcept` function
 runExceptVarE :: Exp
 runExceptVarE = VarE runExceptName
 
+-- | Given a TH `Exp`, return the TH `Exp` which applies the
+-- `Control.Monad.Except.runExcept` function to the argument
 applyRunExceptExp :: Exp -> Exp
 applyRunExceptExp = AppE runExceptVarE
 
+-- | TH `Name` for "throwError"
 throwName :: Name
 throwName = mkName "throwError"
 
+-- | TH `Exp` for the `Control.Monad.Except.throwError` function
 throwVarE :: Exp
 throwVarE = VarE throwName
 
+-- | Given a TH `Exp`, return the TH `Stmt` which applies the
+-- `Control.Monad.Except.throwError` function to the argument
+-- expression as non-binding TH `Stmt`.
 applyThrowStmt :: Exp -> Stmt
 applyThrowStmt = NoBindS . applyThrowExp
 
+-- | Given a TH `Exp`, return the TH `Exp` which applies the
+-- `Control.Monad.Except.throwError` function to the argument.
 applyThrowExp :: Exp -> Exp
 applyThrowExp = AppE throwVarE
 
+-- | Given a `String`, return a TH non-binding `Stmt` which applies
+-- the `Control.Monad.Except.throwError` function to the argument
+-- expression.
 applyThrowStrStmt :: String -> Stmt
 applyThrowStrStmt = NoBindS . applyThrowStrExp
 
+-- | Given a `String`, return a TH `Exp` which applies the
+-- `Control.Monad.Except.throwError` function to the argument
+-- expression.
 applyThrowStrExp :: String -> Exp
 applyThrowStrExp = AppE throwVarE . quoteStr
 
+-- | TH `Name` for "catchError"
 catchErrorName :: Name
 catchErrorName = mkName "catchError"
 
-leftName :: Name
-leftName = mkName "Left"
-
-rightName :: Name
-rightName = mkName "Right"
-
+-- | TH `Exp` for the catchError`` function
 catchErrorVarE :: Exp
 catchErrorVarE = VarE catchErrorName
 
+-- | Given two `Exp`ressions corresponding to a monad and an error
+-- handler, return a TH `Exp` which applies the
+-- `Control.Monad.Except.catchError` function to the two argument
+-- expressions.
 infixl `applyCatchErrorExp`
 applyCatchErrorExp :: Exp -> Exp -> Exp
 applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
+
+-- | TH `Name` for "Left"
+leftName :: Name
+leftName = mkName "Left"
+
+-- | TH `Name` for "Right"
+rightName :: Name
+rightName = mkName "Right"
 
 -- | TH `Exp` which will throw an exception with the given name.
 throwsExc :: String -> Stmt
@@ -454,7 +488,7 @@ app2Exp :: Exp -> Exp -> Exp -> Exp
 app2Exp f e1 e2 = (AppE (AppE f e1) e2)
 
 -- | Given a TH `Exp` expression of type @Except String a@, either
--- returns a value of type `a` or throws an `error` with the given
+-- returns a value of type @a@ or throws an `error` with the given
 -- `String`
 resultOrThrow :: Exp -> Exp
 resultOrThrow ex =
