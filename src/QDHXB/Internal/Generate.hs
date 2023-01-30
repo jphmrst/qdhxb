@@ -38,6 +38,7 @@ xsdDeclsToHaskell defns = do
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
   let baseName = firstToUpper $ qName nam
+      safeDecAsNam = mkName $ "tryDecodeAs" ++ baseName
       decAsNam = mkName $ "decodeAs" ++ baseName
   in do
     let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
@@ -48,6 +49,14 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
                             "QDHXB: CRef must be present within " ++ show nam) |]
     let res = (
           TySynD (mkName baseName) [] haskellType
+
+          -- Safe decoder
+          : SigD safeDecAsNam
+                 (fn2Type stringConT contentConT
+                          (applyExceptCon stringConT
+                                          (ConT $ mkName baseName)))
+          : FunD safeDecAsNam [Clause [VarP eName, VarP ctxtName]
+                                  (NormalB $ applyReturn decodeAs) []]
 
           -- Decoder
           : SigD decAsNam (fn2Type stringConT
@@ -72,15 +81,27 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
   let baseName = qFirstToUpper nam
       typBaseName = firstToUpper $ qName typ
+      tryDecNam = mkName $ "tryDecode" ++ qName baseName
       decNam = mkName $ "decode" ++ qName baseName
       loadNam = mkName $ "load" ++ qName baseName
+  tryDecoder <- [| $(return $ VarE $ mkName $ "tryDecodeAs" ++ typBaseName)
+                      $(return $ quoteStr $ qName nam)
+                        ctxt |]
   decoder <- [| $(return $ VarE $ mkName $ "decodeAs" ++ typBaseName)
                    $(return $ quoteStr $ qName nam)
                      ctxt |]
   let res = (
 
+        -- Safe decoder
+        SigD tryDecNam
+                (fn2Type stringConT contentConT
+                         (applyExceptCon stringConT
+                                         (ConT $ mkName typBaseName)))
+        : FunD tryDecNam [Clause [WildP, VarP ctxtName]
+                                 (NormalB tryDecoder) []]
+
         -- Decoder
-        SigD decNam (fn1Type contentConT
+        : SigD decNam (fn1Type contentConT
                                (ConT $ mkName typBaseName))
         : FunD decNam [Clause [VarP ctxtName] (NormalB decoder) []]
 
@@ -115,11 +136,22 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
   let rootName = firstToUpper $ qName nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
+      safeDecNam = mkName $ "tryDecode" ++ rootName
   in do
     decoder <- [| pullAttrFrom $(return $ quoteStr $ qName nam) ctxt |]
     let (haskellTyp, _) = xsdTypeNameTranslation $ qName typ
     let res = (
           TySynD rootTypeName [] haskellTyp
+
+          -- Safe decoder
+          : SigD safeDecNam
+                 (fn1Type contentConT
+                          (applyExceptCon stringConT
+                                          (AppT maybeConT
+                                                (ConT rootTypeName))))
+          : FunD safeDecNam [Clause [VarP ctxtName]
+                                    (NormalB $ applyReturn decoder)
+                                    []]
 
           -- Decoder
           : SigD decNam (fn1Type contentConT
@@ -249,25 +281,6 @@ xsdRefToSafeHaskellExpr param (AttributeRef ref usage) _ = do
   where xsdRefToSafeHaskellExpr' :: Name -> String -> XSDQ Exp
         xsdRefToSafeHaskellExpr' p r =
           return $ AppE (decoderExpFor r) (VarE p)
-
-{-
-assembleTryDecoder :: [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ Exp
-assembleTryDecoder [] _ _ constructor appNamesR =
-  return $
-    AppE justConE $ foldl (\x y -> AppE x y) constructor (reverse appNamesR)
-assembleTryDecoder (r:refs) (s:subnames) ctxt constructor appNamesR = do
-  safeVal <- xsdRefToSafeHaskellExpr s r ctxt
-  encl <- assembleTryDecoder refs subnames ctxt constructor
-                             (VarE s:appNamesR)
-  return $ case r of
-    ElementRef _ _ _ -> CaseE safeVal [
-      Match nothingPat (NormalB nothingConE) [],
-      Match (justPat s) (NormalB encl) []
-      ]
-    AttributeRef _ _ -> LetE [ValD (VarP s) (NormalB safeVal) []] encl
-assembleTryDecoder _ [] _ _ _ =
-  error "This should be impossible when passing an arbitrarily long list for subnames"
--}
 
 -- | Called from generated code.
 __decodeForSimpleType :: String -> Content -> String -> String
