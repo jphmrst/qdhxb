@@ -62,8 +62,11 @@ xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
           : SigD decAsNam (fn2Type stringConT
                                    contentConT
                                    (ConT $ mkName baseName))
-          : FunD decAsNam [Clause [VarP eName, VarP ctxtName]
-                                  (NormalB decodeAs) []]
+          : FunD decAsNam [Clause [VarP xName, VarP ctxtName]
+                                  (NormalB $ resultOrThrow $
+                                    app2Exp (VarE safeDecAsNam)
+                                            (VarE xName)
+                                            (VarE ctxtName)) []]
 
           {-
           -- TODO Encoder
@@ -87,23 +90,23 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
   tryDecoder <- [| $(return $ VarE $ mkName $ "tryDecodeAs" ++ typBaseName)
                       $(return $ quoteStr $ qName nam)
                         ctxt |]
-  decoder <- [| $(return $ VarE $ mkName $ "decodeAs" ++ typBaseName)
-                   $(return $ quoteStr $ qName nam)
-                     ctxt |]
   let res = (
 
         -- Safe decoder
         SigD tryDecNam
-                (fn2Type stringConT contentConT
+                (fn1Type contentConT
                          (applyExceptCon stringConT
                                          (ConT $ mkName typBaseName)))
-        : FunD tryDecNam [Clause [WildP, VarP ctxtName]
+        : FunD tryDecNam [Clause [VarP ctxtName]
                                  (NormalB tryDecoder) []]
 
         -- Decoder
         : SigD decNam (fn1Type contentConT
                                (ConT $ mkName typBaseName))
-        : FunD decNam [Clause [VarP ctxtName] (NormalB decoder) []]
+        : FunD decNam [Clause [VarP ctxtName]
+                              (NormalB $ resultOrThrow $
+                                AppE (VarE tryDecNam)
+                                     (VarE ctxtName)) []]
 
         {-
         -- TODO Encoder
@@ -156,7 +159,10 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
           -- Decoder
           : SigD decNam (fn1Type contentConT
                                  (AppT maybeConT (ConT rootTypeName)))
-          : FunD decNam [Clause [VarP ctxtName] (NormalB decoder) []]
+          : FunD decNam [Clause [VarP ctxtName]
+                                (NormalB $ resultOrThrow $
+                                  AppE (VarE safeDecNam)
+                                       (VarE ctxtName)) []]
 
           {-
           -- TODO Encoder
