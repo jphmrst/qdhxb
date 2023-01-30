@@ -17,22 +17,23 @@ module QDHXB.Internal.Utils.TH (
   zeroName, oneName, manyName, zomToListName,
   nothingName, justName, maybeName,
   stringName, errorName, eqName, showName, intName, floatName, boolName,
-  mapName, zonedTimeName, xName, xVarE, justMatchId,
+  mapName, zonedTimeName, xName, yName, xVarE, yVarE, justMatchId,
   contentName, ioName, aName, eName, ctxtName, readName,
   stringConT, contentConT, maybeConT, showConT, eqConT, zonedTimeConT, ioConT,
   readVarE, errorVarE, mapVarE, zomToListVarE, justConE, nothingConE,
   nothingPat, justPat,
   quoteStr,
   exceptName, exceptConT, applyExceptCon,
-  runExceptName, runExceptVarE, applyrunExceptExp,
+  runExceptName, runExceptVarE, applyRunExceptExp,
   throwName, throwVarE,
   applyThrowStmt, applyThrowStrStmt, applyThrowExp, applyThrowStrExp,
   catchErrorName, catchErrorVarE, applyCatchErrorExp,
   returnName, returnExp, applyReturn,
-  throwsExc,
+  throwsExc, resultOrThrow,
 
   -- * Miscellaneous
-  firstToUpper, todoStr, throwsError, fn1Type, fn2Type)
+  firstToUpper, todoStr, throwsError, throwsErrorExp, fn1Type, fn2Type,
+  app2Exp)
 where
 
 import Language.Haskell.TH
@@ -200,9 +201,17 @@ todoStr = "TODO"
 xName :: Name
 xName = mkName "x"
 
+-- | TH `Name` for "y"
+yName :: Name
+yName = mkName "y"
+
 -- | TH `Exp` for "x"
 xVarE :: Exp
 xVarE = VarE xName
+
+-- | TH `Exp` for "y"
+yVarE :: Exp
+yVarE = VarE yName
 
 justMatchId :: Match
 justMatchId = Match (justPat xName) (NormalB xVarE) []
@@ -379,8 +388,8 @@ runExceptName = mkName "runExcept"
 runExceptVarE :: Exp
 runExceptVarE = VarE runExceptName
 
-applyrunExceptExp :: Exp -> Exp
-applyrunExceptExp = AppE runExceptVarE
+applyRunExceptExp :: Exp -> Exp
+applyRunExceptExp = AppE runExceptVarE
 
 throwName :: Name
 throwName = mkName "throwError"
@@ -403,6 +412,12 @@ applyThrowStrExp = AppE throwVarE . quoteStr
 catchErrorName :: Name
 catchErrorName = mkName "catchError"
 
+leftName :: Name
+leftName = mkName "Left"
+
+rightName :: Name
+rightName = mkName "Right"
+
 catchErrorVarE :: Exp
 catchErrorVarE = VarE catchErrorName
 
@@ -414,9 +429,14 @@ applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
 throwsExc :: String -> Stmt
 throwsExc msg = NoBindS $ AppE errorVarE (LitE $ StringL msg)
 
+-- | TH `Exp` which will throw a program-ending error with the message
+-- calculated from the given `Exp`ression.
+throwsErrorExp :: Exp -> Exp
+throwsErrorExp = AppE errorVarE
+
 -- | TH `Exp` which will throw a program-ending error with the given name.
 throwsError :: String -> Exp
-throwsError msg = AppE errorVarE (LitE $ StringL msg)
+throwsError = throwsErrorExp . LitE . StringL
 
 -- | TH `Type` for the one-argument function type of the given
 -- argument and result.
@@ -427,6 +447,24 @@ fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
 -- (curried) arguments and result.
 fn2Type :: Type -> Type -> Type -> Type
 fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT
+
+-- | TH `Type` for the one-argument function type of the given
+-- argument and result.
+app2Exp :: Exp -> Exp -> Exp -> Exp
+app2Exp f e1 e2 = (AppE (AppE f e1) e2)
+
+-- | Given a TH `Exp` expression of type @Except String a@, either
+-- returns a value of type `a` or throws an `error` with the given
+-- `String`
+resultOrThrow :: Exp -> Exp
+resultOrThrow ex =
+  CaseE (applyRunExceptExp ex) [
+    Match (ConP leftName [] [VarP yName])
+          (NormalB $ throwsErrorExp $ VarE yName) [],
+    Match (ConP rightName [] [VarP yName])
+          (NormalB $ VarE yName) []
+  ]
+--  (`applyCatchErrorExp` (LamE [VarP xName] $ throwsErrorExp (VarE xName)))
 
 -- | Convert a `String` into a Template Haskell `Exp`ression
 -- representing that string literal.
