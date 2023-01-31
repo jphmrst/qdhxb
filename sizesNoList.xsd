@@ -1,6 +1,6 @@
 <!-- From http://www.datypic.com/books/defxmlschema1/chapter11.html -->
 <?xml version='1.0'?>
-<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+<xs:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <xsd:simpleType name="SizeType">
     <xsd:union>
       <xsd:simpleType>

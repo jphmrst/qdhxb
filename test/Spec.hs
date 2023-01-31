@@ -10,7 +10,7 @@ import OFX1 (testOFX1)
 import XSD1 (testXSD1)
 import Age (testAge)
 import Initials (testInitials)
-import SizesNoList (testInitials)
+import SizesNoList (testSizesNoList)
 
 main :: IO ()
 main = do
