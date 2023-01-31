@@ -12,6 +12,7 @@ import Language.Haskell.TH (mkName, Name)
 import System.IO
 import Text.XML.Light.Input
 import Text.XML.Light.Types
+import QDHXB.Internal.Utils.BPP
 
 -- | Retrieve the named attribute value from a list of `Attr`
 -- bindings.
@@ -66,6 +67,12 @@ data ZeroOneMany a = Zero -- ^ Zero elements
   | One a    -- ^ One element
   | Many [a] -- ^ More then one element
   deriving Show
+
+instance Blockable c => Blockable (ZeroOneMany c) where
+  block Zero = stringToBlock "{Zero}"
+  block (One a) = stringToBlock "{One}" `follow` block a
+  block (Many xs) =
+    stringToBlock "{Many}" `follow` (stackBlocks $ map block xs)
 
 -- | Convert a `ZeroOneMany` type to a list type.
 zomToList :: ZeroOneMany a -> [a]

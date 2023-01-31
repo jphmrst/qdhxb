@@ -2,17 +2,14 @@
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
 module QDHXB.Internal.NestedTypes (
-  TypeScheme(Sequence, Restriction, Extension),
-  DataScheme(
-      ElementScheme, AttributeScheme, ComplexTypeScheme, SimpleTypeScheme,
-      Group),
-  formatDataScheme, formatDataScheme',
-  formatDataSchemes',
-  formatDataSchemeInd', formatDataSchemesInd'
+  TypeScheme(..),
+  DataScheme(..),
+  nonSkip
 ) where
 
-import Data.List (intercalate)
 import Text.XML.Light.Types (QName)
+import Text.XML.Light.Output
+import QDHXB.Internal.Utils.BPP
 
 -- | Representation of certain definitions of one XSD type based on
 -- another type.
@@ -24,30 +21,31 @@ data TypeScheme =
   | Extension -- ^ One type extended with additional elements.
     QName -- ^ Base type
     [DataScheme] -- ^ Additional elements
+  | Choice (Maybe QName) -- ^ name
+           [DataScheme]  -- ^ contents
   deriving Show
 
-formatTypeScheme__ :: String -> TypeScheme -> [String]
-formatTypeScheme__ ind (Sequence ds) =
-  "Sequence"
-   : formatDataSchemesInd__ (ind ++ "  ") ds
-formatTypeScheme__ _ (Restriction r) = ["Restriction " ++ show r]
-formatTypeScheme__ ind (Extension base ds) =
-  ("Extension " ++ show base)
-   : formatDataSchemesInd__ (ind ++ "  ") ds
-
-formatTypeSchemeInd__ :: String -> TypeScheme -> [String]
-formatTypeSchemeInd__ ind s = case formatTypeScheme__ ind s of
-  [] -> []
-  x:xs -> (ind ++ x) : xs
+instance Blockable TypeScheme where
+  block (Sequence ds) =
+    (stringToBlock "Sequence") `stack2` indent "  " (block ds)
+  block (Restriction r) = Block ["Restriction " ++ show r]
+  block (Extension base ds) =
+    (stringToBlock $ "Extension " ++ show base)
+    `stack2` indent "  " (block ds)
+  block (Choice base ds) =
+    (stringToBlock $ "Choice " ++ show base)
+    `stack2` indent "  " (block ds)
+instance VerticalBlockList TypeScheme
 
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
-  ElementScheme [DataScheme] -- ^ contents
-                (Maybe QName) -- ^ ifName
-                (Maybe QName) -- ^ ifType
-                (Maybe QName) -- ^ ifRef
-                (Maybe Int) -- ^ ifMin
-                (Maybe Int) -- ^ ifMax
+  Skip
+  | ElementScheme [DataScheme] -- ^ contents
+                  (Maybe QName) -- ^ ifName
+                  (Maybe QName) -- ^ ifType
+                  (Maybe QName) -- ^ ifRef
+                  (Maybe Int) -- ^ ifMin
+                  (Maybe Int) -- ^ ifMax
   | AttributeScheme (Maybe QName) -- ^ ifName
                     (Maybe QName) -- ^ ifType
                     (Maybe QName) -- ^ ifRef
@@ -62,96 +60,69 @@ data DataScheme =
           (Maybe TypeScheme) -- ^ contents
   deriving Show
 
--- | Pretty-print a `DataScheme`.
-formatDataScheme :: DataScheme -> String
-formatDataScheme = formatDataScheme' ""
+instance Blockable DataScheme where
+  block Skip = Block ["Skip"]
+  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
+    stack2 (stringToBlock ("ElementScheme name="
+                           ++ (case ifName of
+                                 Nothing -> "undef"
+                                 Just s  -> "\"" ++ showQName s ++ "\"")
+                           ++ " type="
+                           ++ (case ifType of
+                                 Nothing -> "undef"
+                                 Just s  -> "\"" ++ showQName s ++ "\"")
+                           ++ " ref="
+                           ++ (case ifRef of
+                                 Nothing -> "undef"
+                                 Just s  -> "\"" ++ showQName s ++ "\"")
+                           ++ " min="
+                           ++ (case ifMin of
+                                 Nothing -> "undef"
+                                 Just s  -> show s)
+                           ++ " max="
+                           ++ (case ifMax of
+                                 Nothing -> "undef"
+                                 Just s  -> show s)))
+           (indent "  " $ block ctnts)
 
--- | Pretty-print a `DataScheme` with the given indentation (except
--- the first line not indented).
-formatDataScheme' :: String -> DataScheme -> String
-formatDataScheme' ind = intercalate "\n" . formatDataScheme__ ind
+  block (AttributeScheme ifName ifType ifRef usage) =
+    stringToBlock $
+      "AttributeScheme name="
+      ++ (case ifName of
+             Nothing -> "undef"
+             Just s  -> "\"" ++ show s ++ "\"")
+      ++ " type="
+      ++ (case ifType of
+             Nothing -> "undef"
+             Just s  -> "\"" ++ show s ++ "\"")
+      ++ " ref="
+      ++ (case ifRef of
+             Nothing -> "undef"
+             Just s  -> "\"" ++ show s ++ "\"")
+      ++ " usage=\"" ++ usage ++ "\""
 
--- | Pretty-print and vertically-align a list of `DataScheme` elements
--- (except the first line not indented).
-formatDataSchemes' :: String -> [DataScheme] -> String
-formatDataSchemes' _ [] = ""
-formatDataSchemes' ind (x:xs) =
-  formatDataScheme' ind x ++ "\n" ++ formatDataSchemesInd' ind xs
+  block (ComplexTypeScheme form attrs ifName) =
+    (stringToBlock $ "ComplexTypeScheme name="
+                     ++ (case ifName of
+                           Nothing -> "undef"
+                           Just s  -> "\"" ++ show s ++ "\""))
+    `stack2` (indent "  " $ block form)
+    `stack2` (indent "  " $ block attrs)
 
--- | Pretty-print a `DataScheme` with the given indentation on all
--- lines.
-formatDataSchemeInd' :: String -> DataScheme -> String
-formatDataSchemeInd' ind ds = ind ++ formatDataScheme' ind ds
+  block (SimpleTypeScheme base name) = stringToBlock $
+    "SimpleTypeScheme base=\"" ++ show base ++
+    "\" name=\"" ++ show name ++ "\""
 
--- | Pretty-print and vertically-align a list of `DataScheme` elements
--- on all lines.
-formatDataSchemesInd' :: String -> [DataScheme] -> String
-formatDataSchemesInd' ind = intercalate "\n" . map (formatDataSchemeInd' ind)
+  block (Group base (Just ts)) = Block [
+    "Group " ++ show base ++ " with contents",
+    "  " ++ show ts
+    ]
+  block (Group base Nothing) = stringToBlock $
+    "Group " ++ show base ++ " with no contents"
+instance VerticalBlockList DataScheme
 
-formatDataScheme__ :: String -> DataScheme -> [String]
-formatDataScheme__ ind (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
-  ("ElementScheme name="
-     ++ (case ifName of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-     ++ " type="
-     ++ (case ifType of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-     ++ " ref="
-     ++ (case ifRef of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-     ++ " min="
-     ++ (case ifMin of
-           Nothing -> "undef"
-           Just s  -> show s)
-     ++ " max="
-     ++ (case ifMax of
-           Nothing -> "undef"
-           Just s  -> show s))
-   : (foldl (++) [] $ map (formatDataSchemeInd__ (ind ++ "  ")) ctnts)
-
-formatDataScheme__ _ (AttributeScheme ifName ifType ifRef usage) = [
-  "AttributeScheme name="
-    ++ (case ifName of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-    ++ " type="
-    ++ (case ifType of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-     ++ " ref="
-     ++ (case ifRef of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\"")
-     ++ " usage=\"" ++ usage ++ "\""
-  ]
-
-formatDataScheme__ ind (ComplexTypeScheme form attrs ifName) =
-  ("ComplexTypeScheme name="
-     ++ (case ifName of
-           Nothing -> "undef"
-           Just s  -> "\"" ++ show s ++ "\""))
-  : (formatTypeSchemeInd__ (ind ++ "  ") form
-     ++ (concat $ map (formatDataSchemeInd__ (ind ++ "  ")) attrs))
-
-formatDataScheme__ _ (SimpleTypeScheme base name) = [
-  "SimpleTypeScheme base=\"" ++ show base ++ "\" name=\"" ++ show name ++ "\""
-  ]
-
-formatDataScheme__ _ (Group base (Just ts)) = [
-  "Group " ++ show base ++ " with contents", "  " ++ show ts
-  ]
-formatDataScheme__ _ (Group base Nothing) = [
-  "Group " ++ show base ++ " with no contents"
-  ]
-
-formatDataSchemeInd__ :: String -> DataScheme -> [String]
-formatDataSchemeInd__ ind s = case formatDataScheme__ ind s of
-  [] -> []
-  x:xs -> (ind ++ x) : xs
-
-formatDataSchemesInd__ :: String -> [DataScheme] -> [String]
-formatDataSchemesInd__ ind = concat . map (formatDataSchemeInd__ ind)
+-- | Predicate returning `False` on `Skip` values
+nonSkip :: DataScheme -> Bool
+nonSkip Skip = False
+nonSkip _ = True
 

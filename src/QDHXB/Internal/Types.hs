@@ -10,6 +10,8 @@ module QDHXB.Internal.Types (
 
 import Data.List (intercalate)
 import Text.XML.Light.Types
+import Text.XML.Light.Output (showQName)
+import QDHXB.Internal.Utils.BPP
 
 -- | A reference to an XSD element.
 data Reference =
@@ -23,6 +25,20 @@ data Reference =
 -}
   deriving Show
 
+instance Blockable Reference where
+  block (ElementRef name ifLower ifUpper) = stringToBlock $
+    "ElementRef " ++ showQName name
+    ++ case ifLower of
+         Nothing -> " no lower bound"
+         Just n -> " lower bound=" ++ show n
+    ++ case ifUpper of
+         Nothing -> " no upper bound"
+         Just n -> " upper bound=" ++ show n
+  block (AttributeRef name usage) = stringToBlock $
+    "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
+instance VerticalBlockList Reference
+
+
 -- | The actual definition of an XSD element.
 data Definition =
   ElementDefn QName QName
@@ -34,6 +50,17 @@ data Definition =
   | SequenceDefn String [Reference]
   -- ^ Define a complex type as a sequence of subelements.
   deriving Show
+
+instance Blockable Definition where
+  block (ElementDefn n t) = stringToBlock $
+    "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (AttributeDefn n t) = stringToBlock $
+    "AttributeDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (SimpleTypeDefn n t) = stringToBlock $
+    "SimpleTypeDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (SequenceDefn n rs) = stackBlocks $
+    (stringToBlock $ "SequenceDefn " ++ n) : map block rs
+instance VerticalBlockList Definition
 
 -- | Enumeration encoding the valid values of the XSD attribute
 -- definition's "usage" attribute.

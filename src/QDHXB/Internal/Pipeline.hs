@@ -8,6 +8,7 @@ import Control.Monad.IO.Class
 -- import Data.Char
 -- import Text.XML.Light.Types
 import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
+import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate
 import QDHXB.Internal.Input
@@ -30,6 +31,8 @@ elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
     liftIO $ putStrLn "======================================== INPUT"
   schemaReps <- encodeSchemaItems forms
   whenDebugging $ do
+    liftIO $ putStrLn "----------------------------------------"
+    liftIO $ bLabelPrintln "Final: " schemaReps
     liftIO $ putStrLn "======================================== FLATTEN"
   ir <- flattenSchemaItems schemaReps
   whenDebugging $ do
