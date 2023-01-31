@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Block Pretty-Printer, a quick-and-dirty pretty printer that uses
 -- a list of `String`s for a multi-line representation.
@@ -7,9 +8,11 @@ module QDHXB.Internal.Utils.BPP (
   -- * Main type and classes
   Block(Block), Blockable, block,
   VerticalBlockList, stringToBlock,
+  VerticalBlockablePair,
   -- * Operations on `Block`s
-  follow, indent, stack2, stackBlocks, labelBlock
+  follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock
   ) where
+import Language.Haskell.TH
 import Data.List (intercalate)
 import Text.XML.Light.Types
 import Text.XML.Light.Output
@@ -27,6 +30,14 @@ class Blockable c where
 instance Blockable c => Blockable (Maybe c) where
   block (Just x) = block x
   block Nothing  = stringToBlock "Nothing"
+
+class (Blockable m, Blockable n) => VerticalBlockablePair m n
+instance VerticalBlockablePair m n => Blockable (m,n) where
+  block (a, b) =
+    labelBlock "(" $ stackBlocks [
+    postlabelBlock "," $ block a,
+    postlabelBlock ")" $ block b
+    ]
 
 bprint :: Blockable c => c -> IO ()
 bprint = putStr . bpp
@@ -78,6 +89,14 @@ follow :: Block -> Block -> Block
 labelBlock :: String -> Block -> Block
 labelBlock l b = stringToBlock l `follow` b
 
+-- Follow the last line of a block with a (one-line) string.
+postlabelBlock :: String -> Block -> Block
+postlabelBlock suffix = Block . helper . openBlock
+  where helper :: [String] -> [String]
+        helper [] = [suffix]
+        helper [x] = [x ++ suffix]
+        helper (x:xs) = x : helper xs
+
 class Blockable c => VerticalBlockList c
 
 instance VerticalBlockList c => Blockable [c] where
@@ -90,3 +109,6 @@ instance Blockable Content where block = stringToBlock . showContent
 instance Blockable Attr    where block = stringToBlock . showAttr
 instance Blockable QName   where block = stringToBlock . showQName
 instance VerticalBlockList QName
+instance Blockable Dec   where block = stringToBlock . pprint
+instance VerticalBlockList Dec
+

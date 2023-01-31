@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
 
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
@@ -27,6 +28,8 @@ instance Blockable SimpleTypeScheme where
   block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
   block (Union ds) = labelBlock "Union " $ block ds
 instance VerticalBlockList SimpleTypeScheme
+instance VerticalBlockList (QName, DataScheme)
+instance VerticalBlockablePair QName DataScheme
 
 -- | Representation of certain definitions of one XSD type based on
 -- another type.
@@ -76,6 +79,13 @@ data DataScheme =
   | Group (Maybe QName) -- ^ name
           (Maybe ComplexTypeScheme) -- ^ contents
   deriving Show
+
+--  block Skip =
+--  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
+--  block (AttributeScheme ifName ifType ifRef usage) =
+--  block (ComplexTypeScheme form attrs ifName) =
+--  block (SimpleTypeScheme name detail) =
+--  block (Group base typeScheme) =
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]

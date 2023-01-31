@@ -26,7 +26,7 @@ flattenSchemaItem s = do
   results <- flattenSchemaItem' s
   whenDebugging $ do
     liftIO $ bLabelPrintln "> Flattening " s
-    liftIO $ putStrLn $ "   `--> " ++ pprintDefns' "        " results
+    liftIO $ bLabelPrintln "   `--> " results
   return results
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
@@ -82,11 +82,65 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base)) = do
   let tyDefn = SimpleSynonymDefn nam base
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
+  let makeUnionMinorLabel :: DataScheme -> Maybe QName
+      makeUnionMinorLabel Skip =
+        error "Should not see Skip in makeUnionMinorLabel"
+      makeUnionMinorLabel (ElementScheme _ (Just name) _ _ _ _) = Just name
+      makeUnionMinorLabel (ElementScheme _ (Just typ) _ _ _ _) = Just typ
+      makeUnionMinorLabel (ElementScheme cs _ _ _ _ _) = makeFirst cs
+        where makeFirst [] = Nothing
+              makeFirst (d:ds) = case makeUnionMinorLabel d of
+                                   Nothing -> makeFirst ds
+                                   Just r -> Just r
+      makeUnionMinorLabel (AttributeScheme j@(Just _) _ _ _) = j
+      makeUnionMinorLabel (AttributeScheme _ j@(Just _) _ _) = j
+      makeUnionMinorLabel (AttributeScheme _ _ j@(Just _) _) = j
+      makeUnionMinorLabel (AttributeScheme _ _ _ _) = Nothing
+      makeUnionMinorLabel (ComplexTypeScheme _ _ j@(Just _)) = j
+      makeUnionMinorLabel (ComplexTypeScheme form _attrs _) = case form of
+        Sequence ds -> Nothing
+        ComplexRestriction r -> Just r
+        Extension base ds -> Just base
+        Choice base ds -> base
+      makeUnionMinorLabel (SimpleTypeScheme name form) = case form of
+        Synonym t -> Just t
+        SimpleRestriction r -> Just r
+        Union ds -> Nothing
+      makeUnionMinorLabel (Group base n) = base
+
+      nameUnnamed :: QName -> DataScheme -> DataScheme
+      nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax) =
+        ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax
+      nameUnnamed q (AttributeScheme Nothing ifType ifRef usage) =
+        AttributeScheme (Just q) ifType ifRef usage
+      nameUnnamed q (ComplexTypeScheme form attrs Nothing) =
+        ComplexTypeScheme form attrs (Just q)
+      nameUnnamed q (SimpleTypeScheme Nothing detail) =
+        SimpleTypeScheme (Just q) detail
+      nameUnnamed _ b = b
+
+      pullLabel :: DataScheme -> XSDQ (QName, [Definition])
+      pullLabel d = do
+        name <- case makeUnionMinorLabel d of
+                  Just q -> return q
+                  Nothing -> do
+                    freshName <- getNextCapName
+                    freshQName <- decodePrefixedName freshName
+                    return freshQName
+        defns <- flattenSchemaItem $ nameUnnamed name d
+        return (name, defns)
+  labelledAlts <- mapM pullLabel alts
+  let (names, defnss) = unzip labelledAlts
+      defns = concat defnss
+  let uDef = UnionDefn nam names
+  addTypeDefn nam uDef
+  return $ defns ++ [uDef]
 flattenSchemaItem' s = do
   liftIO $ putStrLn      "+------"
   liftIO $ putStrLn      "| TODO flattenSchemaItem' missed case"
   liftIO $ bLabelPrintln "| " s
-  error $ show $ labelBlock "TODO another flatten case:" $ block s
+  error $ show $ labelBlock "TODO another flatten case: " $ block s
 
 musterComplexSequenceComponents ::
   [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])

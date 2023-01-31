@@ -25,6 +25,7 @@ import Control.Monad.Extra
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 import Text.XML.Light.Types
+import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.Namespaces
 import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Types
@@ -91,7 +92,9 @@ fileNewDefinition (AttributeDefn _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _)   = return ()
 fileNewDefinition (ElementDefn n t)    = do
   whenDebugging $ do
-    liftIO $ putStrLn $ "Filing ElementDefn: " ++ show n ++ " :: " ++ show t
+    liftIO $ putStrLn $ show $
+      (labelBlock "Filing ElementDefn: " $ block n)
+       `follow` (labelBlock " :: " $ block t)
   addElementType n t
 
 -- | Register the `Definition` of an XSD type with the tracking tables

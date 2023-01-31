@@ -39,6 +39,8 @@ elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
     liftIO $ putStrLn "======================================== GENERATE"
   decls <- xsdDeclsToHaskell ir
   whenDebugging $ do
+    liftIO $ putStrLn "----------------------------------------"
+    liftIO $ bLabelPrintln "Final: " decls
     liftIO $ putStrLn "======================================== end"
   return decls
 elementToDecs _ = error "Unexpected form in elementToDecs"

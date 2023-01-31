@@ -1,11 +1,12 @@
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
-  Reference(ElementRef, AttributeRef {-, ComplexTypeRef -} ),
-  Definition(SimpleSynonymDefn, AttributeDefn, SequenceDefn, ElementDefn),
-  AttributeUsage(Forbidden, Optional, Required), stringToAttributeUsage,
-  pprintDefns'
+  Reference(..),
+  Definition(..),
+  AttributeUsage(Forbidden, Optional, Required),
+  stringToAttributeUsage, pprintDefns'
   ) where
 
 import Data.List (intercalate)
@@ -49,6 +50,8 @@ data Definition =
   -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
   -- ^ Define a complex type as a sequence of subelements.
+  | UnionDefn QName [QName]
+  -- ^ Define a simple type as a union of other simple types.
   deriving Show
 
 instance Blockable Definition where
@@ -60,7 +63,11 @@ instance Blockable Definition where
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map block rs
+  block (UnionDefn n ns) = stackBlocks $
+    (stringToBlock $ "UnionDefn " ++ showQName n) : map block ns
 instance VerticalBlockList Definition
+instance VerticalBlockablePair QName [Definition]
+instance VerticalBlockList (QName, [Definition])
 
 -- | Enumeration encoding the valid values of the XSD attribute
 -- definition's "usage" attribute.

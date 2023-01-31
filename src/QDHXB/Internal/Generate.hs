@@ -17,8 +17,9 @@ where
 import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Language.Haskell.TH
-import Text.XML.Light.Output (showQName)
+import Text.XML.Light.Output (showQName, showContent)
 import Text.XML.Light.Types (QName, Content, qName)
+import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Utils.XMLLight
@@ -46,7 +47,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
                   [| __decodeForSimpleType e
                          ctxt
                          $(return $ quoteStr $
-                            "QDHXB: CRef must be present within " ++ show nam) |]
+                            "QDHXB: CRef must be present within " ++ showQName nam) |]
     let res = (
           TySynD (mkName baseName) [] haskellType
 
@@ -77,8 +78,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
 
           : [])
     whenDebugging $ do
-      liftIO $ putStrLn $
-        "> Generating from " ++ show decl
+      liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ putStrLn $ "  to " ++ indCode "     " res
     return res
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
@@ -131,9 +131,8 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
 
         : [])
   whenDebugging $ do
-    liftIO $ putStrLn $
-      "> Generating from " ++ show decl
-    liftIO $ putStrLn $ "  to " ++ indCode "     " res
+    liftIO $ bLabelPrintln "> Generating from " decl
+    liftIO $ bLabelPrintln "  to " res
   return res
 xsdDeclToHaskell decl@(AttributeDefn nam typ) =
   let rootName = firstToUpper $ qName nam
@@ -172,9 +171,8 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
           -}
           : [])
     whenDebugging $ do
-      liftIO $ putStrLn $
-        "> Generating from " ++ show decl
-      liftIO $ putStrLn $ "  to " ++ indCode "     " res
+      liftIO $ bLabelPrintln "> Generating from " decl
+      liftIO $ bLabelPrintln "  to " res
     return res
 xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
   let nameRoot = firstToUpper namStr
@@ -218,10 +216,15 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
 
            : [])
     whenDebugging $ do
-      liftIO $ putStrLn $
-        "> Generating from " ++ show decl
-      liftIO $ putStrLn $ "  to " ++ indCode "     " res
+      liftIO $ bLabelPrintln "> Generating from " decl
+      liftIO $ bLabelPrintln "  to " res
     return res
+xsdDeclToHaskell decl@(UnionDefn name names) = do
+  let baseName = qName name
+  let makeConstr :: QName -> Con
+      makeConstr qn = NormalC (mkName $ baseName ++ (firstToUpper $ qName qn))
+                              [(useBang, ConT $ mkName $ qName qn)]
+  return [DataD [] (mkName baseName) [] Nothing (map makeConstr names) []]
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]
@@ -266,8 +269,8 @@ xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
       (_, Just 1) -> do
         matches <- zomMatch1
           (applyThrowStrExp $
-           "QDHXB: element " ++ showQName ref ++ " must be present in "
-           ++ show ctxt ++ " element")
+           "QDHXB: element " ++ showQName ref ++ " must be present in element "
+           ++ show ctxt)
           (\paramName -> applyReturn $
                            AppE (AppE (decoderAsExpFor $ qName typeName)
                                       (quoteStr $ qName ref))
