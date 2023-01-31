@@ -69,7 +69,7 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
     (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _))) -> do
       qnam <- decodePrefixedName nam
       alts <- encodeSchemaItems cs'
-      let res = SimpleTypeScheme qnam $ Union alts
+      let res = SimpleTypeScheme (Just qnam) $ Union alts
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding simpleType "
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
@@ -281,15 +281,10 @@ encodeSimpleTypeByRestriction ::
   Maybe QName -> [Attr] -> Content -> XSDQ DataScheme
 encodeSimpleTypeByRestriction -- Note ignoring ats
     ifName _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
-  nam <- case ifName of
-           Just n -> return n
-           Nothing -> do
-             base <- getNextCapName
-             decodePrefixedName base
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
-      return $ SimpleTypeScheme nam $ SimpleRestriction baseQName
+      return $ SimpleTypeScheme ifName $ SimpleRestriction baseQName
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam ats s = do
   liftIO $ putStrLn "+------"

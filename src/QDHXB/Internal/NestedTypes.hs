@@ -71,7 +71,7 @@ data DataScheme =
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
-  | SimpleTypeScheme QName -- ^ name
+  | SimpleTypeScheme (Maybe QName) -- ^ ifName
                      SimpleTypeScheme -- ^ Details
   | Group (Maybe QName) -- ^ name
           (Maybe ComplexTypeScheme) -- ^ contents

@@ -1,0 +1,14 @@
+<!-- From https://www.w3schools.com/xml/el_restriction.asp -->
+<?xml version='1.0'?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:age"
+            xmlns:bks="urn:age">
+  <xs:element name="age">
+    <xs:simpleType>
+      <xs:restriction base="xs:integer">
+        <xs:minInclusive value="0"/>
+        <xs:maxInclusive value="100"/>
+      </xs:restriction>
+    </xs:simpleType>
+  </xs:element>
+</xs:schema>

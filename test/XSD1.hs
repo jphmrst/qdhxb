@@ -5,7 +5,7 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["xsd.xsd"]
+-- qdhxb useDebugging ["xsd.xsd"]
 -- qdhxb' ["xsd.xsd"]
 
 testXSD1 :: TLT IO ()

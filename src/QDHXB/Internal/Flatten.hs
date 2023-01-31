@@ -44,24 +44,18 @@ flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
              fileNewDefinition elemDefn
              return [ tyDefn, elemDefn ])
     else return [ ElementDefn nam typ ]
-flattenSchemaItem' (ElementScheme [ComplexTypeScheme (Sequence steps)
-                                                    ats Nothing]
-                                 (Just nam) Nothing Nothing _ _) = do
-  (defs, refs) <- musterComplexSequenceComponents steps ats nam
-  let typName = qName nam
-      tyDefn = SequenceDefn typName $ refs
-  uri <- getDefaultNamespace
-  pfx <- mapM getURIprefix uri
-  let typQName = QName typName uri $ compressMaybe pfx
-  addTypeDefn typQName tyDefn
-  whenDebugging $ do
-    recheck <- isKnownType typQName
-    liftIO $ putStrLn $
-      "  - Have set " ++ typName ++ " to be known; rechecked as "
-      ++ show recheck
-  let elemDefn = ElementDefn nam typQName
+flattenSchemaItem' (ElementScheme [SimpleTypeScheme Nothing ts]
+                                  ifName@(Just nam) Nothing Nothing _ _) = do
+  flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts
+  let elemDefn = ElementDefn nam nam
   fileNewDefinition elemDefn
-  return $ defs ++ [tyDefn, elemDefn]
+  return $ flatTS ++ [elemDefn]
+flattenSchemaItem' (ElementScheme [ComplexTypeScheme ts attrs Nothing]
+                                  ifName@(Just nam) Nothing Nothing _ _) = do
+  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName
+  let elemDefn = ElementDefn nam nam
+  fileNewDefinition elemDefn
+  return $ flatTS ++ [elemDefn]
 flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) =
   let attrDefn = AttributeDefn nam typ
   in do fileNewDefinition attrDefn
@@ -78,19 +72,21 @@ flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
       "  - Have set " ++ qName nam
       ++ " to be known; rechecked as " ++ show recheck
   return $ defs ++ [ tyDefn ]
-flattenSchemaItem' (SimpleTypeScheme nam (Synonym base)) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base)) = do
   let tyDefn = SimpleSynonymDefn nam base
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
 -- types here
-flattenSchemaItem' (SimpleTypeScheme nam (SimpleRestriction base)) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base)) = do
   let tyDefn = SimpleSynonymDefn nam base
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 flattenSchemaItem' s = do
-  liftIO $ bLabelPrintln ">>> " s
-  error $ "TODO another flatten case:\n" ++ bpp s
+  liftIO $ putStrLn      "+------"
+  liftIO $ putStrLn      "| TODO flattenSchemaItem' missed case"
+  liftIO $ bLabelPrintln "| " s
+  error $ show $ labelBlock "TODO another flatten case:" $ block s
 
 musterComplexSequenceComponents ::
   [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])

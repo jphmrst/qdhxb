@@ -10,7 +10,7 @@
    - [[https://hackage.haskell.org/package/base-4.17.0.0/docs/Control-Monad-IO-Class.html][Control.Monad.IO.Class]]
    - [[https://hackage.haskell.org/package/directory-1.3.8.0/docs/System-Directory.html][System.Directory]]
 ** XSD sources/samples
-   - [[https://www.w3schools.com/xml/schema_elements_ref.asp][W3 Schools XSD reference]]
+   - [[https://www.w3schools.com/xml/schema_elements_ref.asp][W3 Schools XSD reference]], [[https://www.w3schools.com/xml/schema_intro.asp][tutorial]]
    - [[file:xsd.xsd][xsd.xsd]] - local
    - [[file:datatypes.xsd][datatypes.xsd]] - local
    - [[file:./shiporder0.xsd][shiporder0.xsd]] - local

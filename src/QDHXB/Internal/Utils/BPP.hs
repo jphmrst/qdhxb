@@ -16,8 +16,17 @@ import Text.XML.Light.Output
 
 newtype Block = Block { openBlock :: [String] }
 
+instance Show Block where show (Block ls) = intercalate "\n" ls
+
 stringToBlock :: String -> Block
 stringToBlock s = Block $ lines s
+
+class Blockable c where
+  block :: c -> Block
+
+instance Blockable c => Blockable (Maybe c) where
+  block (Just x) = block x
+  block Nothing  = stringToBlock "Nothing"
 
 bprint :: Blockable c => c -> IO ()
 bprint = putStr . bpp
@@ -41,9 +50,6 @@ bpp' ind = outBlock . indent ind . block
 
 outBlock :: Block -> String
 outBlock (Block ls) = intercalate "\n" ls
-
-class Blockable c where
-  block :: c -> Block
 
 -- Vertically arrange and left-align two `Block`s
 stack2 :: Block -> Block -> Block
