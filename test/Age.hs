@@ -6,14 +6,11 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["age.xsd"]
--- qdhxb' ["age.xsd"]
+-- qdhxb useDebugging ["age.xsd"]
+qdhxb' ["age.xsd"]
 
 testAge :: TLT IO ()
 testAge = inGroup "XSD age" $ do
-{-
-  return ()
--}
   inGroup "Age 1" $ do
     p <- lift $ loadAge "age1.xml"
     "Correctly decode <age> in age1.xml" ~: 10 @==- p

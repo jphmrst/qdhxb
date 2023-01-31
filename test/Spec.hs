@@ -9,6 +9,7 @@ import CustomersOrders1 (testCustomersOrders1)
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
 import Age (testAge)
+import Initials (testInitials)
 
 main :: IO ()
 main = do
@@ -22,6 +23,7 @@ main = do
     testOFX1
     testXSD1
     testAge
+    testInitials
 {-
     inGroup "JTMS tests" $ runJTMST $ do
       testEx1
