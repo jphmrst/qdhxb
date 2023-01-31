@@ -3,7 +3,7 @@
 module QDHXB.Internal.Types (
   -- * The representation types
   Reference(ElementRef, AttributeRef {-, ComplexTypeRef -} ),
-  Definition(SimpleTypeDefn, AttributeDefn, SequenceDefn, ElementDefn),
+  Definition(SimpleSynonymDefn, AttributeDefn, SequenceDefn, ElementDefn),
   AttributeUsage(Forbidden, Optional, Required), stringToAttributeUsage,
   pprintDefns'
   ) where
@@ -45,7 +45,7 @@ data Definition =
   -- ^ Defining an element to be of a particular type.
   | AttributeDefn QName QName
   -- ^ Defining the type of an attribute to be the same as another.
-  | SimpleTypeDefn QName QName
+  | SimpleSynonymDefn QName QName
   -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
   -- ^ Define a complex type as a sequence of subelements.
@@ -56,8 +56,8 @@ instance Blockable Definition where
     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
   block (AttributeDefn n t) = stringToBlock $
     "AttributeDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (SimpleTypeDefn n t) = stringToBlock $
-    "SimpleTypeDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (SimpleSynonymDefn n t) = stringToBlock $
+    "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map block rs
 instance VerticalBlockList Definition

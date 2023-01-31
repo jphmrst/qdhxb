@@ -117,3 +117,4 @@ __loadElement decoder xmlFile = do
 -- | Template Haskell `Name` for the `__loadElement` method.
 loadElementName :: Name
 loadElementName = mkName "__loadElement"
+

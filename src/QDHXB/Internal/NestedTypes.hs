@@ -2,7 +2,8 @@
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
 module QDHXB.Internal.NestedTypes (
-  TypeScheme(..),
+  SimpleTypeScheme(..),
+  ComplexTypeScheme(..),
   DataScheme(..),
   nonSkip
 ) where
@@ -11,12 +12,28 @@ import Text.XML.Light.Types (QName)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
 
+data SimpleTypeScheme =
+  Synonym -- ^ One type which is just the same as another
+    QName -- ^ Base type
+  | SimpleRestriction -- ^ One type with certain values excluded.
+      QName -- ^ Base type
+  | Union -- ^ A type defined as a collection (union) of values from
+          -- simple data types.
+      [QName] -- ^ Constituent types
+  deriving Show
+
+instance Blockable SimpleTypeScheme where
+  block (Synonym t) = labelBlock "== " $ block t
+  block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
+  block (Union ds) = labelBlock "Union " $ block ds
+instance VerticalBlockList SimpleTypeScheme
+
 -- | Representation of certain definitions of one XSD type based on
 -- another type.
-data TypeScheme =
+data ComplexTypeScheme =
   Sequence -- ^ The <sequence> complex type.
     [DataScheme] -- ^ List of associated definitions
-  | Restriction -- ^ One type with certain values excluded.
+  | ComplexRestriction -- ^ One type with certain values excluded.
     QName -- ^ Base type
   | Extension -- ^ One type extended with additional elements.
     QName -- ^ Base type
@@ -25,17 +42,17 @@ data TypeScheme =
            [DataScheme]  -- ^ contents
   deriving Show
 
-instance Blockable TypeScheme where
+instance Blockable ComplexTypeScheme where
   block (Sequence ds) =
     (stringToBlock "Sequence") `stack2` indent "  " (block ds)
-  block (Restriction r) = Block ["Restriction " ++ show r]
+  block (ComplexRestriction r) = Block ["SimpleRestriction " ++ show r]
   block (Extension base ds) =
     (stringToBlock $ "Extension " ++ show base)
     `stack2` indent "  " (block ds)
   block (Choice base ds) =
     (stringToBlock $ "Choice " ++ show base)
     `stack2` indent "  " (block ds)
-instance VerticalBlockList TypeScheme
+instance VerticalBlockList ComplexTypeScheme
 
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
@@ -51,13 +68,13 @@ data DataScheme =
                     (Maybe QName) -- ^ ifRef
                     String -- ^ use mode: prohibited, optional
                            -- (default), required
-  | ComplexTypeScheme TypeScheme -- ^ typeDetail
+  | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
-  | SimpleTypeScheme QName -- ^ baseSpec
-                     QName -- ^ name
+  | SimpleTypeScheme QName -- ^ name
+                     SimpleTypeScheme -- ^ Details
   | Group (Maybe QName) -- ^ name
-          (Maybe TypeScheme) -- ^ contents
+          (Maybe ComplexTypeScheme) -- ^ contents
   deriving Show
 
 instance Blockable DataScheme where
@@ -109,9 +126,12 @@ instance Blockable DataScheme where
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
 
-  block (SimpleTypeScheme base name) = stringToBlock $
-    "SimpleTypeScheme base=\"" ++ show base ++
-    "\" name=\"" ++ show name ++ "\""
+  block (SimpleTypeScheme name detail) =
+    labelBlock "SimpleTypeScheme " $
+      stackBlocks [
+        block name,
+        labelBlock "scheme " $ block detail
+        ]
 
   block (Group base (Just ts)) = Block [
     "Group " ++ show base ++ " with contents",

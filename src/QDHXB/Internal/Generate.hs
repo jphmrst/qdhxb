@@ -4,7 +4,7 @@
 module QDHXB.Internal.Generate (
   -- * The representation types
   Reference(ElementRef, AttributeRef  {-, ComplexTypeRef -} ),
-  Definition(SimpleTypeDefn, AttributeDefn, SequenceDefn, ElementDefn),
+  Definition(SimpleSynonymDefn, AttributeDefn, SequenceDefn, ElementDefn),
 
   -- * Code generation from the internal representation
   xsdDeclsToHaskell,
@@ -36,7 +36,7 @@ xsdDeclsToHaskell defns = do
 -- monad, usually updating the internal state to store the new
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleTypeDefn nam typ) =
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
   let baseName = firstToUpper $ qName nam
       safeDecAsNam = mkName $ "tryDecodeAs" ++ baseName
       decAsNam = mkName $ "decodeAs" ++ baseName

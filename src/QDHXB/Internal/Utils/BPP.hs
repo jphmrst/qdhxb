@@ -12,6 +12,7 @@ module QDHXB.Internal.Utils.BPP (
   ) where
 import Data.List (intercalate)
 import Text.XML.Light.Types
+import Text.XML.Light.Output
 
 newtype Block = Block { openBlock :: [String] }
 
@@ -79,7 +80,7 @@ instance VerticalBlockList c => Blockable [c] where
 indent :: String -> Block -> Block
 indent ind (Block xs) = Block $ map (ind ++) xs
 
-instance Blockable Content where
-  block = stringToBlock . show
-instance Blockable Attr where
-  block = stringToBlock . show
+instance Blockable Content where block = stringToBlock . showContent
+instance Blockable Attr    where block = stringToBlock . showAttr
+instance Blockable QName   where block = stringToBlock . showQName
+instance VerticalBlockList QName

@@ -124,7 +124,7 @@ encodeSchemaItem (CRef txt) = do
   return Skip
 
 encodeChoiceTypeScheme ::
-  Maybe QName -> [Attr] -> [Content] -> XSDQ TypeScheme
+  Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
 encodeChoiceTypeScheme ifNam attrs allCtnts = do
   let ctnts = filter isElem allCtnts
   liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
@@ -229,7 +229,7 @@ encodeComplexTypeSchemeElement ats _ "restriction" _ctnts _ats'' = do
   baseType <- pullAttrQName "base" ats
   case baseType of
     Nothing -> error "Attribute base required in <restriction> element"
-    Just t -> return $ ComplexTypeScheme (Restriction t) [] nameAttr
+    Just t -> return $ ComplexTypeScheme (ComplexRestriction t) [] nameAttr
 encodeComplexTypeSchemeElement ats _ "extension" ctnts _ats'' = do
   nameAttr <- pullAttrQName "name" ats
   baseType <- pullAttrQName "base" ats
@@ -252,7 +252,7 @@ encodeSimpleTypeByRestriction -- Note ignoring ats
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
-      return $ SimpleTypeScheme baseQName nam
+      return $ SimpleTypeScheme nam $ SimpleRestriction baseQName
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam ats s = do
   liftIO $ putStrLn $ ">>> IFNAM " ++ show ifNam
