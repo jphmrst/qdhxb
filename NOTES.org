@@ -23,8 +23,7 @@
   :PROPERTIES:
   :VISIBILITY: content
   :END:
-  - Need xsd:choice occurring for separateAndDispatchComplexContents
-  - So, add another spot in the tuple for separating
+  - Next is <list>
 * TODO OFX test 1
   :PROPERTIES:
   :VISIBILITY: content
