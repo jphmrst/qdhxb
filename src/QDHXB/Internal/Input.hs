@@ -56,21 +56,35 @@ encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = d
   separateAndDispatchComplexContents ctnts' e ats ifLn
 encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
+  whenDebugging $ do
+    liftIO $ putStrLn "> Encoding simpleType "
+    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
   case separateSimpleTypeContents ats ctnts' of
-    (nam, One restr) -> do
+    (nam, One restr, Zero) -> do
       qnam <- mapM decodePrefixedName nam
       res <- encodeSimpleTypeByRestriction qnam ats restr
+      whenDebugging $ do
+        liftIO $ bLabelPrintln "  as " res
+      return res
+    (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _))) -> do
+      qnam <- decodePrefixedName nam
+      alts <- encodeSchemaItems cs'
+      let res = SimpleTypeScheme qnam $ Union alts
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding simpleType "
         liftIO $ putStrLn $ mlineIndent "    " (showElement e)
         liftIO $ bLabelPrintln "  as " res
       return res
-    (x, y) -> do
+    (ifName, zomRestr, zomUnion) -> do
       -- whenDebugging $ do
-      liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-      liftIO $ putStrLn $ "CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
-      liftIO $ putStrLn $ "X " ++ show x
-      liftIO $ putStrLn $ "Y " ++ show y
+      liftIO $ putStrLn "+------"
+      liftIO $ putStrLn $
+        "| TODO encodeSchemaItem > simpleType > another separation case"
+      liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+      liftIO $ putStrLn $ "| CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+      liftIO $ putStrLn $ "| IFNAME " ++ show ifName
+      liftIO $ putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
+      liftIO $ putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
       error $ "TODO encodeSchemaItem > simpleType > another separation case"
         ++ ifAtLine ifLn
 encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
@@ -96,19 +110,28 @@ encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
   whenDebugging $ do
     liftIO $ putStrLn "> For <group> schema:"
   name <- pullAttrQName "name" ats
-  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ "NAME " ++ show (fmap showQName name)
-  liftIO $ putStrLn $ "CTNTS " ++
-    (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   case filter isElem ctnts of
-    (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] ->
-        error $ "TODO encodeSchemaItem > group with sequence" ++ ifAtLine ifLn'
+    (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] -> do
+      liftIO $ putStrLn $ "- ATS " ++ (intercalate "\n    " $ map showAttr ats)
+      liftIO $ putStrLn $ "- NAME " ++ show (fmap showQName name)
+      liftIO $ putStrLn $ "- CTNTS " ++
+        (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+      error $ "TODO encodeSchemaItem > group with sequence" ++ ifAtLine ifLn'
     (Elem (Element (QName "choice" _ _) attrs' ctnts' _ifLn')):[] -> do
       ts <- encodeChoiceTypeScheme name attrs' ctnts'
+      whenDebugging $ do
+        liftIO $ bLabelPrintln ("- result is Group " ++ show (fmap showQName name) ++ " ")
+                               ts
       return $ Group name $ Just ts
-    (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] ->
-        error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
-    _ -> return $ Group name Nothing
+    (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] -> do
+      liftIO $ putStrLn $ "- ATS " ++ (intercalate "\n    " $ map showAttr ats)
+      liftIO $ putStrLn $ "- NAME " ++ show (fmap showQName name)
+      liftIO $ putStrLn $ "- CTNTS " ++
+        (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+      error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
+    _ -> do
+      liftIO $ putStrLn $ "- Default is group of nothing"
+      return $ Group name Nothing
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   whenDebugging $ do
     liftIO $ putStrLn $ "> For <" ++ tag ++ "> element (ZZZ):"
@@ -127,10 +150,13 @@ encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
 encodeChoiceTypeScheme ifNam attrs allCtnts = do
   let ctnts = filter isElem allCtnts
-  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
-  liftIO $ putStrLn $ "IFNAM " ++ show ifNam
-  liftIO $ putStrLn $ "CTNTS " ++
-    (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+  {-
+  whenDebugging $ do
+    liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
+    liftIO $ putStrLn $ "IFNAM " ++ show ifNam
+    liftIO $ putStrLn $ "CTNTS " ++
+      (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+  -}
   contentSchemes <- mapM encodeSchemaItem ctnts
   return $ Choice ifNam contentSchemes
 
@@ -194,9 +220,12 @@ separateComplexTypeContents cts =
    pullContent "attribute" cts)
 
 separateSimpleTypeContents ::
-  [Attr] -> [Content] -> (Maybe String, ZeroOneMany Content)
+  [Attr] -> [Content] ->
+    (Maybe String, ZeroOneMany Content, ZeroOneMany Content)
 separateSimpleTypeContents attrs cts =
-  (pullAttr "name" attrs, pullContent "restriction" cts)
+  (pullAttr "name" attrs,
+   pullContent "restriction" cts,
+   pullContent "union" cts)
 
 encodeComplexTypeScheme ::
   [Attr] -> [Content] -> Content -> ZeroOneMany Content -> XSDQ DataScheme
@@ -238,27 +267,41 @@ encodeComplexTypeSchemeElement ats _ "extension" ctnts _ats'' = do
     Nothing -> error "Attribute base required in <extension> element"
     Just t -> return $ ComplexTypeScheme (Extension t included) [] nameAttr
 encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
-  liftIO $ putStrLn $ "ATS "       ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
-  liftIO $ putStrLn $ "TAG "       ++ show tag
-  liftIO $ putStrLn $ "CTNTS "     ++ (intercalate "\n    " $ map showContent ctnts)
-  liftIO $ putStrLn $ "ATS'' "     ++ (intercalate "\n    " $ map showContent $ zomToList ats'')
+  liftIO $ putStrLn "+------"
+  liftIO $ putStrLn "| TODO encodeComplexTypeScheme > another case"
+  liftIO $ putStrLn $ "| ATS "    ++ (intercalate "\n    " $ map showAttr ats)
+  liftIO $ putStrLn $ "| ATTRSPECS " ++ show attrSpecs
+  liftIO $ putStrLn $ "| TAG "       ++ show tag
+  liftIO $ putStrLn $
+    "| CTNTS "  ++ (intercalate "\n    " $ map showContent ctnts)
+  liftIO $ putStrLn $ "| ATS'' "     ++ (intercalate "\n    " $ map showContent $ zomToList ats'')
   error "TODO encodeComplexTypeScheme > another case"
 
 encodeSimpleTypeByRestriction ::
   Maybe QName -> [Attr] -> Content -> XSDQ DataScheme
 encodeSimpleTypeByRestriction -- Note ignoring ats
-    (Just nam) _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
+    ifName _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
+  nam <- case ifName of
+           Just n -> return n
+           Nothing -> do
+             base <- getNextCapName
+             decodePrefixedName base
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
       return $ SimpleTypeScheme nam $ SimpleRestriction baseQName
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam ats s = do
-  liftIO $ putStrLn $ ">>> IFNAM " ++ show ifNam
-  liftIO $ putStrLn $ ">>> ATS "   ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ ">>> S "     ++ show s
-  error "encodeSimpleTypeByRestriction > additional cases"
+  liftIO $ putStrLn "+------"
+  liftIO $ putStrLn "| TODO encodeSimpleTypeByRestriction > additional cases"
+  liftIO $ putStrLn $ "| IFNAM " ++ show ifNam
+  liftIO $ putStrLn $ "| ATS "   ++ (intercalate "\n    " $ map showAttr ats)
+  case s of
+    (Elem (Element _ _ _ (Just l))) ->
+      liftIO $ putStrLn $ "| source line: " ++ show l
+    _ -> return ()
+  liftIO $ bLabelPrintln "| S " s
+  error "TODO encodeSimpleTypeByRestriction > additional cases"
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.

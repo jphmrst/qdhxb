@@ -19,7 +19,7 @@ data SimpleTypeScheme =
       QName -- ^ Base type
   | Union -- ^ A type defined as a collection (union) of values from
           -- simple data types.
-      [QName] -- ^ Constituent types
+      [DataScheme] -- ^ Constituent types
   deriving Show
 
 instance Blockable SimpleTypeScheme where
