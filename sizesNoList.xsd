@@ -1,0 +1,22 @@
+<!-- From http://www.datypic.com/books/defxmlschema1/chapter11.html -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xsd:simpleType name="SizeType">
+    <xsd:union>
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:integer">
+          <xsd:minInclusive value="2"/>
+          <xsd:maxInclusive value="18"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+      <xsd:simpleType>
+        <xsd:restriction base="xsd:token">
+          <xsd:enumeration value="small"/>
+          <xsd:enumeration value="medium"/>
+          <xsd:enumeration value="large"/>
+        </xsd:restriction>
+      </xsd:simpleType>
+    </xsd:union>
+  </xsd:simpleType>
+  <xs:element name="sizes" type="SizesType"/>
+</xs:schema>

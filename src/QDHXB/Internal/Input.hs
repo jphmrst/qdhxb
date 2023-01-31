@@ -68,7 +68,7 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       return res
     (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _))) -> do
       qnam <- decodePrefixedName nam
-      alts <- encodeSchemaItems cs'
+      alts <- encodeSchemaItems $ filter isElem cs'
       let res = SimpleTypeScheme (Just qnam) $ Union alts
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding simpleType "
