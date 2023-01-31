@@ -1,0 +1,23 @@
+<!-- From https://learn.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms256202(v=vs.100) -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="fontbynumber">
+    <xs:restriction base="xs:positiveInteger">
+      <xs:maxInclusive value="72"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="fontbystringname">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="small"/>
+      <xs:enumeration value="medium"/>
+      <xs:enumeration value="large"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:attribute name="fontsize">
+    <xs:simpleType>
+      <xs:union memberTypes="fontbynumber fontbystringname" />
+    </xs:simpleType>
+  </xs:attribute>
+</xs:schema>

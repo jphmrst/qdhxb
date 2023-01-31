@@ -1,0 +1,16 @@
+<!-- From https://learn.microsoft.com/en-us/previous-versions/dotnet/netframework-4.0/ms256202(v=vs.100) -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+ <xs:simpleType name="allNNI">
+  <xs:annotation>
+    <xs:documentation>for maxOccurs</xs:documentation>
+  </xs:annotation>
+  <xs:union memberTypes="nonNegativeInteger">
+   <xs:simpleType>
+    <xs:restriction base="xs:NMTOKEN">
+     <xs:enumeration value="unbounded"/>
+    </xs:restriction>
+   </xs:simpleType>
+  </xs:union>
+ </xs:simpleType>
+</xs:schema>
