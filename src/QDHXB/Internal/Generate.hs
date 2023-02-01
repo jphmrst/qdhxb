@@ -17,11 +17,10 @@ where
 import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Language.Haskell.TH
-import Text.XML.Light.Output (showQName, showContent)
+import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName)
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.TH
-import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
@@ -56,18 +55,18 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
                  (fn2Type stringConT contentConT
                           (applyExceptCon stringConT
                                           (ConT $ mkName baseName)))
-          : FunD safeDecAsNam [Clause [VarP eName, VarP ctxtName]
+          : FunD safeDecAsNam [Clause [VarP eName, ctxtVarP]
                                   (NormalB $ applyReturn decodeAs) []]
 
           -- Decoder
           : SigD decAsNam (fn2Type stringConT
                                    contentConT
                                    (ConT $ mkName baseName))
-          : FunD decAsNam [Clause [VarP xName, VarP ctxtName]
+          : FunD decAsNam [Clause [VarP xName, ctxtVarP]
                                   (NormalB $ resultOrThrow $
                                     app2Exp (VarE safeDecAsNam)
                                             (VarE xName)
-                                            (VarE ctxtName)) []]
+                                            ctxtVarE) []]
 
           {-
           -- TODO Encoder
@@ -82,11 +81,11 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
       liftIO $ putStrLn $ "  to " ++ indCode "     " res
     return res
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
-  let baseName = qFirstToUpper nam
+  let baseName = firstToUpper $ qName nam
       typBaseName = firstToUpper $ qName typ
-      tryDecNam = mkName $ "tryDecode" ++ qName baseName
-      decNam = mkName $ "decode" ++ qName baseName
-      loadNam = mkName $ "load" ++ qName baseName
+      tryDecNam = mkName $ "tryDecode" ++ baseName
+      decNam = mkName $ "decode" ++ baseName
+      loadNam = mkName $ "load" ++ baseName
   tryDecoder <- [| $(return $ VarE $ mkName $ "tryDecodeAs" ++ typBaseName)
                       $(return $ quoteStr $ qName nam)
                         ctxt |]
@@ -97,16 +96,16 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
                 (fn1Type contentConT
                          (applyExceptCon stringConT
                                          (ConT $ mkName typBaseName)))
-        : FunD tryDecNam [Clause [VarP ctxtName]
+        : FunD tryDecNam [Clause [ctxtVarP]
                                  (NormalB tryDecoder) []]
 
         -- Decoder
         : SigD decNam (fn1Type contentConT
                                (ConT $ mkName typBaseName))
-        : FunD decNam [Clause [VarP ctxtName]
+        : FunD decNam [Clause [ctxtVarP]
                               (NormalB $ resultOrThrow $
                                 AppE (VarE tryDecNam)
-                                     (VarE ctxtName)) []]
+                                     ctxtVarE) []]
 
         {-
         -- TODO Encoder
@@ -151,17 +150,17 @@ xsdDeclToHaskell decl@(AttributeDefn nam typ) =
                           (applyExceptCon stringConT
                                           (AppT maybeConT
                                                 (ConT rootTypeName))))
-          : FunD safeDecNam [Clause [VarP ctxtName]
+          : FunD safeDecNam [Clause [ctxtVarP]
                                     (NormalB $ applyReturn decoder)
                                     []]
 
           -- Decoder
           : SigD decNam (fn1Type contentConT
                                  (AppT maybeConT (ConT rootTypeName)))
-          : FunD decNam [Clause [VarP ctxtName]
+          : FunD decNam [Clause [ctxtVarP]
                                 (NormalB $ resultOrThrow $
                                   AppE (VarE safeDecNam)
-                                       (VarE ctxtName)) []]
+                                       ctxtVarE) []]
 
           {-
           -- TODO Encoder
@@ -195,17 +194,17 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
                   (fn2Type stringConT contentConT
                            (applyExceptCon stringConT
                                            (ConT $ mkName nameRoot)))
-           : FunD tryDecNam [Clause [WildP, VarP ctxtName]
+           : FunD tryDecNam [Clause [WildP, ctxtVarP]
                                     (NormalB safeDecoder) []]
 
           -- Decoder
            : SigD decNam
                   (fn2Type stringConT contentConT (ConT $ mkName nameRoot))
-           : FunD decNam [Clause [VarP xName, VarP ctxtName]
+           : FunD decNam [Clause [VarP xName, ctxtVarP]
                                  (NormalB $ resultOrThrow $
                                    app2Exp (VarE tryDecNam)
                                            (VarE xName)
-                                           (VarE ctxtName)) []]
+                                           ctxtVarE) []]
 
            {-
           -- TODO Encoder
@@ -221,16 +220,48 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
     return res
 xsdDeclToHaskell decl@(UnionDefn name pairs) = do
   let baseName = qName name
+      decNam = mkName $ "decodeAs" ++ baseName
+      tryDecNam = mkName $ "tryDecodeAs" ++ baseName
   let makeConstr :: (QName, QName) -> Con
       makeConstr (constructorName, typeName) =
         NormalC (mkName $ qName constructorName)
                 [(useBang, ConT $ mkName $ qName typeName)]
-  return [
-    DataD [] (mkName baseName) [] Nothing (map makeConstr pairs) []
 
-    -- TODO Need decodeAs[baseName]
+      safeDecoder :: Exp
+      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
+                              (app2Exp
+                                 fmapVarE
+                                 (ConE $ mkName $ qName c)
+                                 (app2Exp (VarE $ mkName $
+                                            "tryDecodeAs" ++ qName t)
+                                          (VarE xName) ctxtVarE))
+                              (LamE [WildP] e))
+                          (applyThrowStrExp $ "No valid content for <"
+                             ++ baseName ++ "> union found")
+                          pairs
+  let res = [
+        DataD [] (mkName baseName) [] Nothing (map makeConstr pairs)
+          [DerivClause Nothing [eqConT, showConT]],
 
-    ]
+        SigD tryDecNam
+             (fn2Type stringConT contentConT
+                      (applyExceptCon stringConT (ConT $ mkName baseName))),
+        FunD tryDecNam [Clause [VarP xName, ctxtVarP]
+                       (NormalB safeDecoder) []],
+
+        SigD decNam
+             (fn2Type stringConT contentConT (ConT $ mkName baseName)),
+        FunD decNam [Clause [VarP xName, ctxtVarP]
+             (NormalB $ resultOrThrow $
+                app2Exp (VarE tryDecNam)
+                        (VarE xName)
+                        ctxtVarE) []]
+
+        ]
+  whenDebugging $ do
+    liftIO $ bLabelPrintln "> Generating from " decl
+    liftIO $ bLabelPrintln "  to " res
+  return res
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]

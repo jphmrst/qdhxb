@@ -148,7 +148,7 @@ encodeSchemaItem (CRef txt) = do
 
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
-encodeChoiceTypeScheme ifNam attrs allCtnts = do
+encodeChoiceTypeScheme ifNam _attrs allCtnts = do
   let ctnts = filter isElem allCtnts
   {-
   whenDebugging $ do

@@ -34,6 +34,8 @@ module QDHXB.Internal.Utils.TH (
   zonedTimeConT,
   -- ** `IO`
   ioConT,
+  -- ** `Functor`
+  fmapVarE,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon,
   -- *** With `Control.Monad.Except.runAccept`
@@ -46,7 +48,7 @@ module QDHXB.Internal.Utils.TH (
   -- *** Monadic statements
   throwsExc, returnExp, applyReturn,
   -- ** Miscellaneous expression builders
-  fn1Type, fn2Type, app2Exp,
+  fn1Type, fn2Type, app2Exp, app3Exp, app4Exp,
 
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zeroPat, onePat, manyPat, zomToListVarE,
@@ -55,7 +57,7 @@ module QDHXB.Internal.Utils.TH (
   contentConT,
 
   -- * Local names
-  xName, yName, xVarE, yVarE, aName, eName, ctxtName,
+  xName, yName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
 
   -- * Other
   firstToUpper, todoStr)
@@ -308,6 +310,14 @@ eName = mkName "e"
 ctxtName :: Name
 ctxtName = mkName "ctxt"
 
+-- | TH `VarE` for "ctxt"
+ctxtVarE :: Exp
+ctxtVarE = VarE ctxtName
+
+-- | TH `VarP` for "ctxt"
+ctxtVarP :: Pat
+ctxtVarP = VarP ctxtName
+
 -- | TH `Name` for "error"
 errorName :: Name
 errorName = mkName "error"
@@ -488,7 +498,8 @@ catchErrorVarE = VarE catchErrorName
 -- expressions.
 infixl `applyCatchErrorExp`
 applyCatchErrorExp :: Exp -> Exp -> Exp
-applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
+-- applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
+applyCatchErrorExp e1 e2 = InfixE (Just e1) catchErrorVarE (Just e2)
 
 -- | TH `Name` for "Left"
 leftName :: Name
@@ -497,6 +508,14 @@ leftName = mkName "Left"
 -- | TH `Name` for "Right"
 rightName :: Name
 rightName = mkName "Right"
+
+-- | TH `Name` for `fmap`
+fmapName :: Name
+fmapName = mkName "fmap"
+
+-- | TH `Exp` for `fmap`
+fmapVarE :: Exp
+fmapVarE = VarE fmapName
 
 -- | TH `Exp` which will throw an exception with the given name.
 throwsExc :: String -> Stmt
@@ -521,10 +540,17 @@ fn1Type argT resT = (AppT (AppT ArrowT argT) resT)
 fn2Type :: Type -> Type -> Type -> Type
 fn2Type arg1T arg2T resT = fn1Type arg1T $ fn1Type arg2T resT
 
--- | TH `Type` for the one-argument function type of the given
--- argument and result.
+-- | TH `Exp` for the application of a function to two arguments.
 app2Exp :: Exp -> Exp -> Exp -> Exp
-app2Exp f e1 e2 = (AppE (AppE f e1) e2)
+app2Exp f e1 e2 = AppE (AppE f e1) e2
+
+-- | TH `Exp` for the application of a function to three arguments.
+app3Exp :: Exp -> Exp -> Exp -> Exp -> Exp
+app3Exp f e1 e2 e3 = AppE (AppE (AppE f e1) e2) e3
+
+-- | TH `Exp` for the application of a function to four arguments.
+app4Exp :: Exp -> Exp -> Exp -> Exp -> Exp -> Exp
+app4Exp f e1 e2 e3 e4 = AppE (AppE (AppE (AppE f e1) e2) e3) e4
 
 -- | Given a TH `Exp` expression of type @Except String a@, either
 -- returns a value of type @a@ or throws an `error` with the given

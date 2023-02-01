@@ -90,6 +90,7 @@ fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition (SimpleSynonymDefn _ _) = return ()
 fileNewDefinition (AttributeDefn _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _)   = return ()
+fileNewDefinition (UnionDefn _ _)   = return ()
 fileNewDefinition (ElementDefn n t)    = do
   whenDebugging $ do
     liftIO $ putStrLn $ show $
@@ -269,6 +270,9 @@ lookupFirst [] _ = Nothing
 lookupFirst ((fnd, x):_) targ | fnd == targ = Just x
 lookupFirst (_:xs) targ = lookupFirst xs targ
 
+-- | Return the next generated capitalized name from the `XSDQ`
+-- monad's list.  TODO --- these names are not yet checked for
+-- uniqueness with respect to the names already in use.
 getNextCapName :: XSDQ String
 getNextCapName = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns dfts nss (z:zs) <- get

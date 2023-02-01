@@ -15,7 +15,6 @@ import QDHXB.Internal.Utils.XMLLight (withSuffix)
 import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
-import QDHXB.Internal.Utils.Misc
 
 -- |Rewrite internally-represented XSD definitions, flattening any
 -- nested definitions.

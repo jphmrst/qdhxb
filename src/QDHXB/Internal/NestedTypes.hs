@@ -13,6 +13,8 @@ import Text.XML.Light.Types (QName)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
 
+-- | Further details about @simpleType@ and @simpleContents@ XSD
+-- elements.
 data SimpleTypeScheme =
   Synonym -- ^ One type which is just the same as another
     QName -- ^ Base type
@@ -31,8 +33,8 @@ instance VerticalBlockList SimpleTypeScheme
 instance VerticalBlockList (QName, DataScheme)
 instance VerticalBlockablePair QName DataScheme
 
--- | Representation of certain definitions of one XSD type based on
--- another type.
+-- | Further details about @complexType@ and @complexContents@ XSD
+-- elements.
 data ComplexTypeScheme =
   Sequence -- ^ The <sequence> complex type.
     [DataScheme] -- ^ List of associated definitions
@@ -166,15 +168,15 @@ labelOf (AttributeScheme _ _ j@(Just _) _) = j
 labelOf (AttributeScheme _ j@(Just _) _ _) = j
 labelOf (AttributeScheme _ _ _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
-labelOf (ComplexTypeScheme (Sequence ds) _attrs _) = Nothing
+labelOf (ComplexTypeScheme (Sequence _ds) _attrs _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r
 labelOf (ComplexTypeScheme (Extension base _ds) _attrs _) = Just base
 labelOf (ComplexTypeScheme (Choice base _ds) _attrs _) = base
 labelOf (SimpleTypeScheme j@(Just _) _) = j
 labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
-labelOf (SimpleTypeScheme _ (Union ds)) = Nothing
-labelOf (Group base n) = base
+labelOf (SimpleTypeScheme _ (Union _ds)) = Nothing
+labelOf (Group base _n) = base
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool

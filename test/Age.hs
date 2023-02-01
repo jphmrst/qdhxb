@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Age where
-import Data.Time.Calendar
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB

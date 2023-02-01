@@ -119,14 +119,22 @@ __loadElement decoder xmlFile = do
 loadElementName :: Name
 loadElementName = mkName "__loadElement"
 
+-- | Return a new `QName` with the given `String` prepended to the
+-- original `qName`.
 withPrefix :: String -> QName -> QName
 withPrefix prefix (QName name u p) = QName (prefix ++ name) u p
 
+-- | Return a new `QName` with the given `String` appended to the
+-- original `qName`.
 withSuffix :: String -> QName -> QName
 withSuffix suffix (QName name u p) = QName (name ++ suffix) u p
 
+-- | Return a new `QName` with the `qName` of the first `QName`
+-- prepended to the `qName` of the second `QName`.
 withNamePrefix :: QName -> QName -> QName
 withNamePrefix prefix (QName name u p) = QName (qName prefix ++ name) u p
 
+-- | Return a new `QName` with the `qName` of the first `QName`
+-- appended to the `qName` of the second `QName`.
 withNameSuffix :: QName -> QName -> QName
 withNameSuffix suffix (QName name u p) = QName (name ++ qName suffix) u p
