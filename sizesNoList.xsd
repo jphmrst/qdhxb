@@ -18,5 +18,5 @@
       </xsd:simpleType>
     </xsd:union>
   </xsd:simpleType>
-  <xs:element name="sizes" type="SizesType"/>
+  <xs:element name="sizes" type="SizeType"/>
 </xs:schema>

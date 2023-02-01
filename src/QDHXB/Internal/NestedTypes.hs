@@ -6,7 +6,7 @@ module QDHXB.Internal.NestedTypes (
   SimpleTypeScheme(..),
   ComplexTypeScheme(..),
   DataScheme(..),
-  nonSkip
+  nonSkip, labelOf
 ) where
 
 import Text.XML.Light.Types (QName)
@@ -150,6 +150,31 @@ instance Blockable DataScheme where
   block (Group base Nothing) = stringToBlock $
     "Group " ++ show base ++ " with no contents"
 instance VerticalBlockList DataScheme
+
+-- | Try to find a name for this `DataScheme`.
+labelOf :: DataScheme -> Maybe QName
+labelOf Skip = Nothing
+labelOf (ElementScheme _ (Just name) _ _ _ _) = Just name
+labelOf (ElementScheme _ _ (Just typ) _ _ _) = Just typ
+labelOf (ElementScheme cs _ _ _ _ _) = makeFirst cs
+  where makeFirst [] = Nothing
+        makeFirst (d:ds) = case labelOf d of
+                             Nothing -> makeFirst ds
+                             Just r -> Just r
+labelOf (AttributeScheme j@(Just _) _ _ _) = j
+labelOf (AttributeScheme _ _ j@(Just _) _) = j
+labelOf (AttributeScheme _ j@(Just _) _ _) = j
+labelOf (AttributeScheme _ _ _ _) = Nothing
+labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
+labelOf (ComplexTypeScheme (Sequence ds) _attrs _) = Nothing
+labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r
+labelOf (ComplexTypeScheme (Extension base _ds) _attrs _) = Just base
+labelOf (ComplexTypeScheme (Choice base _ds) _attrs _) = base
+labelOf (SimpleTypeScheme j@(Just _) _) = j
+labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
+labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
+labelOf (SimpleTypeScheme _ (Union ds)) = Nothing
+labelOf (Group base n) = base
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool

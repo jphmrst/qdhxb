@@ -36,6 +36,8 @@ elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
     liftIO $ putStrLn "======================================== FLATTEN"
   ir <- flattenSchemaItems schemaReps
   whenDebugging $ do
+    liftIO $ putStrLn "----------------------------------------"
+    liftIO $ bLabelPrintln "Final: " ir
     liftIO $ putStrLn "======================================== GENERATE"
   decls <- xsdDeclsToHaskell ir
   whenDebugging $ do

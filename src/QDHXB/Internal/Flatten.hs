@@ -10,6 +10,8 @@ import Text.XML.Light.Output
 import QDHXB.Internal.Generate
 import QDHXB.UtilMisc
 import QDHXB.Internal.Utils.BPP
+import QDHXB.Internal.Utils.TH (firstToUpper)
+import QDHXB.Internal.Utils.XMLLight (withSuffix)
 import QDHXB.Internal.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
@@ -83,33 +85,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base)) = do
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
-  let makeUnionMinorLabel :: DataScheme -> Maybe QName
-      makeUnionMinorLabel Skip =
-        error "Should not see Skip in makeUnionMinorLabel"
-      makeUnionMinorLabel (ElementScheme _ (Just name) _ _ _ _) = Just name
-      makeUnionMinorLabel (ElementScheme _ (Just typ) _ _ _ _) = Just typ
-      makeUnionMinorLabel (ElementScheme cs _ _ _ _ _) = makeFirst cs
-        where makeFirst [] = Nothing
-              makeFirst (d:ds) = case makeUnionMinorLabel d of
-                                   Nothing -> makeFirst ds
-                                   Just r -> Just r
-      makeUnionMinorLabel (AttributeScheme j@(Just _) _ _ _) = j
-      makeUnionMinorLabel (AttributeScheme _ j@(Just _) _ _) = j
-      makeUnionMinorLabel (AttributeScheme _ _ j@(Just _) _) = j
-      makeUnionMinorLabel (AttributeScheme _ _ _ _) = Nothing
-      makeUnionMinorLabel (ComplexTypeScheme _ _ j@(Just _)) = j
-      makeUnionMinorLabel (ComplexTypeScheme form _attrs _) = case form of
-        Sequence ds -> Nothing
-        ComplexRestriction r -> Just r
-        Extension base ds -> Just base
-        Choice base ds -> base
-      makeUnionMinorLabel (SimpleTypeScheme name form) = case form of
-        Synonym t -> Just t
-        SimpleRestriction r -> Just r
-        Union ds -> Nothing
-      makeUnionMinorLabel (Group base n) = base
-
-      nameUnnamed :: QName -> DataScheme -> DataScheme
+  let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax) =
         ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax
       nameUnnamed q (AttributeScheme Nothing ifType ifRef usage) =
@@ -120,16 +96,21 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
         SimpleTypeScheme (Just q) detail
       nameUnnamed _ b = b
 
-      pullLabel :: DataScheme -> XSDQ (QName, [Definition])
+      pullLabel :: DataScheme -> XSDQ ((QName, QName), [Definition])
       pullLabel d = do
-        name <- case makeUnionMinorLabel d of
-                  Just q -> return q
-                  Nothing -> do
-                    freshName <- getNextCapName
-                    freshQName <- decodePrefixedName freshName
-                    return freshQName
-        defns <- flattenSchemaItem $ nameUnnamed name d
-        return (name, defns)
+        nameSuffix <- case labelOf d of
+                        Just q -> return q
+                        Nothing -> do
+                          freshName <- getNextCapName
+                          freshQName <- decodePrefixedName freshName
+                          return freshQName
+        let name = withSuffix (firstToUpper $ qName nameSuffix) nam
+        let d' = nameUnnamed name d
+        let typeName = case labelOf d' of
+                         Just n -> n
+                         Nothing -> error "Should not find anonymous decl"
+        defns <- flattenSchemaItem d'
+        return ((name, typeName), defns)
   labelledAlts <- mapM pullLabel alts
   let (names, defnss) = unzip labelledAlts
       defns = concat defnss

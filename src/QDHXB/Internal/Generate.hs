@@ -219,12 +219,18 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
     return res
-xsdDeclToHaskell decl@(UnionDefn name names) = do
+xsdDeclToHaskell decl@(UnionDefn name pairs) = do
   let baseName = qName name
-  let makeConstr :: QName -> Con
-      makeConstr qn = NormalC (mkName $ baseName ++ (firstToUpper $ qName qn))
-                              [(useBang, ConT $ mkName $ qName qn)]
-  return [DataD [] (mkName baseName) [] Nothing (map makeConstr names) []]
+  let makeConstr :: (QName, QName) -> Con
+      makeConstr (constructorName, typeName) =
+        NormalC (mkName $ qName constructorName)
+                [(useBang, ConT $ mkName $ qName typeName)]
+  return [
+    DataD [] (mkName baseName) [] Nothing (map makeConstr pairs) []
+
+    -- TODO Need decodeAs[baseName]
+
+    ]
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]

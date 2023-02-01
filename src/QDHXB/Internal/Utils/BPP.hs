@@ -8,7 +8,7 @@ module QDHXB.Internal.Utils.BPP (
   -- * Main type and classes
   Block(Block), Blockable, block,
   VerticalBlockList, stringToBlock,
-  VerticalBlockablePair,
+  VerticalBlockablePair, horizontalPair, horizontalBlocksPair,
   -- * Operations on `Block`s
   follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock
   ) where
@@ -38,6 +38,21 @@ instance VerticalBlockablePair m n => Blockable (m,n) where
     postlabelBlock "," $ block a,
     postlabelBlock ")" $ block b
     ]
+
+{-
+class (Blockable m, Blockable n) => HorizontalBlockablePair m n
+instance HorizontalBlockablePair m n => Blockable (m,n) where
+  block (a, b) =
+    labelBlock "(" $
+      (postlabelBlock "," $ block a) `follow` (postlabelBlock ")" $ block b)
+ -}
+
+horizontalPair :: (Blockable a, Blockable b) => a -> b -> Block
+horizontalPair a b = horizontalBlocksPair (block a) (block b)
+
+horizontalBlocksPair :: Block -> Block -> Block
+horizontalBlocksPair a b =
+  labelBlock "(" $ (postlabelBlock "," a) `follow` (postlabelBlock ")" b)
 
 bprint :: Blockable c => c -> IO ()
 bprint = putStr . bpp

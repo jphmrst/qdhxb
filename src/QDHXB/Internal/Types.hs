@@ -45,13 +45,17 @@ data Definition =
   ElementDefn QName QName
   -- ^ Defining an element to be of a particular type.
   | AttributeDefn QName QName
-  -- ^ Defining the type of an attribute to be the same as another.
+    -- ^ Defining the type of an attribute to be the same as another.
   | SimpleSynonymDefn QName QName
-  -- ^ Defining one type to have the same structure as another.
+    -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
-  -- ^ Define a complex type as a sequence of subelements.
-  | UnionDefn QName [QName]
-  -- ^ Define a simple type as a union of other simple types.
+    -- ^ Define a complex type as a sequence of subelements.
+  | UnionDefn
+    -- ^ Define a simple type as a union of other simple types.
+      QName
+      -- ^ Name of the type
+      [(QName, QName)]
+      -- ^ (Constructor name, type name) of each element of the union.
   deriving Show
 
 instance Blockable Definition where
@@ -64,7 +68,8 @@ instance Blockable Definition where
   block (SequenceDefn n rs) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map block rs
   block (UnionDefn n ns) = stackBlocks $
-    (stringToBlock $ "UnionDefn " ++ showQName n) : map block ns
+    (stringToBlock $ "UnionDefn " ++ showQName n)
+    : map (indent "  " . uncurry horizontalPair) ns
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName [Definition]
 instance VerticalBlockList (QName, [Definition])

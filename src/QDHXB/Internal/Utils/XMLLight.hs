@@ -6,7 +6,8 @@ module QDHXB.Internal.Utils.XMLLight (
     isElem,
     ZeroOneMany(Zero, One, Many),
     zomToList, zappend, lzappend,
-    __loadElement, loadElementName)
+    __loadElement, loadElementName,
+    withPrefix, withSuffix, withNamePrefix, withNameSuffix)
 where
 import Language.Haskell.TH (mkName, Name)
 import System.IO
@@ -118,3 +119,14 @@ __loadElement decoder xmlFile = do
 loadElementName :: Name
 loadElementName = mkName "__loadElement"
 
+withPrefix :: String -> QName -> QName
+withPrefix prefix (QName name u p) = QName (prefix ++ name) u p
+
+withSuffix :: String -> QName -> QName
+withSuffix suffix (QName name u p) = QName (name ++ suffix) u p
+
+withNamePrefix :: QName -> QName -> QName
+withNamePrefix prefix (QName name u p) = QName (qName prefix ++ name) u p
+
+withNameSuffix :: QName -> QName -> QName
+withNameSuffix suffix (QName name u p) = QName (name ++ qName suffix) u p
