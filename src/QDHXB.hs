@@ -30,10 +30,11 @@ module QDHXB (
   Content,
   ZeroOneMany(Zero, One, Many),
   pullContentFrom, zomToList, __loadElement,
-  __decodeForSimpleType,
+  __decodeForSimpleType, readMaybe,
   Except, throwError, catchError, runExcept
   ) where
 
+import Text.Read (readMaybe)
 import Control.Monad.Except (Except, throwError, runExcept, catchError)
 import Text.XML.Light.Types (Content)
 import QDHXB.Internal.Utils.XMLLight (

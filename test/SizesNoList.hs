@@ -14,6 +14,10 @@ testSizesNoList = inGroup "XSD sizesNoList" $ do
     p <- lift $ loadSizes "sizesNoList0a.xml"
     "Correctly decode <sizes>12</sizes> in sizesNoList0a.xml" ~:
       SizeTypeInteger 12 @==- p
+  inGroup "SizesNoList 0b" $ do
+    p <- lift $ loadSizes "sizesNoList0b.xml"
+    "Correctly decode <sizes>small</sizes> in sizesNoList0a.xml" ~:
+      SizeTypeToken "small" @==- p
   {-
   inGroup "SizesNoList 1" $ do
     p <- lift $ loadSizes "sizesNoList1.xml"

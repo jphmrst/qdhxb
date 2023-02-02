@@ -23,7 +23,7 @@ module QDHXB.Internal.Utils.TH (
   -- ** `Read` and `Show`
   showConT, readVarE,
   -- ** `Maybe`
-  maybeConT,
+  maybeConT, appMaybeType,
   -- *** With `Nothing`
   nothingConE, nothingPat,
   -- *** With `Just`
@@ -126,7 +126,7 @@ intType = ConT intName
 
 -- | TH `Int` type converter from `String`
 intBasicDecoder :: Exp -> Exp
-intBasicDecoder expr = SigE (AppE readVarE expr) intType
+intBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType intType
 
 -- | TH `String` type representation
 stringType :: Type
@@ -134,7 +134,7 @@ stringType = ConT stringName
 
 -- | TH `String` type converter from `String`
 stringBasicDecoder :: Exp -> Exp
-stringBasicDecoder expr = expr
+stringBasicDecoder expr = AppE justConE expr
 
 -- | TH `String` list type representation
 stringListType :: Type
@@ -150,7 +150,8 @@ floatType = ConT (mkName "Float")
 
 -- | TH `Float` converter from `String`.
 floatBasicDecoder :: Exp -> Exp
-floatBasicDecoder expr = SigE (AppE readVarE expr) floatType
+floatBasicDecoder expr =
+  SigE (AppE readMaybeVarE expr) $ appMaybeType floatType
 
 -- | TH `Bool` type representation
 boolType :: Type
@@ -158,7 +159,7 @@ boolType = ConT (mkName "Bool")
 
 -- | TH `Bool` converter from `String`.
 boolBasicDecoder :: Exp -> Exp
-boolBasicDecoder expr = SigE (AppE readVarE expr) boolType
+boolBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
 
 -- | TH `Double` type representation
 doubleType :: Type
@@ -166,7 +167,8 @@ doubleType = ConT (mkName "Double")
 
 -- | TH `Double` converter from `String`.
 doubleBasicDecoder :: Exp -> Exp
-doubleBasicDecoder expr = SigE (AppE readVarE expr) doubleType
+doubleBasicDecoder expr =
+  SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
 
 -- | TH `Data.Time.LocalTime.ZonedTime` type representation
 zonedTimeType :: Type
@@ -174,7 +176,8 @@ zonedTimeType = zonedTimeConT
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
-zonedTimeBasicDecoder expr = SigE (AppE readVarE expr) zonedTimeConT
+zonedTimeBasicDecoder expr =
+  SigE (AppE readMaybeVarE expr) $ appMaybeType zonedTimeConT
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeType :: Type
@@ -182,7 +185,8 @@ diffTimeType = ConT (mkName "DiffTime")
 
 -- | TH `Data.Time.Clock.DiffTime` converter from `String`.
 diffTimeBasicDecoder :: Exp -> Exp
-diffTimeBasicDecoder expr = SigE (AppE readVarE expr) diffTimeType
+diffTimeBasicDecoder expr =
+  SigE (AppE readMaybeVarE expr) $ appMaybeType diffTimeType
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
@@ -190,7 +194,8 @@ timeOfDayType = ConT (mkName "TimeOfDay")
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` converter from `String`.
 timeOfDayBasicDecoder :: Exp -> Exp
-timeOfDayBasicDecoder expr = SigE (AppE readVarE expr) timeOfDayType
+timeOfDayBasicDecoder expr =
+  SigE (AppE readMaybeVarE expr) $ appMaybeType timeOfDayType
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayType :: Type
@@ -198,7 +203,7 @@ dayType = ConT (mkName "Day")
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` converter from `String`.
 dayBasicDecoder :: Exp -> Exp
-dayBasicDecoder expr = SigE (AppE readVarE expr) dayType
+dayBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
@@ -346,6 +351,10 @@ mapName = mkName "map"
 readName :: Name
 readName = mkName "read"
 
+-- | TH `Name` for "readMaybe"
+readMaybeName :: Name
+readMaybeName = mkName "readMaybe"
+
 -- | TH `Name` for `QDHXB.Internal.Utils.XMLLight.zomToList`
 zomToListName :: Name
 zomToListName = mkName "zomToList"
@@ -357,6 +366,10 @@ aName = mkName "a"
 -- | TH `Exp` for function `read`
 readVarE :: Exp
 readVarE = VarE readName
+
+-- | TH `Exp` for function `read`
+readMaybeVarE :: Exp
+readMaybeVarE = VarE readMaybeName
 
 -- | TH `Exp` for function `QDHXB.Internal.Utils.XMLLight.zomToList`
 zomToListVarE :: Exp
@@ -405,6 +418,10 @@ ioConT = ConT ioName
 -- | TH `Type` for `Maybe`
 maybeConT :: Type
 maybeConT = ConT maybeName
+
+-- | Given a `Type`, wrap it as an argument to `Maybe`.
+appMaybeType :: Type -> Type
+appMaybeType t = AppT maybeConT t
 
 -- | TH `Type` for `Show`
 showConT :: Type

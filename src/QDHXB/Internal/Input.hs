@@ -6,6 +6,7 @@ module QDHXB.Internal.Input (encodeSchemaItems) where
 -- import System.Directory
 import Control.Monad.IO.Class
 import Data.List (intercalate)
+import Text.Read (readMaybe)
 import Text.XML.Light.Output
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.BPP
@@ -302,7 +303,7 @@ encodeSimpleTypeByRestriction ifNam ats s = do
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.
 decodeIntOrUnbound :: String -> Maybe Int
 decodeIntOrUnbound "unbounded" = Nothing
-decodeIntOrUnbound s = Just $ read s
+decodeIntOrUnbound s = (readMaybe s) :: Maybe Int
 
 -- | Another decoder of the `String` representation of an XSD integer
 -- as a Haskell `Int`, where there may be no `String` in the first
