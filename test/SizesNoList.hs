@@ -5,8 +5,8 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["sizesNoList.xsd"]
--- qdhxb' ["sizesNoList.xsd"]
+-- qdhxb useDebugging ["sizesNoList.xsd"]
+qdhxb' ["sizesNoList.xsd"]
 
 testSizesNoList :: TLT IO ()
 testSizesNoList = inGroup "XSD sizesNoList" $ do

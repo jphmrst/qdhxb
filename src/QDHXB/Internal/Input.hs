@@ -61,22 +61,35 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
     liftIO $ putStrLn "> Encoding simpleType "
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
   case separateSimpleTypeContents ats ctnts' of
-    (nam, One restr, Zero) -> do
+    (nam, One restr, Zero, Zero) -> do
       qnam <- mapM decodePrefixedName nam
       res <- encodeSimpleTypeByRestriction qnam ats restr
       whenDebugging $ do
         liftIO $ bLabelPrintln "  as " res
       return res
-    (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _))) -> do
+    (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) ->
+      do qnam <- decodePrefixedName nam
+         alts <- encodeSchemaItems $ filter isElem cs'
+         let res = SimpleTypeScheme (Just qnam) $ Union alts
+         whenDebugging $ do
+           liftIO $ putStrLn "> Encoding simpleType "
+           liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+           liftIO $ bLabelPrintln "  as " res
+         return res
+    (Just nam, Zero, Zero,
+     One (Elem (Element (QName "list" _ _) ats' _ _))) -> do
       qnam <- decodePrefixedName nam
-      alts <- encodeSchemaItems $ filter isElem cs'
-      let res = SimpleTypeScheme (Just qnam) $ Union alts
-      whenDebugging $ do
-        liftIO $ putStrLn "> Encoding simpleType "
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ bLabelPrintln "  as " res
-      return res
-    (ifName, zomRestr, zomUnion) -> do
+      itemTypeAttr <- pullAttrQName "itemType" ats'
+      case itemTypeAttr of
+        Nothing -> error "Simple type list without itemType attribute"
+        Just itemType -> do
+          let res = SimpleTypeScheme (Just qnam) $ List itemType
+          whenDebugging $ do
+            liftIO $ putStrLn "> Encoding simpleType "
+            liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+            liftIO $ bLabelPrintln "  as " res
+          return res
+    (ifName, zomRestr, zomUnion, zomList) -> do
       -- whenDebugging $ do
       liftIO $ putStrLn "+------"
       liftIO $ putStrLn $
@@ -86,6 +99,7 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       liftIO $ putStrLn $ "| IFNAME " ++ show ifName
       liftIO $ putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
       liftIO $ putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
+      liftIO $ putStrLn $ "| ZOMLIST "  ++ (show $ zomToList zomList)
       error $ "TODO encodeSchemaItem > simpleType > another separation case"
         ++ ifAtLine ifLn
 encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
@@ -222,11 +236,13 @@ separateComplexTypeContents cts =
 
 separateSimpleTypeContents ::
   [Attr] -> [Content] ->
-    (Maybe String, ZeroOneMany Content, ZeroOneMany Content)
+    (Maybe String, ZeroOneMany Content, ZeroOneMany Content,
+     ZeroOneMany Content)
 separateSimpleTypeContents attrs cts =
   (pullAttr "name" attrs,
    pullContent "restriction" cts,
-   pullContent "union" cts)
+   pullContent "union" cts,
+   pullContent "list" cts)
 
 encodeComplexTypeScheme ::
   [Attr] -> [Content] -> Content -> ZeroOneMany Content -> XSDQ DataScheme

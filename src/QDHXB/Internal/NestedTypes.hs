@@ -12,6 +12,7 @@ module QDHXB.Internal.NestedTypes (
 import Text.XML.Light.Types (QName)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
+import QDHXB.Internal.Utils.XMLLight (withPrefix)
 
 -- | Further details about @simpleType@ and @simpleContents@ XSD
 -- elements.
@@ -23,12 +24,15 @@ data SimpleTypeScheme =
   | Union -- ^ A type defined as a collection (union) of values from
           -- simple data types.
       [DataScheme] -- ^ Constituent types
+  | List -- ^ Space-delimited list of simple types
+      QName -- ^ Type of list elements
   deriving Show
 
 instance Blockable SimpleTypeScheme where
   block (Synonym t) = labelBlock "== " $ block t
   block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
   block (Union ds) = labelBlock "Union " $ block ds
+  block (List t) = labelBlock "List " $ block t
 instance VerticalBlockList SimpleTypeScheme
 instance VerticalBlockList (QName, DataScheme)
 instance VerticalBlockablePair QName DataScheme
@@ -176,10 +180,10 @@ labelOf (SimpleTypeScheme j@(Just _) _) = j
 labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
 labelOf (SimpleTypeScheme _ (Union _ds)) = Nothing
+labelOf (SimpleTypeScheme _ (List t)) = Just $ withPrefix "List" t
 labelOf (Group base _n) = base
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool
 nonSkip Skip = False
 nonSkip _ = True
-

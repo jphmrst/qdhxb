@@ -26,6 +26,7 @@ main = do
     testAge
     testInitials
     testSizesNoList
+    testSizesAndList
 {-
     inGroup "JTMS tests" $ runJTMST $ do
       testEx1
