@@ -56,7 +56,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
                           (applyExceptCon stringConT
                                           (ConT $ mkName baseName)))
           : FunD safeDecAsNam [Clause [VarP eName, ctxtVarP]
-                                  (NormalB $ applyReturn decodeAs) []]
+                                  (NormalB $ maybeToExceptExp ("Could not recognize value for <" ++ baseName ++ "> element") decodeAs) []]
 
           -- Decoder
           : SigD decAsNam (fn2Type stringConT
@@ -335,6 +335,13 @@ __decodeForSimpleType elementName ctxt msgIfNothing =
   case pullCRefContent elementName ctxt of
     Nothing -> error msgIfNothing
     Just v -> v
+
+-- | Convert an expression of type @Maybe a@ to an expression of type
+-- @Except String a@.  The `String` argument is the exception message
+-- when the original `Exp`ression returns `Nothing`.
+maybeToExceptExp :: String -> Exp -> Exp
+maybeToExceptExp s e = caseNothingJust e (applyThrowExp $ quoteStr s) $
+  \name -> applyReturn $ VarE name
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.

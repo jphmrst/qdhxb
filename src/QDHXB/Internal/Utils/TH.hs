@@ -14,6 +14,8 @@ module QDHXB.Internal.Utils.TH (
   qnameBasicDecoder,
 
   -- * Utilities for building expressions for other standard Haskell types and values
+  caseLeftRight, caseLeftRight',
+  caseNothingJust, caseNothingJust',
   -- ** Primitive types
   stringConT, quoteStr,
   -- ** Primitive functions
@@ -57,7 +59,7 @@ module QDHXB.Internal.Utils.TH (
   contentConT,
 
   -- * Local names
-  xName, yName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
+  xName, yName, zName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
 
   -- * Other
   firstToUpper, todoStr)
@@ -236,6 +238,10 @@ xName = mkName "x"
 -- | TH `Name` for "y"
 yName :: Name
 yName = mkName "y"
+
+-- | TH `Name` for "z"
+zName :: Name
+zName = mkName "z"
 
 -- | TH `Exp` for "x"
 xVarE :: Exp
@@ -536,7 +542,7 @@ fmapVarE = VarE fmapName
 
 -- | TH `Exp` which will throw an exception with the given name.
 throwsExc :: String -> Stmt
-throwsExc msg = NoBindS $ AppE errorVarE (LitE $ StringL msg)
+throwsExc msg = NoBindS $ AppE errorVarE $ quoteStr msg
 
 -- | TH `Exp` which will throw a program-ending error with the message
 -- calculated from the given `Exp`ression.
@@ -545,7 +551,7 @@ throwsErrorExp = AppE errorVarE
 
 -- | TH `Exp` which will throw a program-ending error with the given name.
 throwsError :: String -> Exp
-throwsError = throwsErrorExp . LitE . StringL
+throwsError = throwsErrorExp . quoteStr
 
 -- | TH `Type` for the one-argument function type of the given
 -- argument and result.
@@ -569,17 +575,43 @@ app3Exp f e1 e2 e3 = AppE (AppE (AppE f e1) e2) e3
 app4Exp :: Exp -> Exp -> Exp -> Exp -> Exp -> Exp
 app4Exp f e1 e2 e3 e4 = AppE (AppE (AppE (AppE f e1) e2) e3) e4
 
+-- | Build a TH @case@ expression over `Either` values with the given
+-- bound variable and result expression for respectively the `Left`
+-- and `Right` possibilities.
+caseLeftRight' :: Exp -> Name -> Exp -> Name -> Exp -> Exp
+caseLeftRight' e nl el nr er =
+  CaseE e [
+    Match (ConP leftName [] [VarP nl]) (NormalB el) [],
+    Match (ConP rightName [] [VarP nr]) (NormalB er) []
+    ]
+
+-- | Build a TH @case@ expression over `Either` values where we do not
+-- care about the `Name` of the bound variable.
+caseLeftRight :: Exp -> (Name -> Exp) -> (Name -> Exp) -> Exp
+caseLeftRight e elf erf = caseLeftRight' e zName (elf zName) yName (erf yName)
+
+-- | Build a TH @case@ expression over `Maybe` values with the given
+-- bound variable and result expression for respectively the `Nothing`
+-- and `Just` possibilities (the former having no associated `Name`).
+caseNothingJust' :: Exp -> Exp -> Name -> Exp -> Exp
+caseNothingJust' e en nj ej =
+  CaseE e [
+    Match (ConP nothingName [] []) (NormalB en) [],
+    Match (ConP justName [] [VarP nj]) (NormalB ej) []
+    ]
+
+-- | Build a TH @case@ expression over `Maybe` values where we do not
+-- care about the `Name` of the bound variable.
+caseNothingJust :: Exp -> Exp -> (Name -> Exp) -> Exp
+caseNothingJust e el erf = caseNothingJust' e el zName (erf zName)
+
 -- | Given a TH `Exp` expression of type @Except String a@, either
 -- returns a value of type @a@ or throws an `error` with the given
 -- `String`
 resultOrThrow :: Exp -> Exp
 resultOrThrow ex =
-  CaseE (applyRunExceptExp ex) [
-    Match (ConP leftName [] [VarP yName])
-          (NormalB $ throwsErrorExp $ VarE yName) [],
-    Match (ConP rightName [] [VarP yName])
-          (NormalB $ VarE yName) []
-  ]
+  caseLeftRight (applyRunExceptExp ex) (throwsErrorExp . VarE) VarE
+
 --  (`applyCatchErrorExp` (LamE [VarP xName] $ throwsErrorExp (VarE xName)))
 
 -- | Convert a `String` into a Template Haskell `Exp`ression
