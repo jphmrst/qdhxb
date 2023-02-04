@@ -56,6 +56,12 @@ data Definition =
       -- ^ Name of the type
       [(QName, QName)]
       -- ^ (Constructor name, type name) of each element of the union.
+  | ListDefn
+    -- ^ Define a simple type as a list of another simple type.
+      QName
+      -- ^ Name of the list type
+      QName
+      -- ^ Name of the element type
   deriving Show
 
 instance Blockable Definition where
@@ -70,6 +76,8 @@ instance Blockable Definition where
   block (UnionDefn n ns) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
+  block (ListDefn n t) = stringToBlock $
+    "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName [Definition]
 instance VerticalBlockList (QName, [Definition])

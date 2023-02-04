@@ -83,7 +83,8 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       case itemTypeAttr of
         Nothing -> error "Simple type list without itemType attribute"
         Just itemType -> do
-          let res = SimpleTypeScheme (Just qnam) $ List itemType
+          let res = SimpleTypeScheme (Just qnam) $
+                      List (Just itemType)
           whenDebugging $ do
             liftIO $ putStrLn "> Encoding simpleType "
             liftIO $ putStrLn $ mlineIndent "    " (showElement e)

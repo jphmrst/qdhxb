@@ -25,7 +25,7 @@ data SimpleTypeScheme =
           -- simple data types.
       [DataScheme] -- ^ Constituent types
   | List -- ^ Space-delimited list of simple types
-      QName -- ^ Type of list elements
+      (Maybe QName) -- ^ Type of list elements
   deriving Show
 
 instance Blockable SimpleTypeScheme where
@@ -180,7 +180,7 @@ labelOf (SimpleTypeScheme j@(Just _) _) = j
 labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
 labelOf (SimpleTypeScheme _ (Union _ds)) = Nothing
-labelOf (SimpleTypeScheme _ (List t)) = Just $ withPrefix "List" t
+labelOf (SimpleTypeScheme _ (List t)) = fmap (withPrefix "List") t
 labelOf (Group base _n) = base
 
 -- | Predicate returning `False` on `Skip` values

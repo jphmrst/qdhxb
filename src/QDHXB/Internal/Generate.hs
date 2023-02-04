@@ -262,6 +262,41 @@ xsdDeclToHaskell decl@(UnionDefn name pairs) = do
     liftIO $ bLabelPrintln "> Generating from " decl
     liftIO $ bLabelPrintln "  to " res
   return res
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
+  let baseStr = firstToUpper $ qName name
+      baseName = mkName baseStr
+      decNam = mkName $ "decodeAs" ++ baseStr
+      tryDecNam = mkName $ "tryDecodeAs" ++ baseStr
+
+      elemStr = firstToUpper $ qName elemTypeRef
+      elemName = mkName elemStr
+  let res = [
+        TySynD baseName [] (AppT ListT $ ConT elemName) {- ,
+
+        -- TODO need to break up simple types' tryDecoder into a
+        -- string decoder, and an extractor for the string from the
+        -- XMLLight content which passes its result to the former.
+
+        SigD tryDecNam
+             (fn2Type stringConT contentConT
+                      (applyExceptCon stringConT (ConT baseName))),
+        FunD tryDecNam [Clause [VarP xName, ctxtVarP]
+                       (NormalB safeDecoder) []],
+
+        SigD decNam
+             (fn2Type stringConT contentConT (ConT $ mkName baseName)),
+        FunD decNam [Clause [VarP xName, ctxtVarP]
+             (NormalB $ resultOrThrow $
+                app2Exp (VarE tryDecNam)
+                        (VarE xName)
+                        ctxtVarE) []]
+        -}
+
+        ]
+  whenDebugging $ do
+    liftIO $ bLabelPrintln "> Generating from " decl
+    liftIO $ bLabelPrintln "  to " res
+  return res
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]
