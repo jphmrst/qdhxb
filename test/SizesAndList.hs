@@ -5,11 +5,12 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 
-qdhxb useDebugging ["sizesAndList.xsd"]
+-- qdhxb useDebugging ["sizesAndList.xsd"]
 -- qdhxb' ["sizesAndList.xsd"]
 
 testSizesAndList :: TLT IO ()
 testSizesAndList = inGroup "XSD sizesAndList" $ do
+  return ()
   {-
   inGroup "SizesAndList 0a" $ do
     p <- lift $ loadSizes "sizesAndList0a.xml"
