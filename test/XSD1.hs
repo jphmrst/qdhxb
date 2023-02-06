@@ -4,6 +4,7 @@ module XSD1 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
+import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["xsd.xsd"]
 -- qdhxb' ["xsd.xsd"]

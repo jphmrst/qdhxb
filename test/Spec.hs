@@ -11,6 +11,7 @@ import XSD1 (testXSD1)
 import Age (testAge)
 import Initials (testInitials)
 import SizesNoList (testSizesNoList)
+import SizesAndList (testSizesAndList)
 
 main :: IO ()
 main = do

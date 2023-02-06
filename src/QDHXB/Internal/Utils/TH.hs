@@ -59,7 +59,7 @@ module QDHXB.Internal.Utils.TH (
   contentConT,
 
   -- * Functions used in TH expansions
-  decodeForSimpleTypeName,
+  simpleTypeDecoderVarE,
 
   -- * Local names
   xName, yName, zName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
@@ -125,13 +125,21 @@ xsdTypeNameTranslation "IDREFS" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, id)
 
+-- | Convert an expression of type @Maybe a@ to an expression of type
+-- @Except String a@.  The `String` argument is the exception message
+-- when the original `Exp`ression returns `Nothing`.
+maybeToExceptExp :: String -> Exp -> Exp
+maybeToExceptExp s e =
+  caseNothingJust e (applyThrowExp $ quoteStr s) $ applyReturn . VarE
+
 -- | TH `Int` type representation
 intType :: Type
 intType = ConT intName
 
 -- | TH `Int` type converter from `String`
 intBasicDecoder :: Exp -> Exp
-intBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType intType
+intBasicDecoder expr = maybeToExceptExp "Could not read Int" $
+  SigE (AppE readMaybeVarE expr) $ appMaybeType intType
 
 -- | TH `String` type representation
 stringType :: Type
@@ -139,7 +147,7 @@ stringType = ConT stringName
 
 -- | TH `String` type converter from `String`
 stringBasicDecoder :: Exp -> Exp
-stringBasicDecoder expr = AppE justConE expr
+stringBasicDecoder expr = applyReturn expr
 
 -- | TH `String` list type representation
 stringListType :: Type
@@ -155,7 +163,7 @@ floatType = ConT (mkName "Float")
 
 -- | TH `Float` converter from `String`.
 floatBasicDecoder :: Exp -> Exp
-floatBasicDecoder expr =
+floatBasicDecoder expr = maybeToExceptExp "Could not read Float" $
   SigE (AppE readMaybeVarE expr) $ appMaybeType floatType
 
 -- | TH `Bool` type representation
@@ -164,7 +172,8 @@ boolType = ConT (mkName "Bool")
 
 -- | TH `Bool` converter from `String`.
 boolBasicDecoder :: Exp -> Exp
-boolBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
+boolBasicDecoder expr =  maybeToExceptExp "Could not read Bool" $
+  SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
 
 -- | TH `Double` type representation
 doubleType :: Type
@@ -172,7 +181,7 @@ doubleType = ConT (mkName "Double")
 
 -- | TH `Double` converter from `String`.
 doubleBasicDecoder :: Exp -> Exp
-doubleBasicDecoder expr =
+doubleBasicDecoder expr = maybeToExceptExp "Could not read Double" $
   SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
 
 -- | TH `Data.Time.LocalTime.ZonedTime` type representation
@@ -181,7 +190,7 @@ zonedTimeType = zonedTimeConT
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
-zonedTimeBasicDecoder expr =
+zonedTimeBasicDecoder expr = maybeToExceptExp "Could not read ZonedTime" $
   SigE (AppE readMaybeVarE expr) $ appMaybeType zonedTimeConT
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
@@ -190,7 +199,7 @@ diffTimeType = ConT (mkName "DiffTime")
 
 -- | TH `Data.Time.Clock.DiffTime` converter from `String`.
 diffTimeBasicDecoder :: Exp -> Exp
-diffTimeBasicDecoder expr =
+diffTimeBasicDecoder expr = maybeToExceptExp "Could not read DiffTime" $
   SigE (AppE readMaybeVarE expr) $ appMaybeType diffTimeType
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
@@ -199,7 +208,7 @@ timeOfDayType = ConT (mkName "TimeOfDay")
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` converter from `String`.
 timeOfDayBasicDecoder :: Exp -> Exp
-timeOfDayBasicDecoder expr =
+timeOfDayBasicDecoder expr = maybeToExceptExp "Could not read TimeOfDay" $
   SigE (AppE readMaybeVarE expr) $ appMaybeType timeOfDayType
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
@@ -208,7 +217,8 @@ dayType = ConT (mkName "Day")
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` converter from `String`.
 dayBasicDecoder :: Exp -> Exp
-dayBasicDecoder expr = SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
+dayBasicDecoder expr =  maybeToExceptExp "Could not read Day" $
+  SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
@@ -268,7 +278,7 @@ justName = mkName "Just"
 
 -- | TH `Name` for "Zero"
 zeroName :: Name
-zeroName = mkName "Zero"
+zeroName = mkName "QDHXB.Expansions.Zero"
 
 -- | TH `Pat` for "Zero"
 zeroPat :: Pat
@@ -298,19 +308,20 @@ boolName = mkName "Bool"
 
 -- | TH `Name` for "One"
 oneName :: Name
-oneName = mkName "One"
+oneName = mkName "QDHXB.Expansions.One"
 
 -- | TH `Name` for "Many"
 manyName :: Name
-manyName = mkName "Many"
+manyName = mkName "QDHXB.Expansions.Many"
 
 -- | TH `Name` for "String"
 stringName :: Name
 stringName = mkName "String"
 
--- | TH `Name` for `Text.XML.Light.Types.Content`
+-- | TH `Name` for the re-export of `Text.XML.Light.Types.Content` in
+-- `QDHXB.Expansions`.
 contentName :: Name
-contentName = mkName "Content"
+contentName = mkName "QDHXB.Expansions.Content"
 
 -- | TH `Name` for "IO"
 ioName :: Name
@@ -362,11 +373,11 @@ readName = mkName "read"
 
 -- | TH `Name` for "readMaybe"
 readMaybeName :: Name
-readMaybeName = mkName "readMaybe"
+readMaybeName = mkName "QDHXB.Expansions.readMaybe"
 
 -- | TH `Name` for `QDHXB.Internal.Utils.XMLLight.zomToList`
 zomToListName :: Name
-zomToListName = mkName "zomToList"
+zomToListName = mkName "QDHXB.Expansions.zomToList"
 
 -- | TH `Name` for "a"
 aName :: Name
@@ -440,9 +451,10 @@ showConT = ConT showName
 eqConT :: Type
 eqConT = ConT eqName
 
--- | TH `Name` for "Except"
+-- | TH `Name` for the `QDHXB.Expansions.Except` re-export of
+-- `Control.Monad.Except.Except`.
 exceptName :: Name
-exceptName = mkName "Except"
+exceptName = mkName "QDHXB.Expansions.Except"
 
 -- | TH `Type` for `Control.Monad.Except.Except`
 exceptConT :: Type
@@ -466,9 +478,10 @@ returnExp = VarE returnName
 applyReturn :: Exp -> Exp
 applyReturn = AppE returnExp
 
--- | TH `Name` for "runExcept"
+-- | TH `Name` for the `QDHXB.Expansions.runExcept` re-export of
+-- `Control.Monad.Except.runExcept`.
 runExceptName :: Name
-runExceptName = mkName "runExcept"
+runExceptName = mkName "QDHXB.Expansions.runExcept"
 
 -- | TH `Exp` for the `Control.Monad.Except.runExcept` function
 runExceptVarE :: Exp
@@ -479,9 +492,10 @@ runExceptVarE = VarE runExceptName
 applyRunExceptExp :: Exp -> Exp
 applyRunExceptExp = AppE runExceptVarE
 
--- | TH `Name` for "throwError"
+-- | TH `Name` for the `QDHXB.Expansions.throwError` re-export of
+-- `Control.Monad.Except.throwError`.
 throwName :: Name
-throwName = mkName "throwError"
+throwName = mkName "QDHXB.Expansions.throwError"
 
 -- | TH `Exp` for the `Control.Monad.Except.throwError` function
 throwVarE :: Exp
@@ -510,9 +524,10 @@ applyThrowStrStmt = NoBindS . applyThrowStrExp
 applyThrowStrExp :: String -> Exp
 applyThrowStrExp = AppE throwVarE . quoteStr
 
--- | TH `Name` for "catchError"
+-- | TH `Name` for the `QDHXB.Expansions.catchError` re-export of
+-- `Control.Monad.Except.catchError`.
 catchErrorName :: Name
-catchErrorName = mkName "catchError"
+catchErrorName = mkName "QDHXB.Expansions.catchError"
 
 -- | TH `Exp` for the catchError`` function
 catchErrorVarE :: Exp
@@ -622,7 +637,10 @@ resultOrThrow ex =
 quoteStr :: String -> Exp
 quoteStr = LitE . StringL
 
--- | `Name` for the `QDHXB.Internal.Generate.__decodeForSimpleType`
--- function.
-decodeForSimpleTypeName :: Name
-decodeForSimpleTypeName = mkName "__decodeForSimpleType"
+-- | `Name` for the `QDHXB.Expansions.simpleTypeDecoder` function.
+simpleTypeDecoderName :: Name
+simpleTypeDecoderName = mkName "QDHXB.Expansions.simpleTypeDecoder"
+
+-- | `Name` for the `QDHXB.Expansions.__decodeForSimpleType` function.
+simpleTypeDecoderVarE :: Exp
+simpleTypeDecoderVarE = VarE simpleTypeDecoderName

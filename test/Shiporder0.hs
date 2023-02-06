@@ -4,6 +4,7 @@ module Shiporder0 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
+import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["shiporder0.xsd"]
 qdhxb' ["shiporder0.xsd"]

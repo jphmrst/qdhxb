@@ -10,12 +10,12 @@ module QDHXB.Internal.Generate (
   xsdDeclsToHaskell,
 
   -- * Functions appearing in the generated code
-  __decodeForSimpleType
+  simpleTypeDecoder
   )
 where
 
-import Control.Monad.IO.Class
-import Data.List (intercalate)
+import Control.Monad.Except
+-- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName)
@@ -38,11 +38,6 @@ xsdDeclsToHaskell defns = do
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) = do
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
-  decodeAs <- fmap basicDecoder
-                  [| __decodeForSimpleType e
-                         ctxt
-                         $(return $ quoteStr $
-                            "QDHXB: CRef must be present within " ++ showQName nam) |]
   let baseName = firstToUpper $ qName nam
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
                                                (basicDecoder $ VarE eName)
@@ -253,11 +248,11 @@ getSimpleTypeElements baseNameStr pat1 body =
        SigD safeDecAsNam tryDecType,
        FunD safeDecAsNam [Clause [VarP xName, VarP ctxtName]
                            (NormalB $
-                            app2Exp fmapVarE (VarE decStrName) $
-                            app3Exp (VarE decodeForSimpleTypeName)
+                            app4Exp simpleTypeDecoderVarE
                               (VarE xName) (VarE ctxtName)
                               (quoteStr $ "QDHXB: CRef must be present within "
-                               ++ baseNameStr)) []],
+                               ++ baseNameStr)
+                              (VarE decStrName)) []],
 
        SigD decAsNam decType,
        FunD decAsNam [Clause [VarP xName, ctxtVarP]
@@ -338,19 +333,13 @@ xsdRefToSafeHaskellExpr param (AttributeRef ref usage) _ = do
           return $ AppE (decoderExpFor r) (VarE p)
 
 -- | Called from generated code.
-__decodeForSimpleType :: String -> Content -> String -> String
-{-# INLINE __decodeForSimpleType #-}
-__decodeForSimpleType elementName ctxt msgIfNothing =
-  case pullCRefContent elementName ctxt of
-    Nothing -> error msgIfNothing
-    Just v -> v
-
--- | Convert an expression of type @Maybe a@ to an expression of type
--- @Except String a@.  The `String` argument is the exception message
--- when the original `Exp`ression returns `Nothing`.
-maybeToExceptExp :: String -> Exp -> Exp
-maybeToExceptExp s e = caseNothingJust e (applyThrowExp $ quoteStr s) $
-  \name -> applyReturn $ VarE name
+simpleTypeDecoder ::
+  String -> Content -> String -> (String -> Except String a) -> Except String a
+{-# INLINE simpleTypeDecoder #-}
+simpleTypeDecoder elementName contentNode miscFailMsg stringDecoder = do
+  case pullCRefContent elementName contentNode of
+    Nothing -> throwError miscFailMsg
+    Just v -> stringDecoder v
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.
@@ -369,7 +358,7 @@ decoderAsExpFor typ = VarE $ mkName $ "decodeAs" ++ firstToUpper typ
 -- decoder function `Exp`ression.
 subcontentZom :: QName -> Name -> Exp
 subcontentZom ref param =
-  AppE (AppE (VarE $ mkName "pullContentFrom") (LitE (StringL $ qName ref)))
+  AppE (AppE (VarE $ mkName "QDHXB.Expansions.pullContentFrom") (LitE (StringL $ qName ref)))
        (VarE param)
 
 zomMatch1 :: Exp -> (Name -> Exp) -> Exp -> XSDQ [Match]
@@ -422,6 +411,3 @@ unpackAttrDecoderForUsage Required expr = fmap (CaseE expr) $
 -- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness
-
-indCode :: String -> [Dec] -> String
-indCode ind = intercalate ("\n" ++ ind) . lines . pprint

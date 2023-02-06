@@ -4,6 +4,7 @@ module OFX1 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
+import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["ofx/OFX2_Protocol.xsd"]
 -- qdhxb' ["ofx/OFX2_Protocol.xsd"]

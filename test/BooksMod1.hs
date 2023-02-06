@@ -5,9 +5,10 @@ import Data.Time.Calendar
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
+import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["books-mod1.xsd"]
--- qdhxb' ["books-mod1.xsd"]
+-- qdhxb useDebugging ["books-mod1.xsd"]
+qdhxb' ["books-mod1.xsd"]
 
 testBooksMod1 :: TLT IO ()
 testBooksMod1 = inGroup "XSD books 1" $ do

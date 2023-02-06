@@ -4,12 +4,13 @@ module Initials where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
+import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["initials.xsd"]
--- qdhxb' ["initials.xsd"]
+qdhxb' ["initials.xsd"]
 
 testInitials :: TLT IO ()
-testInitials = return () {- inGroup "XSD initials" $ do
+testInitials = inGroup "XSD initials" $ do
   inGroup "Initials 1" $ do
     p <- lift $ loadInitials "initials1.xml"
     "Correctly decode <initials> in initials1.xml" ~: "JPM" @==- p
@@ -19,4 +20,3 @@ testInitials = return () {- inGroup "XSD initials" $ do
   inGroup "Initials X" $ do
     p <- lift $ loadInitials "initialsX.xml"
     "Correctly decode <initials> in initials2.xml" ~: "JM" @==- p
--}

@@ -115,9 +115,10 @@ __loadElement decoder xmlFile = do
     [e] -> return $ decoder e
     _ -> error "No elements in XML file"
 
--- | Template Haskell `Name` for the `__loadElement` method.
+-- | Template Haskell `Name` for the `QDHXB.Expansions.__loadElement`
+-- re-export of the `__loadElement` method.
 loadElementName :: Name
-loadElementName = mkName "__loadElement"
+loadElementName = mkName "QDHXB.Expansions.__loadElement"
 
 -- | Return a new `QName` with the given `String` prepended to the
 -- original `qName`.

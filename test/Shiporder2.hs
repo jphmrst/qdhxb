@@ -4,9 +4,7 @@ module Shiporder2 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
-
--- testShiporder2 :: TLT IO ()
--- testShiporder2 = return ()
+import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["shiporder2.xsd"]
 qdhxb' ["shiporder2.xsd"]
