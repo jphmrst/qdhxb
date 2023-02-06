@@ -36,50 +36,57 @@ xsdDeclsToHaskell defns = do
 -- monad, usually updating the internal state to store the new
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) =
-  let baseName = firstToUpper $ qName nam
-      safeDecAsNam = mkName $ "tryDecodeAs" ++ baseName
-      decAsNam = mkName $ "decodeAs" ++ baseName
-  in do
-    let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
-    decodeAs <- fmap basicDecoder
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) = do
+  let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
+  decodeAs <- fmap basicDecoder
                   [| __decodeForSimpleType e
                          ctxt
                          $(return $ quoteStr $
                             "QDHXB: CRef must be present within " ++ showQName nam) |]
-    let res = (
-          TySynD (mkName baseName) [] haskellType
+  let baseName = firstToUpper $ qName nam
+      (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
+                                               (basicDecoder $ VarE eName)
+  packAndDebug decl $ TySynD typeName [] haskellType : decs
+xsdDeclToHaskell decl@(UnionDefn name pairs) = do
+  let baseName = qName name
 
-          -- Safe decoder
-          : SigD safeDecAsNam
-                 (fn2Type stringConT contentConT
-                          (applyExceptCon stringConT
-                                          (ConT $ mkName baseName)))
-          : FunD safeDecAsNam [Clause [VarP eName, ctxtVarP]
-                                  (NormalB $ maybeToExceptExp ("Could not recognize value for <" ++ baseName ++ "> element") decodeAs) []]
+      makeConstr :: (QName, QName) -> Con
+      makeConstr (constructorName, tn) =
+        NormalC (mkName $ qName constructorName)
+                [(useBang, ConT $ mkName $ qName tn)]
 
-          -- Decoder
-          : SigD decAsNam (fn2Type stringConT
-                                   contentConT
-                                   (ConT $ mkName baseName))
-          : FunD decAsNam [Clause [VarP xName, ctxtVarP]
-                                  (NormalB $ resultOrThrow $
-                                    app2Exp (VarE safeDecAsNam)
-                                            (VarE xName)
-                                            ctxtVarE) []]
+      safeDecoder :: Exp
+      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
+                              (app2Exp
+                                 fmapVarE
+                                 (ConE $ mkName $ qName c)
+                                 (AppE (VarE $ mkName $
+                                            "tryStringDecodeFor" ++ qName t)
+                                       (VarE xName)))
+                              (LamE [WildP] e))
+                          (applyThrowStrExp $ "No valid content for <"
+                             ++ baseName ++ "> union found")
+                          pairs
+      (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
+                                               safeDecoder
+  packAndDebug decl $
+    DataD [] typeName [] Nothing (map makeConstr pairs)
+          [DerivClause Nothing [eqConT, showConT]]
+     : decs
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
+  let baseStr = firstToUpper $ qName name
 
-          {-
-          -- TODO Encoder
-          SigD encNam encType
-          FunD encNam [Clause [] (NormalB $ AppE errorVarE
-                                                 (quoteStr "TODO")) []]
-          -}
+      elemStr = firstToUpper $ qName elemTypeRef
+      elemName = mkName elemStr
 
-          : [])
-    whenDebugging $ do
-      liftIO $ bLabelPrintln "> Generating from " decl
-      liftIO $ putStrLn $ "  to " ++ indCode "     " res
-    return res
+      decodeAs = throwsError "TODO decode list"
+
+      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName)
+                                               decodeAs
+
+  packAndDebug decl $
+    TySynD typeName [] (AppT ListT $ ConT elemName) : decs
+
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
   let baseName = firstToUpper $ qName nam
       typBaseName = firstToUpper $ qName typ
@@ -218,85 +225,52 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
     return res
-xsdDeclToHaskell decl@(UnionDefn name pairs) = do
-  let baseName = qName name
-      decNam = mkName $ "decodeAs" ++ baseName
-      tryDecNam = mkName $ "tryDecodeAs" ++ baseName
-  let makeConstr :: (QName, QName) -> Con
-      makeConstr (constructorName, typeName) =
-        NormalC (mkName $ qName constructorName)
-                [(useBang, ConT $ mkName $ qName typeName)]
 
-      safeDecoder :: Exp
-      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
-                              (app2Exp
-                                 fmapVarE
-                                 (ConE $ mkName $ qName c)
-                                 (app2Exp (VarE $ mkName $
-                                            "tryDecodeAs" ++ qName t)
-                                          (VarE xName) ctxtVarE))
-                              (LamE [WildP] e))
-                          (applyThrowStrExp $ "No valid content for <"
-                             ++ baseName ++ "> union found")
-                          pairs
-  let res = [
-        DataD [] (mkName baseName) [] Nothing (map makeConstr pairs)
-          [DerivClause Nothing [eqConT, showConT]],
-
-        SigD tryDecNam
-             (fn2Type stringConT contentConT
-                      (applyExceptCon stringConT (ConT $ mkName baseName))),
-        FunD tryDecNam [Clause [VarP xName, ctxtVarP]
-                       (NormalB safeDecoder) []],
-
-        SigD decNam
-             (fn2Type stringConT contentConT (ConT $ mkName baseName)),
-        FunD decNam [Clause [VarP xName, ctxtVarP]
-             (NormalB $ resultOrThrow $
-                app2Exp (VarE tryDecNam)
-                        (VarE xName)
-                        ctxtVarE) []]
-
-        ]
+packAndDebug :: Blockable a => Definition -> a -> XSDQ a
+packAndDebug d r = do
   whenDebugging $ do
-    liftIO $ bLabelPrintln "> Generating from " decl
-    liftIO $ bLabelPrintln "  to " res
-  return res
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
-  let baseStr = firstToUpper $ qName name
-      baseName = mkName baseStr
-      decNam = mkName $ "decodeAs" ++ baseStr
-      tryDecNam = mkName $ "tryDecodeAs" ++ baseStr
+    liftIO $ bLabelPrintln "> Generating from " d
+    liftIO $ bLabelPrintln "  to " r
+  return r
 
-      elemStr = firstToUpper $ qName elemTypeRef
-      elemName = mkName elemStr
-  let res = [
-        TySynD baseName [] (AppT ListT $ ConT elemName) {- ,
+getSimpleTypeElements ::
+  String -> Pat -> Exp -> (Name, {- Name, Name, Type, Type, -} [Dec])
+getSimpleTypeElements baseNameStr pat1 body =
+  let typeName = mkName baseNameStr
+      typeType = ConT typeName
+      decStrName = mkName $ "tryStringDecodeFor" ++ baseNameStr
+      safeDecAsNam = mkName $ "tryDecodeAs" ++ baseNameStr
+      decAsNam = mkName $ "decodeAs" ++ baseNameStr
+      decStrType = fn1Type stringConT (applyExceptCon stringConT typeType)
+      tryDecType = fn2Type stringConT contentConT
+                           (applyExceptCon stringConT typeType)
+      decType = fn2Type stringConT contentConT typeType
 
-        -- TODO need to break up simple types' tryDecoder into a
-        -- string decoder, and an extractor for the string from the
-        -- XMLLight content which passes its result to the former.
+  in (typeName,
+      [SigD decStrName decStrType,
+       FunD decStrName [Clause [pat1] (NormalB body) []],
 
-        SigD tryDecNam
-             (fn2Type stringConT contentConT
-                      (applyExceptCon stringConT (ConT baseName))),
-        FunD tryDecNam [Clause [VarP xName, ctxtVarP]
-                       (NormalB safeDecoder) []],
+       SigD safeDecAsNam tryDecType,
+       FunD safeDecAsNam [Clause [VarP xName, VarP ctxtName]
+                           (NormalB $
+                            app2Exp fmapVarE (VarE decStrName) $
+                            app3Exp (VarE decodeForSimpleTypeName)
+                              (VarE xName) (VarE ctxtName)
+                              (quoteStr $ "QDHXB: CRef must be present within "
+                               ++ baseNameStr)) []],
 
-        SigD decNam
-             (fn2Type stringConT contentConT (ConT $ mkName baseName)),
-        FunD decNam [Clause [VarP xName, ctxtVarP]
-             (NormalB $ resultOrThrow $
-                app2Exp (VarE tryDecNam)
-                        (VarE xName)
-                        ctxtVarE) []]
-        -}
-
-        ]
-  whenDebugging $ do
-    liftIO $ bLabelPrintln "> Generating from " decl
-    liftIO $ bLabelPrintln "  to " res
-  return res
+       SigD decAsNam decType,
+       FunD decAsNam [Clause [VarP xName, ctxtVarP]
+                       (NormalB $ resultOrThrow $
+                         app2Exp (VarE safeDecAsNam) (VarE xName) ctxtVarE)
+                       []]
+       {-
+       -- TODO Encoder
+       SigD encNam encType
+       FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                              (quoteStr "TODO")) []]
+       -}
+      ])
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]

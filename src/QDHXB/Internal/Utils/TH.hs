@@ -58,6 +58,9 @@ module QDHXB.Internal.Utils.TH (
   -- * @XMLLight@
   contentConT,
 
+  -- * Functions used in TH expansions
+  decodeForSimpleTypeName,
+
   -- * Local names
   xName, yName, zName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
 
@@ -618,3 +621,8 @@ resultOrThrow ex =
 -- representing that string literal.
 quoteStr :: String -> Exp
 quoteStr = LitE . StringL
+
+-- | `Name` for the `QDHXB.Internal.Generate.__decodeForSimpleType`
+-- function.
+decodeForSimpleTypeName :: Name
+decodeForSimpleTypeName = mkName "__decodeForSimpleType"
