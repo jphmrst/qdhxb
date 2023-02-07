@@ -53,10 +53,12 @@ pullContent nam (_:cs) = pullContent nam cs
 -- | Retrieve XML contents with the given name from the contained
 -- elements of the given element.
 pullContentFrom :: String -> Content -> ZeroOneMany Content
-pullContentFrom name (Elem (Element _ _ contents _)) = pullContent name contents
+pullContentFrom name (Elem (Element _ _ contents _)) =
+  pullContent name contents
 pullContentFrom _ (Text _) = Zero
 pullContentFrom _ (CRef _) = Zero
 
+-- | Return the `Content` nodes which are elements with the given tag.
 filterTagged :: String -> [Content] -> [Content]
 filterTagged s = filter $ isTagged s
 
