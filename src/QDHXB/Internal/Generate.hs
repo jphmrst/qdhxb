@@ -70,17 +70,12 @@ xsdDeclToHaskell decl@(UnionDefn name pairs) = do
      : decs
 xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
   let baseStr = firstToUpper $ qName name
-
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
-
-      decodeAs = throwsError "TODO decode list"
-
-      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName)
-                                               decodeAs
-
-  packAndDebug decl $
-    TySynD typeName [] (AppT ListT $ ConT elemName) : decs
+      elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
+      decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
+      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs
+  packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
 xsdDeclToHaskell decl@(ElementDefn nam typ) = do
   let baseName = firstToUpper $ qName nam

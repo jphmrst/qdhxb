@@ -1,11 +1,12 @@
 
--- | Options for QDHXB calls.
+-- | Re-exports of values used in generated TH code.
 module QDHXB.Expansions (
-  readMaybe,
+  readMaybe, mapM,
   simpleTypeDecoder,
   Content,
   ZeroOneMany(Zero, One, Many), zomToList, __loadElement, pullContentFrom,
-  Except, throwError, catchError, runExcept
+  Except, throwError, catchError, runExcept,
+  spaceSep
   )
 where
 
@@ -15,4 +16,5 @@ import Text.XML.Light.Types (Content)
 import QDHXB.Internal.Utils.XMLLight (
   ZeroOneMany(Zero, One, Many), zomToList, __loadElement, pullContentFrom
   )
+import QDHXB.Internal.Utils.Misc (spaceSep)
 import QDHXB.Internal.Generate (simpleTypeDecoder)

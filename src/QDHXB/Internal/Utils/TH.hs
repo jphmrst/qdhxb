@@ -36,8 +36,8 @@ module QDHXB.Internal.Utils.TH (
   zonedTimeConT,
   -- ** `IO`
   ioConT,
-  -- ** `Functor`
-  fmapVarE,
+  -- ** `Functor` and `Contol.Monad.Monad`
+  fmapVarE, applyMapM,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon,
   -- *** With `Control.Monad.Except.runAccept`
@@ -59,7 +59,7 @@ module QDHXB.Internal.Utils.TH (
   contentConT,
 
   -- * Functions used in TH expansions
-  simpleTypeDecoderVarE,
+  simpleTypeDecoderVarE, spaceSepApp,
 
   -- * Local names
   xName, yName, zName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
@@ -644,3 +644,24 @@ simpleTypeDecoderName = mkName "QDHXB.Expansions.simpleTypeDecoder"
 -- | `Name` for the `QDHXB.Expansions.__decodeForSimpleType` function.
 simpleTypeDecoderVarE :: Exp
 simpleTypeDecoderVarE = VarE simpleTypeDecoderName
+
+-- | `Name` for the `QDHXB.Expansions.spaceSep` re-export of the
+-- `QDHXB.Internal.Utils.Misc.spaceSep` function.
+spaceSepName :: Name
+spaceSepName = mkName "QDHXB.Expansions.spaceSep"
+
+-- | Apply for the
+-- `QDHXB.Expansions.spaceSep`/`QDHXB.Internal.Utils.Misc.spaceSep`
+-- function.
+spaceSepApp :: Exp -> Exp
+spaceSepApp = AppE (VarE spaceSepName)
+
+-- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
+-- `Control.Monad.mapM` function.
+mapMName :: Name
+mapMName = mkName "QDHXB.Expansions.mapM"
+
+-- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
+-- `Control.Monad.mapM` function.
+applyMapM :: Exp -> Exp -> Exp
+applyMapM f = AppE (AppE (VarE mapMName) f)
