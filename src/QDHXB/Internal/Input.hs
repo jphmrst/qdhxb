@@ -76,13 +76,16 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
            liftIO $ putStrLn $ mlineIndent "    " (showElement e)
            liftIO $ bLabelPrintln "  as " res
          return res
-    (Just nam, Zero, Zero,
+    (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' _ _))) -> do
-      qnam <- decodePrefixedName nam
       itemTypeAttr <- pullAttrQName "itemType" ats'
       case itemTypeAttr of
         Nothing -> error "Simple type list without itemType attribute"
         Just itemType -> do
+          qnam <- case ifNam of
+            Just n -> decodePrefixedName n
+            Nothing -> return $ QName ("List_" ++ qName itemType)
+                                      (qURI itemType) (qPrefix itemType)
           let res = SimpleTypeScheme (Just qnam) $
                       List (Just itemType)
           whenDebugging $ do
@@ -96,11 +99,12 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       liftIO $ putStrLn $
         "| TODO encodeSchemaItem > simpleType > another separation case"
       liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-      liftIO $ putStrLn $ "| CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+      liftIO $ putStrLn $ "| CTNTS' "
+        ++ (intercalate "\n    " $ map showContent ctnts')
       liftIO $ putStrLn $ "| IFNAME " ++ show ifName
       liftIO $ putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
       liftIO $ putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
-      liftIO $ putStrLn $ "| ZOMLIST "  ++ (show $ zomToList zomList)
+      liftIO $ putStrLn $ "| ZOMLIST "  ++ (show zomList)
       error $ "TODO encodeSchemaItem > simpleType > another separation case"
         ++ ifAtLine ifLn
 encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
