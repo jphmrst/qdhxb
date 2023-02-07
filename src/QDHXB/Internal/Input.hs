@@ -1,4 +1,3 @@
-
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
 module QDHXB.Internal.Input (encodeSchemaItems) where
@@ -144,20 +143,39 @@ encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
                                ts
       return $ Group name $ Just ts
     (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] -> do
-      liftIO $ putStrLn $ "- ATS " ++ (intercalate "\n    " $ map showAttr ats)
-      liftIO $ putStrLn $ "- NAME " ++ show (fmap showQName name)
-      liftIO $ putStrLn $ "- CTNTS " ++
+      liftIO $ putStrLn $ "+-------"
+      liftIO $ putStrLn $
+        "| TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
+      liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+      liftIO $ putStrLn $ "| NAME " ++ show (fmap showQName name)
+      liftIO $ putStrLn $ "| CTNTS " ++
         (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
       error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
     _ -> do
       liftIO $ putStrLn $ "- Default is group of nothing"
       return $ Group name Nothing
-encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
+encodeSchemaItem (Elem (Element (QName "attributeGroup" _ _) ats ctnts l)) = do
   whenDebugging $ do
-    liftIO $ putStrLn $ "> For <" ++ tag ++ "> element (ZZZ):"
-  liftIO $ putStrLn $ "TAG " ++ show tag
-  liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $ "CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+    liftIO $ putStrLn $ "+-------"
+    liftIO $ putStrLn $ "| TODO encodeSchemaItem <attributeGroup>" ++ ifAtLine l
+    liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+    liftIO $ putStrLn $
+      "| CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+  name <- pullAttrQName "name" ats
+  ref <- pullAttrQName "ref" ats
+  let attrs = filterTagged "attribute" ctnts
+      atGroups = filterTagged "attributeGroup" ctnts
+  subcontents <- mapM encodeSchemaItem $ attrs ++ atGroups
+  return $ AttributeGroupScheme name ref subcontents
+encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
+  -- whenDebugging $ do
+  liftIO $ putStrLn $ "+-------"
+  liftIO $ putStrLn $
+    "| TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
+  liftIO $ putStrLn $ "| TAG " ++ show tag
+  liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+  liftIO $ putStrLn $
+    "| CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 encodeSchemaItem (Text _) = do
   whenDebugging $ liftIO $ putStrLn "> Dropping Text entry "

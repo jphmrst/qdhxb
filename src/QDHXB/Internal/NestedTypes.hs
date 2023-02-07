@@ -77,6 +77,10 @@ data DataScheme =
                     (Maybe QName) -- ^ ifRef
                     String -- ^ use mode: prohibited, optional
                            -- (default), required
+  | AttributeGroupScheme (Maybe QName) -- ^ ifName
+                         (Maybe QName) -- ^ ifRef
+                         [DataScheme]  -- ^ included attributes and
+                                       -- attribute groups
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName

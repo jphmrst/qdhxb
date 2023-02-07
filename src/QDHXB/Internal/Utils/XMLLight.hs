@@ -3,7 +3,7 @@
 module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
     pullCRef, pullCRefContent,
-    isElem,
+    filterTagged, isElem, isTagged,
     ZeroOneMany(Zero, One, Many),
     zomToList, zappend, lzappend,
     __loadElement, loadElementName,
@@ -56,6 +56,15 @@ pullContentFrom :: String -> Content -> ZeroOneMany Content
 pullContentFrom name (Elem (Element _ _ contents _)) = pullContent name contents
 pullContentFrom _ (Text _) = Zero
 pullContentFrom _ (CRef _) = Zero
+
+filterTagged :: String -> [Content] -> [Content]
+filterTagged s = filter $ isTagged s
+
+-- | Predicate testing whether a piece of XML `Content` has the given
+-- tag.
+isTagged :: String -> Content -> Bool
+isTagged t (Elem (Element (QName t' _ _) _ _ _)) | t == t' = True
+isTagged _ _ = False
 
 -- | Predicate testing whether a piece of XML `Content` is an `Elem`.
 isElem :: Content -> Bool
