@@ -207,6 +207,8 @@ encodeAttributeScheme (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
            atGroups = filterTagged "attributeGroup" ctnts
        subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
        return $ AttributeGroup name ref subcontents
+encodeAttributeScheme c =
+  error $ "Can't use encodeAttributeScheme with " ++ bpp c
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of

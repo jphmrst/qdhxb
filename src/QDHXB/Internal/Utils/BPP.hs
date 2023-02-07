@@ -151,6 +151,8 @@ indent :: String -> Block -> Block
 indent ind (Block xs) = Block $ map (ind ++) xs
 
 -- | Allow `Content` from the @XMLLight@ library to be pretty-printed.
+instance Blockable Element where block = stringToBlock . showElement
+-- | Allow `Content` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Content where block = stringToBlock . showContent
 -- | Allow `Attr` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Attr    where block = stringToBlock . showAttr

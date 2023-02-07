@@ -6,8 +6,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["personattr.xsd"]
--- qdhxb' ["personattr.xsd"]
+-- qdhxb useDebugging ["personattr1.xsd"]
+qdhxb' ["personattr1.xsd"]
 
 testAge :: TLT IO ()
 testAge = inGroup "XSD PersonAttr" $ do
