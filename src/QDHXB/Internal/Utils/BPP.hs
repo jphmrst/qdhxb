@@ -110,7 +110,7 @@ stackBlocks :: [Block] -> Block
 stackBlocks = Block . concat . map openBlock
 
 -- | Append two block, with the first line of the second appearing after
--- the last line of the first.  No space in inserted; use `follow_`.
+-- the last line of the first.
 follow :: Block -> Block -> Block
 (Block ss1) `follow` (Block ss2) = Block $ helper ss1 ss2
   where helper :: [String] -> [String] -> [String]
