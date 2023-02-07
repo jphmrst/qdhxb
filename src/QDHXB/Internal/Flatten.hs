@@ -57,11 +57,12 @@ flattenSchemaItem' (ElementScheme [ComplexTypeScheme ts attrs Nothing]
   let elemDefn = ElementDefn nam nam
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
-flattenSchemaItem' (AttributeScheme (Just nam) (Just typ) Nothing _) =
+flattenSchemaItem' (AttributeScheme
+                    (SingleAttribute (Just nam) (Just typ) Nothing _)) =
   let attrDefn = AttributeDefn nam typ
   in do fileNewDefinition attrDefn
         return [attrDefn]
-flattenSchemaItem' (AttributeScheme _ _ (Just _) _) = do
+flattenSchemaItem' (AttributeScheme (SingleAttribute _ _ (Just _) _)) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
   (defs, refs) <- musterComplexSequenceComponents cts ats nam
@@ -87,8 +88,9 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
   let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax) =
         ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax
-      nameUnnamed q (AttributeScheme Nothing ifType ifRef usage) =
-        AttributeScheme (Just q) ifType ifRef usage
+      nameUnnamed q (AttributeScheme
+                     (SingleAttribute Nothing ifType ifRef usage)) =
+        AttributeScheme (SingleAttribute (Just q) ifType ifRef usage)
       nameUnnamed q (ComplexTypeScheme form attrs Nothing) =
         ComplexTypeScheme form attrs (Just q)
       nameUnnamed q (SimpleTypeScheme Nothing detail) =
@@ -191,14 +193,16 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
     putStrLn $ "LOWER " ++ show lower
     putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
-flattenSchemaRef sr@(AttributeScheme Nothing Nothing (Just ref) useStr) = do
+flattenSchemaRef sr@(AttributeScheme
+                     (SingleAttribute Nothing Nothing (Just ref) useStr)) = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening attribute schema with reference only"
     liftIO $ bLabelPrintln "       " sr
     liftIO $ bLabelPrintln "    to " res
   return ([], res)
-flattenSchemaRef s@(AttributeScheme (Just nam) (Just typ) Nothing useStr) = do
+flattenSchemaRef s@(AttributeScheme
+                    (SingleAttribute (Just nam) (Just typ) Nothing useStr)) = do
   let defn = AttributeDefn nam typ
       ref = AttributeRef nam (stringToAttributeUsage useStr)
   whenDebugging $ do
@@ -207,7 +211,8 @@ flattenSchemaRef s@(AttributeScheme (Just nam) (Just typ) Nothing useStr) = do
     liftIO $ bLabelPrintln "    to " defn
     liftIO $ bLabelPrintln "       " ref
   return ([defn], ref)
-flattenSchemaRef (AttributeScheme maybeName maybeType maybeRef _) = do
+flattenSchemaRef (AttributeScheme
+                   (SingleAttribute  maybeName maybeType maybeRef _)) = do
   liftIO $ do
     putStrLn $ "IFNAME " ++ show maybeName
     putStrLn $ "IFTYPE " ++ show maybeType

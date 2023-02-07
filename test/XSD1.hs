@@ -31,4 +31,4 @@ testXSD1 = inGroup "XSD test 1" $ do
              Item "Hide your heart" Nothing 1 9.9
            ])
          @==- p
--}
+  -}

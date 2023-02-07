@@ -5,6 +5,7 @@
 module QDHXB.Internal.NestedTypes (
   SimpleTypeScheme(..),
   ComplexTypeScheme(..),
+  AttributeScheme(..),
   DataScheme(..),
   nonSkip, labelOf
 ) where
@@ -63,6 +64,38 @@ instance Blockable ComplexTypeScheme where
     `stack2` indent "  " (block ds)
 instance VerticalBlockList ComplexTypeScheme
 
+-- | Details of attributes
+data AttributeScheme =
+  SingleAttribute (Maybe QName) -- ^ ifName
+                  (Maybe QName) -- ^ ifRef
+                  (Maybe QName) -- ^ ifType
+                  String -- ^ use mode: prohibited, optional
+                         -- (default), required
+  | AttributeGroup (Maybe QName) -- ^ ifName
+                   (Maybe QName) -- ^ ifRef
+                   [AttributeScheme]  -- ^ included attributes and
+                                      -- attribute groups
+  deriving Show
+
+instance Blockable AttributeScheme where
+  block (SingleAttribute ifName ifRef ifType mode) =
+    stringToBlock "single name="
+    `follow` block ifName
+    `follow` stringToBlock " ref="
+    `follow` block ifRef
+    `follow` stringToBlock " type="
+    `follow` block ifType
+    `follow` stringToBlock " mode="
+    `follow` stringToBlock mode
+  block (AttributeGroup ifName ifRef attrs) =
+    stringToBlock "group name="
+    `follow` block ifName
+    `follow` stringToBlock " ref="
+    `follow` block ifRef
+    `follow` stringToBlock " "
+    `follow` block attrs
+instance VerticalBlockList AttributeScheme
+
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
   Skip
@@ -72,15 +105,7 @@ data DataScheme =
                   (Maybe QName) -- ^ ifRef
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
-  | AttributeScheme (Maybe QName) -- ^ ifName
-                    (Maybe QName) -- ^ ifType
-                    (Maybe QName) -- ^ ifRef
-                    String -- ^ use mode: prohibited, optional
-                           -- (default), required
-  | AttributeGroupScheme (Maybe QName) -- ^ ifName
-                         (Maybe QName) -- ^ ifRef
-                         [DataScheme]  -- ^ included attributes and
-                                       -- attribute groups
+  | AttributeScheme AttributeScheme -- ^ Single vs. group
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
@@ -122,21 +147,7 @@ instance Blockable DataScheme where
                                  Just s  -> show s)))
            (indent "  " $ block ctnts)
 
-  block (AttributeScheme ifName ifType ifRef usage) =
-    stringToBlock $
-      "AttributeScheme name="
-      ++ (case ifName of
-             Nothing -> "undef"
-             Just s  -> "\"" ++ show s ++ "\"")
-      ++ " type="
-      ++ (case ifType of
-             Nothing -> "undef"
-             Just s  -> "\"" ++ show s ++ "\"")
-      ++ " ref="
-      ++ (case ifRef of
-             Nothing -> "undef"
-             Just s  -> "\"" ++ show s ++ "\"")
-      ++ " usage=\"" ++ usage ++ "\""
+  block (AttributeScheme s) = labelBlock "AttributeScheme " $ block s
 
   block (ComplexTypeScheme form attrs ifName) =
     (stringToBlock $ "ComplexTypeScheme name="
@@ -171,10 +182,12 @@ labelOf (ElementScheme cs _ _ _ _ _) = makeFirst cs
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds
                              Just r -> Just r
-labelOf (AttributeScheme j@(Just _) _ _ _) = j
-labelOf (AttributeScheme _ _ j@(Just _) _) = j
-labelOf (AttributeScheme _ j@(Just _) _ _) = j
-labelOf (AttributeScheme _ _ _ _) = Nothing
+labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _)) = j
+labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _)) = j
+labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _)) = j
+labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _)) = j
+labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _)) = j
+labelOf (AttributeScheme _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
 labelOf (ComplexTypeScheme (Sequence _ds) _attrs _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r

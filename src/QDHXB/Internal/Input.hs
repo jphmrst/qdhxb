@@ -37,23 +37,15 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
     liftIO $ bLabelPrintln "  as " res
   return res
-encodeSchemaItem (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
-  typeQName <- pullAttrQName "type" ats
-  refQName <- pullAttrQName "ref" ats
-  nameQname <- pullAttrQName "name" ats
-  let res =
-        AttributeScheme nameQname typeQName refQName
-          (case pullAttr "use" ats of
-             Nothing -> "optional"
-             Just s -> s)
-  whenDebugging $ do
-    liftIO $ putStrLn "> Encoding attribute"
-    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ bLabelPrintln "  as " res
-  return res
-encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts ifLn)) = do
+encodeSchemaItem e@(Elem (Element (QName "attribute" _ _) _ _ _)) = do
+  scheme <- encodeAttributeScheme e
+  return $ AttributeScheme scheme
+encodeSchemaItem e@(Elem (Element (QName "attributeGroup" _ _) _ _ _)) = do
+  scheme <- encodeAttributeScheme e
+  return $ AttributeScheme scheme
+encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts l)) = do
   let ctnts' = filter isElem ctnts
-  separateAndDispatchComplexContents ctnts' e ats ifLn
+  separateAndDispatchComplexContents ctnts' e ats l
 encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ do
@@ -154,19 +146,6 @@ encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
     _ -> do
       liftIO $ putStrLn $ "- Default is group of nothing"
       return $ Group name Nothing
-encodeSchemaItem (Elem (Element (QName "attributeGroup" _ _) ats ctnts l)) = do
-  whenDebugging $ do
-    liftIO $ putStrLn $ "+-------"
-    liftIO $ putStrLn $ "| TODO encodeSchemaItem <attributeGroup>" ++ ifAtLine l
-    liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-    liftIO $ putStrLn $
-      "| CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-  name <- pullAttrQName "name" ats
-  ref <- pullAttrQName "ref" ats
-  let attrs = filterTagged "attribute" ctnts
-      atGroups = filterTagged "attributeGroup" ctnts
-  subcontents <- mapM encodeSchemaItem $ attrs ++ atGroups
-  return $ AttributeGroupScheme name ref subcontents
 encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
   -- whenDebugging $ do
   liftIO $ putStrLn $ "+-------"
@@ -197,6 +176,37 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = do
   -}
   contentSchemes <- mapM encodeSchemaItem ctnts
   return $ Choice ifNam contentSchemes
+
+encodeAttributeScheme :: Content -> XSDQ AttributeScheme
+encodeAttributeScheme (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+  typeQName <- pullAttrQName "type" ats
+  refQName <- pullAttrQName "ref" ats
+  nameQname <- pullAttrQName "name" ats
+  let res = SingleAttribute nameQname typeQName refQName
+                            (case pullAttr "use" ats of
+                               Nothing -> "optional"
+                               Just s -> s)
+  whenDebugging $ do
+    liftIO $ putStrLn "> Encoding attribute"
+    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+    liftIO $ bLabelPrintln "  as " res
+  return res
+encodeAttributeScheme (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
+  = do whenDebugging $ do
+         liftIO $ putStrLn $ "+-------"
+         liftIO $ putStrLn $
+           "| encodeSchemaItem <attributeGroup>" ++ ifAtLine l
+         liftIO $ putStrLn $
+           "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+         liftIO $ putStrLn $
+           "| CTNTS " ++ (intercalate "\n    " $
+                          map ppContent $ filter isElem ctnts)
+       name <- pullAttrQName "name" ats
+       ref <- pullAttrQName "ref" ats
+       let attrs = filterTagged "attribute" ctnts
+           atGroups = filterTagged "attributeGroup" ctnts
+       subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
+       return $ AttributeGroup name ref subcontents
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
