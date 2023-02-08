@@ -71,6 +71,7 @@ where
 import Language.Haskell.TH
 -- import System.Directory
 import Data.Char
+import QDHXB.Internal.Utils.ZeroOneMany
 
 -- | Convert the `String` representation of a primitive XSD type to a
 -- Template Haskell `Type`.

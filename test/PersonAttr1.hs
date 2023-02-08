@@ -1,16 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module PersonAttr where
+module PersonAttr1 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["personattr1.xsd"]
-qdhxb' ["personattr1.xsd"]
+-- qdhxb' ["personattr1.xsd"]
 
 testAge :: TLT IO ()
-testAge = inGroup "XSD PersonAttr" $ do
+testAge = inGroup "XSD PersonAttr 1" $ do
   return () {-
   inGroup "PersonAttr 1" $ do
     p <- lift $ loadPerson "personattr1.xml"

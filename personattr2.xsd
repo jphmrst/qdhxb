@@ -3,14 +3,12 @@
 <xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
             targetNamespace="urn:personattr"
             xmlns:pa="urn:personattr">
-
-  <xs:attributeGroup name="personattr">
-    <xs:attribute name="attr1" type="string"/>
-    <xs:attribute name="attr2" type="integer"/>
-  </xs:attributeGroup>
   
   <xs:complexType name="personType">
-    <xs:attributeGroup ref="personattr"/>
+    <xs:attributeGroup name="personattr">
+      <xs:attribute name="attr1" type="string"/>
+      <xs:attribute name="attr2" type="integer"/>
+    </xs:attributeGroup>
   </xs:complexType>
 
   <xsd:element name="person" type="pa:personType"/>

@@ -130,7 +130,24 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
     liftIO $ bLabelPrintln "> Generating from " decl
     liftIO $ bLabelPrintln "  to " res
   return res
-xsdDeclToHaskell decl@(AttributeDefn nam typ) =
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
+  let baseStr = firstToUpper $ qName nam
+      baseName = mkName baseStr
+      bangTypes = [ (useBang,
+                     ConT $ mkName $ firstToUpper $ qName q ++ "AttrType")
+                  | q <- ads ]
+  let res = [
+        DataD [] baseName [] Nothing [NormalC baseName bangTypes] []
+
+        -- TODO functions
+
+        ]
+  whenDebugging $ do
+    liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn TODO"
+    liftIO $ bLabelPrintln "> Generating from " d
+    liftIO $ bLabelPrintln "    +--> " res
+  return res
+xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _)) =
   let rootName = firstToUpper $ qName nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName

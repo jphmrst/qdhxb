@@ -58,12 +58,21 @@ flattenSchemaItem' (ElementScheme [ComplexTypeScheme ts attrs Nothing]
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
 flattenSchemaItem' (AttributeScheme
-                    (SingleAttribute (Just nam) (Just typ) Nothing _)) =
-  let attrDefn = AttributeDefn nam typ
+                    (SingleAttribute (Just nam) Nothing (Just typ) m)) =
+  let attrDefn = AttributeDefn nam $ SingleAttributeDefn typ m
   in do fileNewDefinition attrDefn
         return [attrDefn]
-flattenSchemaItem' (AttributeScheme (SingleAttribute _ _ (Just _) _)) = do
+flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _)) = do
   return $ error "Reference in attribute"
+flattenSchemaItem' (AttributeScheme g@(AttributeGroup (Just n) Nothing cs)) = do
+  let names = map grabName cs
+  defs <- flattenAttributes cs
+  let res = defs ++ [AttributeDefn n $ AttributeGroupDefn names]
+  whenDebugging $ do
+    liftIO $ bLabelPrintln "> flattenSchemaItem' AttributeGroup " g
+    liftIO $ bLabelPrintln "    '--> " res
+  return res
+  -- error $ show $ labelBlock "TODO flatten AttributeScheme: " $ block g
 flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
   (defs, refs) <- musterComplexSequenceComponents cts ats nam
   let tyDefn = SequenceDefn (qName nam) $ refs
@@ -89,8 +98,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax) =
         ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifType ifRef usage)) =
-        AttributeScheme (SingleAttribute (Just q) ifType ifRef usage)
+                     (SingleAttribute Nothing ifRef ifType usage)) =
+        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage)
       nameUnnamed q (ComplexTypeScheme form attrs Nothing) =
         ComplexTypeScheme form attrs (Just q)
       nameUnnamed q (SimpleTypeScheme Nothing detail) =
@@ -134,6 +143,14 @@ musterComplexSequenceComponents steps ats _ = do
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
   return (otherDefs ++ atsDefs, atsRefs ++ refs)
+
+grabName :: AttributeScheme -> QName
+grabName (SingleAttribute (Just n) _ _ _) = n
+grabName (SingleAttribute Nothing (Just n) _ _) = n
+grabName (SingleAttribute Nothing Nothing (Just t) _) = t
+grabName (AttributeGroup (Just n) _ _) = n
+grabName (AttributeGroup Nothing (Just n) _) = n
+grabName a = error $ "No useable name in " ++ show a
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
@@ -194,7 +211,7 @@ flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
     putStrLn $ "UPPER " ++ show upper
   error "TODO flattenSchemaRef > unmatched ElementScheme"
 flattenSchemaRef sr@(AttributeScheme
-                     (SingleAttribute Nothing Nothing (Just ref) useStr)) = do
+                     (SingleAttribute Nothing (Just ref) Nothing useStr)) = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening attribute schema with reference only"
@@ -202,9 +219,9 @@ flattenSchemaRef sr@(AttributeScheme
     liftIO $ bLabelPrintln "    to " res
   return ([], res)
 flattenSchemaRef s@(AttributeScheme
-                    (SingleAttribute (Just nam) (Just typ) Nothing useStr)) = do
-  let defn = AttributeDefn nam typ
-      ref = AttributeRef nam (stringToAttributeUsage useStr)
+                    (SingleAttribute (Just nam) Nothing (Just t) m)) = do
+  let defn = AttributeDefn nam $ SingleAttributeDefn t m
+      ref = AttributeRef nam (stringToAttributeUsage m)
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening attribute schema with name and type"
     liftIO $ bLabelPrintln "       " s
@@ -212,14 +229,30 @@ flattenSchemaRef s@(AttributeScheme
     liftIO $ bLabelPrintln "       " ref
   return ([defn], ref)
 flattenSchemaRef (AttributeScheme
-                   (SingleAttribute  maybeName maybeType maybeRef _)) = do
+                   (SingleAttribute  maybeName maybeRef maybeType _)) = do
   liftIO $ do
-    putStrLn $ "IFNAME " ++ show maybeName
-    putStrLn $ "IFTYPE " ++ show maybeType
-    putStrLn $ "IFREF " ++ show maybeRef
+    bLabelPrintln "IFNAME " maybeName
+    bLabelPrintln "IFREF " maybeRef
+    bLabelPrintln "IFTYPE " maybeType
   error "TODO flattenSchemaRef > unmatched AttributeScheme"
 flattenSchemaRef (ComplexTypeScheme _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
   liftIO $ bLabelPrintln "S " s
   error $ "TODO flattenSchemaRef > additional case: " ++ show s
+
+flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
+flattenAttributes = fmap concat . mapM flattenAttribute
+
+flattenAttribute :: AttributeScheme -> XSDQ [Definition]
+flattenAttribute (SingleAttribute (Just n) Nothing (Just typ) mode) =
+  return [AttributeDefn n $ SingleAttributeDefn typ mode]
+flattenAttribute (AttributeGroup (Just n) Nothing schemes) = do
+  let names = map grabName schemes
+  sub <- fmap concat $ mapM flattenAttribute schemes
+  return $ sub ++ [AttributeDefn n $ AttributeGroupDefn names]
+flattenAttribute a = do
+  liftIO $ putStrLn $ "+--------"
+  liftIO $ bLabelPrintln "| flattenAttribute " a
+  error "TODO flattenAttribute missing case"
+

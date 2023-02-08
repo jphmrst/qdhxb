@@ -4,6 +4,7 @@
 module QDHXB.Internal.Types (
   -- * The representation types
   Reference(..),
+  AttributeDefn(..),
   Definition(..),
   AttributeUsage(Forbidden, Optional, Required),
   stringToAttributeUsage, pprintDefns'
@@ -39,13 +40,27 @@ instance Blockable Reference where
     "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
 instance VerticalBlockList Reference
 
+-- | Definition of an attribute or group type.
+data AttributeDefn =
+  SingleAttributeDefn -- ^ Defining a single attribute
+      QName   -- ^ ifType
+      String  -- ^ use mode: prohibited, optional (default), required
+  | AttributeGroupDefn -- ^ Defining a group of attributes
+      [QName] -- ^ names of included attributes and attribute groups
+  deriving Show
+
+instance Blockable AttributeDefn where
+  block (SingleAttributeDefn t m) = stringToBlock $
+    "Single " ++ showQName t ++ " (" ++ m ++ ")"
+  block (AttributeGroupDefn ds) =
+    labelBlock "Group " $ stackBlocks $ map (stringToBlock . showQName) ds
 
 -- | The actual definition of an XSD element.
 data Definition =
   ElementDefn QName QName
   -- ^ Defining an element to be of a particular type.
-  | AttributeDefn QName QName
-    -- ^ Defining the type of an attribute to be the same as another.
+  | AttributeDefn QName AttributeDefn
+    -- ^ Defining the attributes and groups.
   | SimpleSynonymDefn QName QName
     -- ^ Defining one type to have the same structure as another.
   | SequenceDefn String [Reference]
@@ -67,8 +82,8 @@ data Definition =
 instance Blockable Definition where
   block (ElementDefn n t) = stringToBlock $
     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (AttributeDefn n t) = stringToBlock $
-    "AttributeDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (AttributeDefn n sp) =
+    labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs) = stackBlocks $

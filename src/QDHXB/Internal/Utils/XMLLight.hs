@@ -4,8 +4,7 @@ module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
     pullCRef, pullCRefContent,
     filterTagged, isElem, isTagged,
-    ZeroOneMany(Zero, One, Many),
-    zomToList, zappend, lzappend,
+
     __loadElement, loadElementName,
     withPrefix, withSuffix, withNamePrefix, withNameSuffix)
 where
@@ -14,6 +13,7 @@ import System.IO
 import Text.XML.Light.Input
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.BPP
+import QDHXB.Internal.Utils.ZeroOneMany
 
 -- | Retrieve the named attribute value from a list of `Attr`
 -- bindings.
@@ -72,45 +72,6 @@ isTagged _ _ = False
 isElem :: Content -> Bool
 isElem (Elem _) = True
 isElem _ = False
-
--- | Explicit tagging of whether a list has zero, one, or more than
--- one elements.
-data ZeroOneMany a = Zero -- ^ Zero elements
-  | One a    -- ^ One element
-  | Many [a] -- ^ More then one element
-  deriving Show
-
-instance Blockable c => Blockable (ZeroOneMany c) where
-  block Zero = stringToBlock "{Zero}"
-  block (One a) = stringToBlock "{One}" `follow` block a
-  block (Many xs) =
-    stringToBlock "{Many}" `follow` (stackBlocks $ map block xs)
-
--- | Convert a `ZeroOneMany` type to a list type.
-zomToList :: ZeroOneMany a -> [a]
-zomToList Zero = []
-zomToList (One m) = [m]
-zomToList (Many ms) = ms
-
--- | Append together two `ZeroOneMany` values.
-zappend :: ZeroOneMany a -> ZeroOneMany a -> ZeroOneMany a
-zappend Zero m = m
-zappend m Zero = m
-zappend (One s) (One t) = Many [s, t]
-zappend (One s) (Many ts) = Many $ s : ts
-zappend (Many ss) (One t) = Many $ ss ++ [t]
-zappend (Many ss) (Many ts) = Many $ ss ++ ts
-
--- | Append together a list values and a `ZeroOneMany` value as
--- another `ZeroOneMany` value.
-lzappend :: [a] -> ZeroOneMany a -> ZeroOneMany a
-lzappend [] m = m
-lzappend [s] Zero = One s
-lzappend ms Zero = Many ms
-lzappend [s] (One t) = Many [s, t]
-lzappend ms  (One t) = Many $ ms ++ [t]
-lzappend [s] (Many ns) = Many $ s : ns
-lzappend ms  (Many ns) = Many $ ms ++ ns
 
 -- | Using the given decoder for an XMLLight `Content` structure,
 -- extract a decoded value from an XML file.

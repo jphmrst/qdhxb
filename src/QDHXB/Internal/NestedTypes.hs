@@ -93,7 +93,7 @@ instance Blockable AttributeScheme where
     `follow` stringToBlock " ref="
     `follow` block ifRef
     `follow` stringToBlock " "
-    `follow` block attrs
+    `stack2` (indent "  " $ block attrs)
 instance VerticalBlockList AttributeScheme
 
 -- | Main representation of possibly-nested XSD definitions.
