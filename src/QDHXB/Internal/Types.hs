@@ -87,7 +87,7 @@ instance Blockable Definition where
   block (SimpleSynonymDefn n t) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs) = stackBlocks $
-    (stringToBlock $ "SequenceDefn " ++ n) : map block rs
+    (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
   block (UnionDefn n ns) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns

@@ -131,13 +131,14 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
     liftIO $ bLabelPrintln "  to " res
   return res
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
-  let baseStr = firstToUpper $ qName nam
+  let baseStr = (firstToUpper $ qName nam) ++ "AttrType"
       baseName = mkName baseStr
       bangTypes = [ (useBang,
                      ConT $ mkName $ firstToUpper $ qName q ++ "AttrType")
                   | q <- ads ]
   let res = [
-        DataD [] baseName [] Nothing [NormalC baseName bangTypes] []
+        DataD [] baseName [] Nothing [NormalC baseName bangTypes]
+              [DerivClause Nothing [eqConT, showConT]]
 
         -- TODO functions
 

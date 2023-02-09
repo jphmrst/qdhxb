@@ -195,7 +195,7 @@ flattenAttributeGroupRef ::
 flattenAttributeGroupRef n@(Just name) Nothing contents = do
   refs <- flattenAttributeGroupItem n Nothing contents
   return (refs, AttributeRef name Required)
-flattenAttributeGroupRef Nothing (Just ref) contents = do
+flattenAttributeGroupRef Nothing (Just ref) [] = do
   return ([], AttributeRef ref Required)
 flattenAttributeGroupRef ifName ifRef contents = do
   liftIO $ do

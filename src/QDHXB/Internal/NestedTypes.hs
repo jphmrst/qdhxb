@@ -56,7 +56,7 @@ data ComplexTypeScheme =
 
 instance Blockable ComplexTypeScheme where
   block (Composing ds as) =
-    (stringToBlock "Sequence")
+    (stringToBlock "Composing")
     `stack2` labelBlock "  - subelements " (block ds)
     `stack2` labelBlock "  - attributes " (block as)
   block (ComplexRestriction r) = Block ["SimpleRestriction " ++ show r]
@@ -154,10 +154,7 @@ instance Blockable DataScheme where
   block (AttributeScheme s) = labelBlock "AttributeScheme " $ block s
 
   block (ComplexTypeScheme form attrs ifName) =
-    (stringToBlock $ "ComplexTypeScheme name="
-                     ++ (case ifName of
-                           Nothing -> "undef"
-                           Just s  -> "\"" ++ show s ++ "\""))
+    (labelBlock "ComplexTypeScheme name=" $ block ifName)
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
 
