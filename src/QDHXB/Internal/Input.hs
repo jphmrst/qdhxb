@@ -23,9 +23,9 @@ encodeSchemaItems items = do
   return res
 
 encodeSchemaItem :: Content -> XSDQ DataScheme
-encodeSchemaItem e@(Elem (Element _ _ _ _)) = do
+encodeSchemaItem e@(Elem (Element q a c l)) = do
   whenDebugging $ liftIO $ putStrLn $ "> Encoding element " ++ showContent e
-  res <- encodeElement e
+  res <- encodeElement q a c l
   whenDebugging $ liftIO $ bLabelPrintln "    `--> " res
   return res
 encodeSchemaItem (Text _) = do
@@ -35,8 +35,8 @@ encodeSchemaItem (CRef txt) = do
   whenDebugging $ liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
   return Skip
 
-encodeElement :: Content -> XSDQ DataScheme
-encodeElement (Elem (Element (QName "element" _ _) ats content _)) = do
+encodeElement :: QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ DataScheme
+encodeElement (QName "element" _ _) ats content _ = do
   included <- encodeSchemaItems $ filter isElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
@@ -44,16 +44,16 @@ encodeElement (Elem (Element (QName "element" _ _) ats content _)) = do
   return $ ElementScheme included nameQName typeQName refQName
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-encodeElement (Elem (Element q@(QName "attribute" _ _) a c l)) = do
+encodeElement q@(QName "attribute" _ _) a c l = do
   scheme <- encodeAttribute q a c l
   return $ AttributeScheme scheme
-encodeElement (Elem (Element q@(QName "attributeGroup" _ _) a c l)) = do
+encodeElement q@(QName "attributeGroup" _ _) a c l = do
   scheme <- encodeAttribute q a c l
   return $ AttributeScheme scheme
-encodeElement (Elem (Element (QName "complexType" _ _) ats ctnts l)) = do
+encodeElement (QName "complexType" _ _) ats ctnts l = do
   let ctnts' = filter isElem ctnts
   separateAndDispatchComplexContents ctnts' ats l
-encodeElement (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
+encodeElement (QName "simpleType" _ _) ats ctnts ifLn = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr, Zero, Zero) -> do
@@ -83,7 +83,7 @@ encodeElement (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
                       List (Just itemType)
           whenDebugging $ do
             liftIO $ putStrLn "> Encoding simpleType "
-            -- liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+            -- liftIO $ bLabelPrintln "    " e
             liftIO $ bLabelPrintln "  as " res
           return res
     (ifName, zomRestr, zomUnion, zomList) -> do
@@ -100,26 +100,25 @@ encodeElement (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
       liftIO $ putStrLn $ "| ZOMLIST "  ++ (show zomList)
       error $ "TODO encodeElement > simpleType > another separation case"
         ++ ifAtLine ifLn
-encodeElement (Elem (Element (QName "annotation" _ _) _ _ _)) = do
+encodeElement (QName "annotation" _ _) _ _ _ = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
   whenDebugging $ liftIO $ putStrLn $ "> Dropping <annotation> element"
   return Skip
-encodeElement (Elem (Element (QName tag _ _) _ _ l)) |
-    tag == "include" || tag == "import" = do
+encodeElement (QName tag _ _) _ _ l | tag == "include" || tag == "import" = do
   -- Skipping these documents for now
   liftIO $ putStrLn $
     "  - WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine l
   return Skip
-encodeElement (Elem (Element (QName tagname _ _) _ _ _))
+encodeElement (QName tagname _ _) _ _ _
   | tagname == "key" || tagname == "keyref" = do
   whenDebugging $ do
     liftIO $ putStrLn $ "  - Dropping <" ++ tagname ++ "> entry "
   return Skip
-encodeElement (Elem (Element (QName "sequence" _ _) ats ctnts ifLn)) = do
+encodeElement (QName "sequence" _ _) ats ctnts ifLn = do
   let ctnts' = filter isElem ctnts
   separateAndDispatchComplexContents ctnts' ats ifLn
-encodeElement (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
+encodeElement (QName "group" _ _) ats ctnts _ifLn = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
   case filter isElem ctnts of
@@ -150,7 +149,7 @@ encodeElement (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
     _ -> do
       liftIO $ putStrLn $ "  - Default is group of nothing"
       return $ Group name Nothing
-encodeElement (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
+encodeElement (QName tag _ _) ats ctnts ifLn = do
   -- whenDebugging $ do
   liftIO $ do
     putStrLn $ "+-------"
@@ -401,9 +400,6 @@ decodeIntOrUnbound s = (readMaybe s) :: Maybe Int
 decodeMaybeIntOrUnbound1 :: Maybe String -> Maybe Int
 decodeMaybeIntOrUnbound1 Nothing = Just 1
 decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
-
-mlineIndent :: String -> String -> String
-mlineIndent ind str = ind ++ (intercalate ("\n" ++ ind) $ lines str)
 
 pullAttrQName :: String -> [Attr] -> XSDQ (Maybe QName)
 pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
