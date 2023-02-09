@@ -2,9 +2,10 @@
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Internal.Utils.ZeroOneMany (
     ZeroOneMany(Zero, One, Many),
-    zomToList, listToZom, zappend, lzappend, zomfilter, zommap
+    zomToList, listToZom, zappend, lzappend, zomfilter, zommap, zomintercalate
     )
 where
+import Data.List (intercalate)
 import QDHXB.Internal.Utils.BPP
 
 -- | Explicit tagging of whether a list has zero, one, or more than
@@ -64,3 +65,8 @@ zommap :: (a -> b) -> ZeroOneMany a -> ZeroOneMany b
 zommap f Zero = Zero
 zommap f (One m) = One $ f m
 zommap f (Many ms) = Many $ map f ms
+
+zomintercalate :: [a] -> ZeroOneMany [a] -> [a]
+zomintercalate _ Zero = []
+zomintercalate _ (One x) = x
+zomintercalate s (Many xs) = intercalate s xs
