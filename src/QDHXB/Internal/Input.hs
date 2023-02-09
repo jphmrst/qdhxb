@@ -53,7 +53,7 @@ encodeElement e@(Elem (Element (QName "attributeGroup" _ _) _ _ _)) = do
 encodeElement (Elem (Element (QName "complexType" _ _) ats ctnts l)) = do
   let ctnts' = filter isElem ctnts
   separateAndDispatchComplexContents ctnts' ats l
-encodeElement (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
+encodeElement (Elem (Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr, Zero, Zero) -> do
@@ -83,7 +83,7 @@ encodeElement (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
                       List (Just itemType)
           whenDebugging $ do
             liftIO $ putStrLn "> Encoding simpleType "
-            liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+            -- liftIO $ putStrLn $ mlineIndent "    " (showElement e)
             liftIO $ bLabelPrintln "  as " res
           return res
     (ifName, zomRestr, zomUnion, zomList) -> do
@@ -116,9 +116,9 @@ encodeElement (Elem (Element (QName tagname _ _) _ _ _))
   whenDebugging $ do
     liftIO $ putStrLn $ "  - Dropping <" ++ tagname ++ "> entry "
   return Skip
-encodeElement c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
-  whenDebugging $ liftIO $ putStrLn "  - For <sequence> schema"
-  separateAndDispatchComplexContents [c] ats ifLn
+encodeElement (Elem (Element (QName "sequence" _ _) ats ctnts ifLn)) = do
+  let ctnts' = filter isElem ctnts
+  separateAndDispatchComplexContents ctnts' ats ifLn
 encodeElement (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
