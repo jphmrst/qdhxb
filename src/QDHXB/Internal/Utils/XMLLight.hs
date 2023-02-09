@@ -12,7 +12,6 @@ import Language.Haskell.TH (mkName, Name)
 import System.IO
 import Text.XML.Light.Input
 import Text.XML.Light.Types
-import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.ZeroOneMany
 
 -- | Retrieve the named attribute value from a list of `Attr`
