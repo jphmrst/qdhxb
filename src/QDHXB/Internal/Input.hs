@@ -179,7 +179,12 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = do
   return $ Choice ifNam contentSchemes
 
 encodeAttributeScheme :: Content -> XSDQ AttributeScheme
-encodeAttributeScheme (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+encodeAttributeScheme c = do
+  res <- encodeAttribute c
+  return res
+
+encodeAttribute :: Content -> XSDQ AttributeScheme
+encodeAttribute (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
@@ -192,7 +197,7 @@ encodeAttributeScheme (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
     liftIO $ putStrLn $ mlineIndent "    " (showElement e)
     liftIO $ bLabelPrintln "  as " res
   return res
-encodeAttributeScheme (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
+encodeAttribute (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
   = do name <- pullAttrQName "name" ats
        ref <- pullAttrQName "ref" ats
        let attrs = filterTagged "attribute" ctnts
@@ -209,8 +214,8 @@ encodeAttributeScheme (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
                           map ppContent $ filter isElem ctnts)
          liftIO $ bLabelPrintln "    --> " res
        return res
-encodeAttributeScheme c =
-  error $ "Can't use encodeAttributeScheme with " ++ bpp c
+encodeAttribute c =
+  error $ "Can't use encodeAttribute with " ++ bpp c
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
