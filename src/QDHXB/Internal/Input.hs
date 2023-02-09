@@ -41,20 +41,18 @@ encodeElement (Elem (Element (QName "element" _ _) ats content _)) = do
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
-  let res =
-        ElementScheme included nameQName typeQName refQName
-                      (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
-                      (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-  return res
+  return $ ElementScheme included nameQName typeQName refQName
+             (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
+             (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
 encodeElement e@(Elem (Element (QName "attribute" _ _) _ _ _)) = do
   scheme <- encodeAttributeScheme e
   return $ AttributeScheme scheme
 encodeElement e@(Elem (Element (QName "attributeGroup" _ _) _ _ _)) = do
   scheme <- encodeAttributeScheme e
   return $ AttributeScheme scheme
-encodeElement (Elem e@(Element (QName "complexType" _ _) ats ctnts l)) = do
+encodeElement (Elem (Element (QName "complexType" _ _) ats ctnts l)) = do
   let ctnts' = filter isElem ctnts
-  separateAndDispatchComplexContents ctnts' e ats l
+  separateAndDispatchComplexContents ctnts' ats l
 encodeElement (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
@@ -120,7 +118,7 @@ encodeElement (Elem (Element (QName tagname _ _) _ _ _))
   return Skip
 encodeElement c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
   whenDebugging $ liftIO $ putStrLn "  - For <sequence> schema"
-  separateAndDispatchComplexContents [c] e ats ifLn
+  separateAndDispatchComplexContents [c] ats ifLn
 encodeElement (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
@@ -184,6 +182,9 @@ encodeAttributeScheme (Elem (Element q a c l)) = do
   res <- encodeAttribute q a c l
   whenDebugging $ liftIO $ bLabelPrintln "      `-->" res
   return res
+encodeAttributeScheme c = do
+  liftIO $ bLabelPrintln "** Nonattribute" c
+  error $ "Illegal use of encodeAttributeScheme on\n" ++ showContent c
 
 encodeAttribute ::
   QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ AttributeScheme
@@ -211,15 +212,14 @@ ifAtLine ifLine = case ifLine of
                     Just line -> " at XSD line " ++ show line
 
 separateAndDispatchComplexContents ::
-  [Content] -> Element -> [Attr] -> Maybe Line -> XSDQ DataScheme
-separateAndDispatchComplexContents contents e ats ifLn =
+  [Content] -> [Attr] -> Maybe Line -> XSDQ DataScheme
+separateAndDispatchComplexContents contents ats ifLn =
   case separateComplexTypeContents contents of
     -- <sequence>
     (One intl, Zero, Zero, attrSpecs, _) -> do
       res <- encodeComplexTypeScheme ats [] intl attrSpecs
       whenDebugging $ do
         liftIO $ putStrLn "> Encoding complexType (case 1)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
         liftIO $ bLabelPrintln "  as " res
       return res
     -- <complexContent>
@@ -227,7 +227,6 @@ separateAndDispatchComplexContents contents e ats ifLn =
       res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
       whenDebugging $ do
         liftIO $ putStrLn $ "> Encoding complexType (case 2)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
         liftIO $ bLabelPrintln "  as " res
       return res
     (Zero, Zero, Zero, [attrSpec], []) -> do
