@@ -30,7 +30,6 @@ dependencies:
 - xml
 
 ghc-options:
-- -ddump-splices
 - -Wall
 - -Wcompat
 - -Widentities
@@ -38,6 +37,7 @@ ghc-options:
 - -Wincomplete-uni-patterns
 - -Wpartial-fields
 - -Wredundant-constraints
+# - -ddump-splices
 
 library:
   source-dirs: src
