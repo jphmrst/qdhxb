@@ -44,10 +44,10 @@ encodeElement (Elem (Element (QName "element" _ _) ats content _)) = do
   return $ ElementScheme included nameQName typeQName refQName
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-encodeElement e@(Elem (Element q@(QName "attribute" _ _) a c l)) = do
+encodeElement (Elem (Element q@(QName "attribute" _ _) a c l)) = do
   scheme <- encodeAttribute q a c l
   return $ AttributeScheme scheme
-encodeElement e@(Elem (Element q@(QName "attributeGroup" _ _) a c l)) = do
+encodeElement (Elem (Element q@(QName "attributeGroup" _ _) a c l)) = do
   scheme <- encodeAttribute q a c l
   return $ AttributeScheme scheme
 encodeElement (Elem (Element (QName "complexType" _ _) ats ctnts l)) = do
