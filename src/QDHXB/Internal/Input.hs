@@ -179,43 +179,31 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = do
   return $ Choice ifNam contentSchemes
 
 encodeAttributeScheme :: Content -> XSDQ AttributeScheme
-encodeAttributeScheme c = do
-  res <- encodeAttribute c
+encodeAttributeScheme (Elem (Element q a c l)) = do
+  whenDebugging $ liftIO $ bLabelPrintln "  - Encoding attribute" q
+  res <- encodeAttribute q a c l
+  whenDebugging $ liftIO $ bLabelPrintln "      `-->" res
   return res
 
-encodeAttribute :: Content -> XSDQ AttributeScheme
-encodeAttribute (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+encodeAttribute ::
+  QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ AttributeScheme
+encodeAttribute (QName "attribute" _ _) ats [] _ = do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
-  let res = SingleAttribute nameQname refQName typeQName
-                            (case pullAttr "use" ats of
-                               Nothing -> "optional"
-                               Just s -> s)
-  whenDebugging $ do
-    liftIO $ putStrLn "> Encoding attribute"
-    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ bLabelPrintln "  as " res
-  return res
-encodeAttribute (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
-  = do name <- pullAttrQName "name" ats
-       ref <- pullAttrQName "ref" ats
-       let attrs = filterTagged "attribute" ctnts
-           atGroups = filterTagged "attributeGroup" ctnts
-       subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
-       let res = AttributeGroup name ref subcontents
-       whenDebugging $ do
-         liftIO $ putStrLn $
-           "> encodeSchemaItem <attributeGroup>" ++ ifAtLine l
-         liftIO $ putStrLn $
-           "  attributes " ++ (intercalate "\n    " $ map showAttr ats)
-         liftIO $ putStrLn $
-           "  contents " ++ (intercalate "\n    " $
-                          map ppContent $ filter isElem ctnts)
-         liftIO $ bLabelPrintln "    --> " res
-       return res
-encodeAttribute c =
-  error $ "Can't use encodeAttribute with " ++ bpp c
+  return $ SingleAttribute nameQname refQName typeQName
+                           (case pullAttr "use" ats of
+                              Nothing -> "optional"
+                              Just s -> s)
+encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ = do
+  name <- pullAttrQName "name" ats
+  ref <- pullAttrQName "ref" ats
+  let attrs = filterTagged "attribute" ctnts
+      atGroups = filterTagged "attributeGroup" ctnts
+  subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
+  return $ AttributeGroup name ref subcontents
+encodeAttribute (QName c _ _) _ _ _ =
+  error $ "Can't use encodeAttribute with <" ++ c ++ ">"
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
