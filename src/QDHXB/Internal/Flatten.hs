@@ -41,15 +41,8 @@ flattenSchemaItem' (AttributeScheme
         return [attrDefn]
 flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _)) = do
   return $ error "Reference in attribute"
-flattenSchemaItem' (AttributeScheme g@(AttributeGroup (Just n) Nothing cs)) = do
-  let names = map grabName cs
-  defs <- flattenAttributes cs
-  let res = defs ++ [AttributeDefn n $ AttributeGroupDefn names]
-  whenDebugging $ do
-    liftIO $ bLabelPrintln "> flattenSchemaItem' AttributeGroup " g
-    liftIO $ bLabelPrintln "    '--> " res
-  return res
-  -- error $ show $ labelBlock "TODO flatten AttributeScheme: " $ block g
+flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs)) =
+  flattenAttributeGroupItem n r cs
 flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam)) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts (map AttributeScheme ats0 ++ ats) nam
@@ -115,6 +108,14 @@ flattenSchemaItem' s = do
   liftIO $ bLabelPrintln "| " s
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
+flattenAttributeGroupItem ::
+  (Maybe QName) -> (Maybe QName) -> [AttributeScheme] -> XSDQ [Definition]
+flattenAttributeGroupItem (Just n) Nothing cs = do
+  let names = map grabName cs
+  defs <- flattenAttributes cs
+  let res = defs ++ [AttributeDefn n $ AttributeGroupDefn names]
+  return res
+
 flattenElementSchemeItem ::
   [DataScheme] -> (Maybe QName) -> (Maybe QName) -> (Maybe QName)
   -> (Maybe Int) -> (Maybe Int)
@@ -176,38 +177,54 @@ flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme contents ifName ifType ifRef ifLower ifUpper) =
   flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper
-flattenSchemaRef sr@(AttributeScheme
-                     (SingleAttribute Nothing (Just ref) Nothing useStr)) = do
-  let res = AttributeRef ref (stringToAttributeUsage useStr)
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening attribute schema with reference only"
-    liftIO $ bLabelPrintln "       " sr
-    liftIO $ bLabelPrintln "    to " res
-  return ([], res)
-flattenSchemaRef s@(AttributeScheme
-                    (SingleAttribute (Just nam) Nothing (Just t) m)) = do
-  let defn = AttributeDefn nam $ SingleAttributeDefn t m
-      ref = AttributeRef nam (stringToAttributeUsage m)
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening attribute schema with name and type"
-    liftIO $ bLabelPrintln "       " s
-    liftIO $ bLabelPrintln "    to " defn
-    liftIO $ bLabelPrintln "       " ref
-  return ([defn], ref)
-flattenSchemaRef (AttributeScheme
-                   (SingleAttribute  maybeName maybeRef maybeType _)) = do
-  liftIO $ do
-    bLabelPrintln "IFNAME " maybeName
-    bLabelPrintln "IFREF " maybeRef
-    bLabelPrintln "IFTYPE " maybeType
-  error "TODO flattenSchemaRef > unmatched AttributeScheme"
+flattenSchemaRef (AttributeScheme (SingleAttribute ifName ifRef ifType mode)) =
+  flattenSingleAttributeRef ifName ifRef ifType mode
+flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents)) =
+  flattenAttributeGroupRef ifName ifRef contents
 flattenSchemaRef (ComplexTypeScheme _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
   liftIO $ putStrLn "+--------"
   liftIO $ putStrLn "| flattenSchemaRef"
   liftIO $ bLabelPrintln "| arg " s
-  error $ "TODO flattenSchemaRef > additional case:\n" ++ bpp s
+  error $ "TODO flattenSchemaRef > additional case:"
+
+flattenAttributeGroupRef ::
+  (Maybe QName) -> (Maybe QName) -> [AttributeScheme]
+  -> XSDQ ([Definition], Reference)
+flattenAttributeGroupRef n@(Just name) Nothing contents = do
+  refs <- flattenAttributeGroupItem n Nothing contents
+  return (refs, AttributeRef name Required)
+flattenAttributeGroupRef Nothing (Just ref) contents = do
+  return ([], AttributeRef ref Required)
+flattenAttributeGroupRef ifName ifRef contents = do
+  liftIO $ do
+    putStrLn "+--------"
+    putStrLn "| flattenAttributeGroupRef"
+    bLabelPrintln "| IFNAME " ifName
+    bLabelPrintln "| IFREF " ifRef
+    bLabelPrintln "| CONTENTS " contents
+  error $ "TODO flattenAttributeGroupRef > unmatched"
+
+flattenSingleAttributeRef ::
+  (Maybe QName) -> (Maybe QName) -> (Maybe QName) -> String
+  -> XSDQ ([Definition], Reference)
+flattenSingleAttributeRef Nothing (Just ref) Nothing useStr = do
+  let res = AttributeRef ref (stringToAttributeUsage useStr)
+  return ([], res)
+flattenSingleAttributeRef (Just nam) Nothing (Just t) m = do
+  let defn = AttributeDefn nam $ SingleAttributeDefn t m
+      ref = AttributeRef nam (stringToAttributeUsage m)
+  return ([defn], ref)
+flattenSingleAttributeRef maybeName maybeRef maybeType mode = do
+  liftIO $ do
+    putStrLn "+--------"
+    putStrLn "| flattenSingleAttributeRef"
+    bLabelPrintln "| IFNAME " maybeName
+    bLabelPrintln "| IFREF " maybeRef
+    bLabelPrintln "| IFTYPE " maybeType
+    putStrLn $ "| MODE " ++ mode
+  error "TODO flattenSingleAttributeRef > unmatched case"
 
 flattenElementSchemeRef ::
   [DataScheme] -> (Maybe QName) -> (Maybe QName) -> (Maybe QName)
