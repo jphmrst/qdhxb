@@ -56,13 +56,13 @@ lzappend ms  (Many ns) = Many $ ms ++ ns
 -- | Return a new collection of elements satisfying the given
 -- predicate.
 zomfilter :: (a -> Bool) -> ZeroOneMany a -> ZeroOneMany a
-zomfilter p z@Zero = z
+zomfilter _ z@Zero = z
 zomfilter p o@(One x) = if p x then o else Zero
 zomfilter p (Many xs) = listToZom $ filter p xs
 
 -- | Version of `map` for `ZeroOneMany` collections.
 zommap :: (a -> b) -> ZeroOneMany a -> ZeroOneMany b
-zommap f Zero = Zero
+zommap _ Zero = Zero
 zommap f (One m) = One $ f m
 zommap f (Many ms) = Many $ map f ms
 
