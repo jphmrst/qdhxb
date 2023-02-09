@@ -23,7 +23,17 @@ encodeSchemaItems items = do
   return res
 
 encodeSchemaItem :: Content -> XSDQ DataScheme
-encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
+encodeSchemaItem (Elem (Element qname attrs contents ifLine)) =
+  encodeElement qname attrs contents ifLine
+encodeSchemaItem (Text _) = do
+  whenDebugging $ liftIO $ putStrLn "> Dropping Text entry "
+  return Skip
+encodeSchemaItem (CRef txt) = do
+  whenDebugging $ liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
+  return Skip
+
+encodeElement :: QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ DataScheme
+encodeElement (QName "element" _ _) ats content _ = do
   included <- encodeSchemaItems $ filter isElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
@@ -32,41 +42,45 @@ encodeSchemaItem (Elem e@(Element (QName "element" _ _) ats content _)) = do
         ElementScheme included nameQName typeQName refQName
                       (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
                       (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-  whenDebugging $ do
-    liftIO $ putStrLn $ "> Encoding element"
-    -- liftIO $ putStrLn $ mlineIndent "    " (show e)
-    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ bLabelPrintln "  as " res
+  whenDebugging $ liftIO $ do
+    putStrLn $ "> Encoding element attrs="
+      ++ intercalate ", " (map showAttr ats)
+    putStrLn $ ">                  content="
+      ++ intercalate ", " (map showContent content)
+    bLabelPrintln "  as " res
   return res
-encodeSchemaItem e@(Elem (Element (QName "attribute" _ _) _ _ _)) = do
-  scheme <- encodeAttributeScheme e
-  return $ AttributeScheme scheme
-encodeSchemaItem e@(Elem (Element (QName "attributeGroup" _ _) _ _ _)) = do
-  scheme <- encodeAttributeScheme e
-  return $ AttributeScheme scheme
-encodeSchemaItem (Elem e@(Element (QName "complexType" _ _) ats ctnts l)) = do
+encodeElement q@(QName "attribute" _ _) a c l = do
+  scheme <- encodeAttribute q a c l
+  return $ ComplexTypeScheme scheme [] $ Just q
+encodeElement q@(QName "attributeGroup" _ _) a c l = do
+  scheme <- encodeAttribute q a c l
+  return $ ComplexTypeScheme scheme [] $ Just q
+encodeElement q@(QName "complexType" _ _) ats ctnts l = do
   let ctnts' = filter isElem ctnts
-  separateAndDispatchComplexContents ctnts' e ats l
-encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
+  separateAndDispatchComplexContents ctnts' (Element q ats ctnts l) ats l
+encodeElement (QName "simpleType" _ _) ats ctnts ifLn = do
   let ctnts' = filter isElem ctnts
-  whenDebugging $ do
-    liftIO $ putStrLn "> Encoding simpleType "
-    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
+  whenDebugging $ liftIO $ do
+    putStrLn $ "> Encoding simpleType attrs="
+      ++ intercalate ", " (map showAttr ats)
+    putStrLn $ "                      contents="
+      ++ intercalate ", " (map showContent ctnts)
   case separateSimpleTypeContents ats ctnts' of
     (nam, One restr, Zero, Zero) -> do
       qnam <- mapM decodePrefixedName nam
       res <- encodeSimpleTypeByRestriction qnam ats restr
-      whenDebugging $ do
-        liftIO $ bLabelPrintln "  as " res
+      whenDebugging $ liftIO $ bLabelPrintln "  as " res
       return res
     (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) ->
       do qnam <- decodePrefixedName nam
          alts <- encodeSchemaItems $ filter isElem cs'
          let res = SimpleTypeScheme (Just qnam) $ Union alts
-         whenDebugging $ do
-           liftIO $ putStrLn "> Encoding simpleType "
-           liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-           liftIO $ bLabelPrintln "  as " res
+         whenDebugging $ liftIO $ do
+           putStrLn $ "> Encoding simpleType attrs="
+             ++ intercalate ", " (map showAttr ats)
+           putStrLn $ "                      content="
+             ++ intercalate ", " (map showContent ctnts)
+           bLabelPrintln "  as " res
          return res
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' _ _))) -> do
@@ -80,47 +94,48 @@ encodeSchemaItem (Elem e@(Element (QName "simpleType" _ _) ats ctnts ifLn)) = do
                                       (qURI itemType) (qPrefix itemType)
           let res = SimpleTypeScheme (Just qnam) $
                       List (Just itemType)
-          whenDebugging $ do
-            liftIO $ putStrLn "> Encoding simpleType "
-            liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-            liftIO $ bLabelPrintln "  as " res
+          whenDebugging $ liftIO $ do
+            putStrLn $ "> Encoding simpleType attrs="
+              ++ intercalate ", " (map showAttr ats)
+            putStrLn $ "                      content="
+              ++ intercalate ", " (map showContent ctnts)
+            bLabelPrintln "  as " res
           return res
     (ifName, zomRestr, zomUnion, zomList) -> do
-      -- whenDebugging $ do
-      liftIO $ putStrLn "+------"
-      liftIO $ putStrLn $
-        "| TODO encodeSchemaItem > simpleType > another separation case"
-      liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-      liftIO $ putStrLn $ "| CTNTS' "
-        ++ (intercalate "\n    " $ map showContent ctnts')
-      liftIO $ putStrLn $ "| IFNAME " ++ show ifName
-      liftIO $ putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
-      liftIO $ putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
-      liftIO $ putStrLn $ "| ZOMLIST "  ++ (show zomList)
+      -- whenDebugging $
+      liftIO $ do
+        putStrLn "+------"
+        putStrLn $
+          "| TODO encodeSchemaItem > simpleType > another separation case"
+        putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+        putStrLn $ "| CTNTS' "
+          ++ (intercalate "\n    " $ map showContent ctnts')
+        putStrLn $ "| IFNAME " ++ show ifName
+        putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
+        putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
+        putStrLn $ "| ZOMLIST "  ++ (show zomList)
       error $ "TODO encodeSchemaItem > simpleType > another separation case"
         ++ ifAtLine ifLn
-encodeSchemaItem (Elem (Element (QName "annotation" _ _) _ _ _)) = do
+encodeElement (QName "annotation" _ _) _ _ _ = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
   whenDebugging $ liftIO $ putStrLn $ "> Dropping <annotation> element"
   return Skip
-encodeSchemaItem (Elem (Element (QName tag _ _) _ _ ifLine)) |
-    tag == "include" || tag == "import" = do
+encodeElement (QName tag _ _) _ _ ifLine |
+     tag == "include" || tag == "import" = do
   -- Skipping these documents for now
   liftIO $ putStrLn $
     "WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine ifLine
   return Skip
-encodeSchemaItem (Elem (Element (QName tagname _ _) _ _ _))
-  | tagname == "key" || tagname == "keyref" = do
-  whenDebugging $ do
-    liftIO $ putStrLn $ "> Dropping <" ++ tagname ++ "> entry "
+encodeElement (QName tag _ _) _ _ _ | tag == "key" || tag == "keyref" = do
+  whenDebugging $ liftIO $ putStrLn $ "> Dropping <" ++ tag ++ "> entry "
   return Skip
-encodeSchemaItem c@(Elem e@(Element (QName "sequence" _ _) ats _ ifLn)) = do
+encodeElement q@(QName "sequence" _ _) ats ctnts ifLn = do
   whenDebugging $ liftIO $ putStrLn "> For <sequence> schema:"
-  separateAndDispatchComplexContents [c] e ats ifLn
-encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
-  whenDebugging $ do
-    liftIO $ putStrLn "> For <group> schema:"
+  separateAndDispatchComplexContents [Elem $ Element q ats ctnts ifLn]
+                                     (Element q ats ctnts ifLn) ats ifLn
+encodeElement (QName "group" _ _) ats ctnts _ifLn = do
+  whenDebugging $ liftIO $ putStrLn "> For <group> schema:"
   name <- pullAttrQName "name" ats
   case filter isElem ctnts of
     (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] -> do
@@ -131,9 +146,10 @@ encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
       error $ "TODO encodeSchemaItem > group with sequence" ++ ifAtLine ifLn'
     (Elem (Element (QName "choice" _ _) attrs' ctnts' _ifLn')):[] -> do
       ts <- encodeChoiceTypeScheme name attrs' ctnts'
-      whenDebugging $ do
-        liftIO $ bLabelPrintln ("- result is Group " ++ show (fmap showQName name) ++ " ")
-                               ts
+      whenDebugging $ liftIO $
+        bLabelPrintln
+          ("- result is Group " ++ show (fmap showQName name) ++ " ")
+          ts
       return $ Group name $ Just ts
     (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] -> do
       liftIO $ putStrLn $ "+-------"
@@ -147,39 +163,40 @@ encodeSchemaItem (Elem (Element (QName "group" _ _) ats ctnts _ifLn)) = do
     _ -> do
       liftIO $ putStrLn $ "- Default is group of nothing"
       return $ Group name Nothing
-encodeSchemaItem (Elem (Element (QName tag _ _) ats ctnts ifLn)) = do
-  -- whenDebugging $ do
-  liftIO $ putStrLn $ "+-------"
-  liftIO $ putStrLn $
-    "| TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
-  liftIO $ putStrLn $ "| TAG " ++ show tag
-  liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-  liftIO $ putStrLn $
-    "| CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+encodeElement (QName tag _ _) ats ctnts ifLn = do
+  -- whenDebugging $
+  liftIO $ do
+    putStrLn $ "+-------"
+    liftIO $ putStrLn $
+      "| TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
+    liftIO $ putStrLn $ "| TAG " ++ show tag
+    liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+    liftIO $ putStrLn $
+      "| CTNTS " ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
-encodeSchemaItem (Text _) = do
-  whenDebugging $ liftIO $ putStrLn "> Dropping Text entry "
-  return Skip
-encodeSchemaItem (CRef txt) = do
-  whenDebugging $ liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
-  return Skip
+
 
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
 encodeChoiceTypeScheme ifNam _attrs allCtnts = do
   let ctnts = filter isElem allCtnts
   {-
-  whenDebugging $ do
-    liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
-    liftIO $ putStrLn $ "IFNAM " ++ show ifNam
-    liftIO $ putStrLn $ "CTNTS " ++
+  whenDebugging $ liftIO $ do
+    putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
+    putStrLn $ "IFNAM " ++ show ifNam
+    putStrLn $ "CTNTS " ++
       (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   -}
   contentSchemes <- mapM encodeSchemaItem ctnts
   return $ Choice ifNam contentSchemes
 
 encodeAttributeScheme :: Content -> XSDQ AttributeScheme
-encodeAttributeScheme (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
+encodeAttributeScheme (Elem (Element q a c l)) =
+  fmap ComplexTypeScheme (encodeAttribute q a c l) [] q
+
+encodeAttribute ::
+  QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ ComplexTypeScheme
+encodeAttribute q@(QName "attribute" _ _) ats [] _ = do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
@@ -187,30 +204,27 @@ encodeAttributeScheme (Elem e@(Element (QName "attribute" _ _) ats [] _)) = do
                             (case pullAttr "use" ats of
                                Nothing -> "optional"
                                Just s -> s)
-  whenDebugging $ do
-    liftIO $ putStrLn "> Encoding attribute"
-    liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-    liftIO $ bLabelPrintln "  as " res
+  whenDebugging $ liftIO $ do
+    putStrLn $ "> Encoding attribute" ++ showQName q
+    bLabelPrintln "    attrs " ats
+    putStrLn      "    no contents"
   return res
-encodeAttributeScheme (Elem (Element (QName "attributeGroup" _ _) ats ctnts l))
+encodeAttribute (QName "attributeGroup" _ _) ats ctnts l
   = do name <- pullAttrQName "name" ats
        ref <- pullAttrQName "ref" ats
        let attrs = filterTagged "attribute" ctnts
            atGroups = filterTagged "attributeGroup" ctnts
        subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
        let res = AttributeGroup name ref subcontents
-       whenDebugging $ do
-         liftIO $ putStrLn $
-           "> encodeSchemaItem <attributeGroup>" ++ ifAtLine l
-         liftIO $ putStrLn $
-           "  attributes " ++ (intercalate "\n    " $ map showAttr ats)
-         liftIO $ putStrLn $
-           "  contents " ++ (intercalate "\n    " $
-                          map ppContent $ filter isElem ctnts)
+       whenDebugging $ liftIO $ do
+         putStrLn $ "> encodeSchemaItem <attributeGroup>" ++ ifAtLine l
+         putStrLn $ "  attributes " ++ (intercalate "\n    " $ map showAttr ats)
+         putStrLn $ "  contents " ++
+           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
          liftIO $ bLabelPrintln "    --> " res
        return res
-encodeAttributeScheme c =
-  error $ "Can't use encodeAttributeScheme with " ++ bpp c
+encodeAttribute q _ _ _ =
+  error $ "Can't use encodeAttributeScheme with a " ++ bpp q
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
@@ -220,96 +234,94 @@ ifAtLine ifLine = case ifLine of
 separateAndDispatchComplexContents ::
   [Content] -> Element -> [Attr] -> Maybe Line -> XSDQ DataScheme
 separateAndDispatchComplexContents contents e ats ifLn =
-  case separateComplexTypeContents contents of
+  case separateComplexTypeContents ats contents of
     -- <sequence>
-    (One intl, Zero, Zero, attrSpecs, _) -> do
+    (_, One intl, Zero, Zero, attrSpecs, _) -> do
       res <- encodeComplexTypeScheme ats [] intl attrSpecs
-      whenDebugging $ do
-        liftIO $ putStrLn "> Encoding complexType (case 1)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ bLabelPrintln "  as " res
+      whenDebugging $ liftIO $ do
+        putStrLn "  > Encoding complexType (case 1)"
+        putStrLn $ mlineIndent "      " (showElement e)
+        bLabelPrintln "    as " res
       return res
     -- <complexContent>
-    (Zero, One ctnt, Zero, attrSpecs, _) -> do
+    (_, Zero, One ctnt, Zero, attrSpecs, _) -> do
       res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
-      whenDebugging $ do
-        liftIO $ putStrLn $ "> Encoding complexType (case 2)"
-        liftIO $ putStrLn $ mlineIndent "    " (showElement e)
-        liftIO $ bLabelPrintln "  as " res
+      whenDebugging $ liftIO $ do
+        putStrLn $ "  > Encoding complexType (case 2)"
+        putStrLn $ mlineIndent "      " (showElement e)
+        bLabelPrintln "    as " res
       return res
-    (Zero, Zero, Zero, [attrSpec], []) -> do
-          res <- fmap AttributeScheme $ encodeAttributeScheme attrSpec
-          whenDebugging $ do
-            liftIO $ putStrLn $
-              "  > encodeSchemaItem > complexType > attributes only"
-            liftIO $ putStrLn $ "    ATS " ++
-              (intercalate "\n    " $ map showAttr ats)
-            liftIO $ putStrLn $ "    CTNTS' " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem contents)
+    (Just typeStr, Zero, Zero, Zero, [attrSpec], []) -> do
+          scheme <- fmap AttributeScheme $ encodeAttributeScheme attrSpec
+          typeName <- decodePrefixedName typeStr
+          let res = ComplexTypeScheme (ComplexSynonym scheme) [] $ Just typeName
+          whenDebugging $ liftIO $ do
+            putStrLn "  > Encoding complexType (case 3, one attribute only)"
+            bLabelPrintln "    as " res
           return res
-    (Zero, Zero, Zero, [], [attrGroup]) -> do
-          res <- fmap AttributeScheme $ encodeAttributeScheme attrGroup
-          whenDebugging $ do
-            liftIO $ putStrLn $
-              "  > encodeSchemaItem > complexType > attributes only"
-            liftIO $ putStrLn $ "    ATS " ++
-              (intercalate "\n    " $ map showAttr ats)
-            liftIO $ putStrLn $ "    CTNTS' " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem contents)
+    (Just typeStr, Zero, Zero, Zero, [], [attrGroup]) -> do
+          scheme <- fmap AttributeScheme $ encodeAttributeScheme attrGroup
+          typeName <- decodePrefixedName typeStr
+          let res = ComplexTypeScheme (Sequence []) [scheme] $ Just typeName
+          whenDebugging $ liftIO $ do
+            putStrLn "  > Encoding complexType (case 4, one group only)"
+            bLabelPrintln "    attrs were " ats
+            bLabelPrintln "    as " res
           return res
-    (Zero, Zero, Zero, attrSpecs, attrGroups)
+    (Just typeStr, Zero, Zero, Zero, attrSpecs, attrGroups)
       | length attrSpecs > 0 || length attrGroups > 0 -> do
           let allAttr :: [Content]
               allAttr = attrSpecs ++ attrGroups
-          res <- fmap (AttributeScheme . AttributeGroup Nothing Nothing) $
-                   mapM encodeAttributeScheme allAttr
-          whenDebugging $ do
-            liftIO $ putStrLn $
-              "> encodeSchemaItem > complexType > attributes only"
-            liftIO $ putStrLn $ "    - ats " ++
-              (intercalate "\n    " $ map showAttr ats)
-            liftIO $ putStrLn $ "    - ctnts' " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem contents)
-            liftIO $ putStrLn $ "    - attrspecs " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem attrSpecs)
-            liftIO $ putStrLn $ "    - attrgroups " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem attrGroups)
-            liftIO $ bLabelPrintln "    --> " res
+          scheme <- fmap (AttributeScheme . AttributeGroup Nothing Nothing) $
+                      mapM encodeAttributeScheme allAttr
+          typeName <- decodePrefixedName typeStr
+          let res = ComplexTypeScheme (ComplexSynonym scheme) [] $ Just typeName
+          whenDebugging $ liftIO $ do
+            putStrLn "  > Encoding complexType (case 5, attributes and groups)"
+            bLabelPrintln "    as " res
           return res
-    (Zero, Zero, One ctnt, attrSpecs, _) -> do
-      -- whenDebugging $ do
-      liftIO $ putStrLn $ "+--------"
-      liftIO $ putStrLn $ "| Encoding complexType (case 3) EEEEEEEE"
-      liftIO $ putStrLn $ "| CTNT " ++ ppContent ctnt
-      liftIO $ putStrLn $ "| ATTRSPECS " ++ show attrSpecs
+    (_, Zero, Zero, One ctnt, attrSpecs, _) -> do
+      -- whenDebugging $
+      liftIO $ do
+        putStrLn $ "+--------"
+        putStrLn $ "| Encoding complexType (case EEEEEEEE)"
+        putStrLn $ "| CTNT " ++ ppContent ctnt
+        putStrLn $ "| ATTRSPECS " ++ show attrSpecs
       error $ "TODO encodeSchemaItem > complexType > simpleContent"
         ++ ifAtLine ifLn
-    (seqnce, cplxCtnt, simplCtnt, attrSpecs, attrGroups) -> do
-      {- whenDebugging $ do -}
-      liftIO $ putStrLn $ "+--------"
-      liftIO $ putStrLn $ "| encodeSchemaItem > complexType > another separation case"
-      liftIO $ putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-      liftIO $ putStrLn $ "| CTNTS' " ++
-        (intercalate "\n    " $ map ppContent $ filter isElem contents)
-      liftIO $ bLabelPrintln "| SEQ " seqnce
-      liftIO $ putStrLn $ "| CPLXCTNT " ++
-        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList cplxCtnt)
-      liftIO $ putStrLn $ "| SIMPLCTNT " ++
-        (intercalate "\n    " $ map ppContent $ filter isElem $ zomToList simplCtnt)
-      liftIO $ putStrLn $ "| ATTRSPECS " ++
-        (intercalate "\n    " $ map ppContent $ filter isElem attrSpecs)
-      liftIO $ putStrLn $ "| ATTRGROUPS " ++
-        (intercalate "\n    " $ map ppContent $ filter isElem attrGroups)
+    (nameAttr, seqnce, cplxCtnt, simplCtnt, attrSpecs, attrGroups) -> do
+      {- whenDebugging $ -}
+      liftIO $ do
+        putStrLn $ "+--------"
+        putStrLn $
+          "| Encoding complexType (case FFF) another complexType separation"
+        putStrLn $ "| NAMEATTR " ++ show nameAttr
+        putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
+        putStrLn $ "| CTNTS' " ++
+          (intercalate "\n    " $ map ppContent $ filter isElem contents)
+        bLabelPrintln "| SEQ " seqnce
+        putStrLn $ "| CPLXCTNT " ++
+          (zomintercalate "\n    " $ zommap ppContent $
+             zomfilter isElem cplxCtnt)
+        putStrLn $ "| SIMPLCTNT " ++
+          (zomintercalate "\n    " $ zommap ppContent $
+             zomfilter isElem simplCtnt)
+        putStrLn $ "| ATTRSPECS " ++
+          (intercalate "\n    " $ map ppContent $ filter isElem attrSpecs)
+        putStrLn $ "| ATTRGROUPS " ++
+          (intercalate "\n    " $ map ppContent $ filter isElem attrGroups)
       error $
         "TODO encodeSchemaItem > complexType > another separation case"
         ++ ifAtLine ifLn
 
 separateComplexTypeContents ::
-  [Content] ->
-    (ZeroOneMany Content, ZeroOneMany Content, ZeroOneMany Content,
+  [Attr] -> [Content] ->
+    (Maybe String,
+     ZeroOneMany Content, ZeroOneMany Content, ZeroOneMany Content,
      [Content], [Content])
-separateComplexTypeContents cts =
-  (pullContent "sequence" cts,
+separateComplexTypeContents attrs cts =
+  (pullAttr "name" attrs,
+   pullContent "sequence" cts,
    pullContent "complexContent" cts,
    pullContent "simpleContent" cts,
    filterTagged "attribute" cts,

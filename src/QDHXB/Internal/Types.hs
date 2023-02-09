@@ -63,7 +63,7 @@ data Definition =
     -- ^ Defining the attributes and groups.
   | SimpleSynonymDefn QName QName
     -- ^ Defining one type to have the same structure as another.
-  | SequenceDefn String [Reference]
+  | SequenceDefn QName [Reference] [AttributeDefn]
     -- ^ Define a complex type as a sequence of subelements.
   | UnionDefn
     -- ^ Define a simple type as a union of other simple types.
@@ -86,8 +86,8 @@ instance Blockable Definition where
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (SequenceDefn n rs) = stackBlocks $
-    (stringToBlock $ "SequenceDefn " ++ n) : map block rs
+  block (SequenceDefn n rs ats) = stackBlocks $
+    (stringToBlock $ "SequenceDefn " ++ qName n) : map block rs ++ map block ats
   block (UnionDefn n ns) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns

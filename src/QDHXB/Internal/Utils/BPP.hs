@@ -156,6 +156,7 @@ instance Blockable Element where block = stringToBlock . showElement
 instance Blockable Content where block = stringToBlock . showContent
 -- | Allow `Attr` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Attr    where block = stringToBlock . showAttr
+instance VerticalBlockList Attr
 -- | Allow `QName` from the @XMLLight@ library to be pretty-printed.
 instance Blockable QName   where block = stringToBlock . showQName
 -- | Allow [`QName`] from the @XMLLight@ library to be pretty-printed.
