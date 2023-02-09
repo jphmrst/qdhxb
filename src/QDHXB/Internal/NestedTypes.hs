@@ -10,7 +10,6 @@ module QDHXB.Internal.NestedTypes (
   nonSkip, labelOf
 ) where
 
-import Data.Maybe (isJust, fromJust)
 import Text.XML.Light.Types (QName)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
@@ -19,7 +18,7 @@ import QDHXB.Internal.Utils.XMLLight (withPrefix)
 -- | Further details about @simpleType@ and @simpleContents@ XSD
 -- elements.
 data SimpleTypeScheme =
-  SimpleSynonym -- ^ One type which is just the same as another
+  Synonym -- ^ One type which is just the same as another
     QName -- ^ Base type
   | SimpleRestriction -- ^ One type with certain values excluded.
       QName -- ^ Base type
@@ -31,7 +30,7 @@ data SimpleTypeScheme =
   deriving Show
 
 instance Blockable SimpleTypeScheme where
-  block (SimpleSynonym t) = labelBlock "== " $ block t
+  block (Synonym t) = labelBlock "== " $ block t
   block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
   block (Union ds) = labelBlock "Union " $ block ds
   block (List t) = labelBlock "List " $ block t
@@ -42,22 +41,18 @@ instance VerticalBlockablePair QName DataScheme
 -- | Further details about @complexType@ and @complexContents@ XSD
 -- elements.
 data ComplexTypeScheme =
-  ComplexSynonym -- ^ Type synonym for complex types
-      DataScheme -- ^ Underlying type
-  | Sequence -- ^ The <sequence> complex type.
-      [DataScheme] -- ^ List of associated definitions
+  Sequence -- ^ The <sequence> complex type.
+    [DataScheme] -- ^ List of associated definitions
   | ComplexRestriction -- ^ One type with certain values excluded.
-      QName -- ^ Base type
+    QName -- ^ Base type
   | Extension -- ^ One type extended with additional elements.
-      QName -- ^ Base type
-      [DataScheme] -- ^ Additional elements
-  | Choice -- ^ Union type
-      (Maybe QName) -- ^ name
-      [DataScheme]  -- ^ contents
+    QName -- ^ Base type
+    [DataScheme] -- ^ Additional elements
+  | Choice (Maybe QName) -- ^ name
+           [DataScheme]  -- ^ contents
   deriving Show
 
 instance Blockable ComplexTypeScheme where
-  block (ComplexSynonym ds) = labelBlock "CplxSynonym " $ block ds
   block (Sequence ds) =
     (stringToBlock "Sequence") `stack2` indent "  " (block ds)
   block (ComplexRestriction r) = Block ["SimpleRestriction " ++ show r]
@@ -84,15 +79,14 @@ data AttributeScheme =
 
 instance Blockable AttributeScheme where
   block (SingleAttribute ifName ifRef ifType mode) =
-    stringToBlock "single "
-    `follow` (stringToBlock "name="
-              `follow` block ifName
-              `follow` stringToBlock " type="
-              `follow` block ifType
-              `stack2` stringToBlock "ref="
-              `follow` block ifRef
-              `follow` stringToBlock " mode="
-              `follow` stringToBlock mode)
+    stringToBlock "single name="
+    `follow` block ifName
+    `follow` stringToBlock " ref="
+    `follow` block ifRef
+    `follow` stringToBlock " type="
+    `follow` block ifType
+    `follow` stringToBlock " mode="
+    `follow` stringToBlock mode
   block (AttributeGroup ifName ifRef attrs) =
     stringToBlock "group name="
     `follow` block ifName
@@ -111,12 +105,12 @@ data DataScheme =
                   (Maybe QName) -- ^ ifRef
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
-  | AttributeScheme AttributeScheme -- ^ single vs. group
+  | AttributeScheme AttributeScheme -- ^ Single vs. group
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
   | SimpleTypeScheme (Maybe QName) -- ^ ifName
-                     SimpleTypeScheme -- ^ details
+                     SimpleTypeScheme -- ^ Details
   | Group (Maybe QName) -- ^ name
           (Maybe ComplexTypeScheme) -- ^ contents
   deriving Show
@@ -159,7 +153,7 @@ instance Blockable DataScheme where
     (stringToBlock $ "ComplexTypeScheme name="
                      ++ (case ifName of
                            Nothing -> "undef"
-                           Just s  -> showQName s))
+                           Just s  -> "\"" ++ show s ++ "\""))
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
 
@@ -195,14 +189,12 @@ labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _)) = j
 labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _)) = j
 labelOf (AttributeScheme _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
-labelOf (ComplexTypeScheme (ComplexSynonym ds) _ _) | isJust (labelOf ds) =
-                                                      labelOf ds
-labelOf (ComplexTypeScheme (Sequence _) _ _) = Nothing
+labelOf (ComplexTypeScheme (Sequence _ds) _attrs _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r
 labelOf (ComplexTypeScheme (Extension base _ds) _attrs _) = Just base
 labelOf (ComplexTypeScheme (Choice base _ds) _attrs _) = base
 labelOf (SimpleTypeScheme j@(Just _) _) = j
-labelOf (SimpleTypeScheme _ (SimpleSynonym t)) = Just t
+labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
 labelOf (SimpleTypeScheme _ (Union _ds)) = Nothing
 labelOf (SimpleTypeScheme _ (List t)) = fmap (withPrefix "List") t

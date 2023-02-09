@@ -87,17 +87,17 @@ containForBounds _ _ t = [t|[$t]|]
 -- | Register a `Definition` with the tracking tables in the `XSDQ`
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
-fileNewDefinition def = do
-  whenDebugging $ liftIO $ putStrLn $ show $
-    labelBlock "Filing new defn: " $ block def
-  fileNewDefinition' def
-  where
-    fileNewDefinition' d@(SimpleSynonymDefn n _) = addTypeDefn n d
-    fileNewDefinition' d@(AttributeDefn n _) = addTypeDefn n d
-    fileNewDefinition' d@(SequenceDefn n _ _) = addTypeDefn n d
-    fileNewDefinition' d@(UnionDefn n _) = addTypeDefn n d
-    fileNewDefinition' d@(ListDefn n _) = addTypeDefn n d
-    fileNewDefinition' (ElementDefn n t) = addElementType n t
+fileNewDefinition (SimpleSynonymDefn _ _) = return ()
+fileNewDefinition (AttributeDefn _ _)  = return ()
+fileNewDefinition (SequenceDefn _ _)   = return ()
+fileNewDefinition (UnionDefn _ _)   = return ()
+fileNewDefinition (ListDefn _ _) = return ()
+fileNewDefinition (ElementDefn n t)    = do
+  whenDebugging $ do
+    liftIO $ putStrLn $ show $
+      (labelBlock "Filing ElementDefn: " $ block n)
+       `follow` (labelBlock " :: " $ block t)
+  addElementType n t
 
 -- | Register the `Definition` of an XSD type with the tracking tables
 -- in the `XSDQ` state.
@@ -144,7 +144,7 @@ isComplexType :: QName -> XSDQ Bool
 isComplexType name = do
   defn <- getTypeDefn name
   return $ case defn of
-    Just (SequenceDefn _ _ _) -> True
+    Just (SequenceDefn _ _) -> True
     _ -> False
 
 -- | Register the type name associated with an element tag with the

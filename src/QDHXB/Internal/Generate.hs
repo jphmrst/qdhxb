@@ -187,9 +187,8 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _)) =
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
     return res
-xsdDeclToHaskell decl@(SequenceDefn nam refs _) =
-  let namStr = qName nam
-      nameRoot = firstToUpper namStr
+xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
+  let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
       tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
