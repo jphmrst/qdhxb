@@ -41,8 +41,10 @@ instance VerticalBlockablePair QName DataScheme
 -- | Further details about @complexType@ and @complexContents@ XSD
 -- elements.
 data ComplexTypeScheme =
-  Sequence -- ^ The <sequence> complex type.
-    [DataScheme] -- ^ List of associated definitions
+  Composing -- ^ Assembling a type from multiple constituents ---
+            -- <sequence>, <attributegroup>, etc
+    [DataScheme] -- ^ List of associated sub-elements
+    [AttributeScheme] -- ^ List of associated attributes
   | ComplexRestriction -- ^ One type with certain values excluded.
     QName -- ^ Base type
   | Extension -- ^ One type extended with additional elements.
@@ -53,8 +55,10 @@ data ComplexTypeScheme =
   deriving Show
 
 instance Blockable ComplexTypeScheme where
-  block (Sequence ds) =
-    (stringToBlock "Sequence") `stack2` indent "  " (block ds)
+  block (Composing ds as) =
+    (stringToBlock "Sequence")
+    `stack2` labelBlock "  - subelements " (block ds)
+    `stack2` labelBlock "  - attributes " (block as)
   block (ComplexRestriction r) = Block ["SimpleRestriction " ++ show r]
   block (Extension base ds) =
     (stringToBlock $ "Extension " ++ show base)
@@ -189,7 +193,7 @@ labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _)) = j
 labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _)) = j
 labelOf (AttributeScheme _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
-labelOf (ComplexTypeScheme (Sequence _ds) _attrs _) = Nothing
+labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r
 labelOf (ComplexTypeScheme (Extension base _ds) _attrs _) = Just base
 labelOf (ComplexTypeScheme (Choice base _ds) _attrs _) = base

@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["personattr2.xsd"]
+qdhxb useDebugging ["personattr2.xsd"]
 -- qdhxb' ["personattr2.xsd"]
 
 testAge :: TLT IO ()

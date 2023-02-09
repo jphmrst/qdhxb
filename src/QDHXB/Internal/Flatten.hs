@@ -32,31 +32,8 @@ flattenSchemaItem s = do
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
-flattenSchemaItem' (ElementScheme [] (Just nam) (Just typ) Nothing _ _) = do
-  isKnown <- isKnownType typ
-  isSimple <- isSimpleType typ
-  whenDebugging $ do
-    liftIO $ putStrLn $
-      "  - Checking whether " ++ showQName typ ++ " is simple: " ++ show isSimple
-  if isSimple || not isKnown
-    then (do let tyDefn = SimpleSynonymDefn nam typ
-             addTypeDefn nam tyDefn
-             let elemDefn = ElementDefn nam nam
-             fileNewDefinition elemDefn
-             return [ tyDefn, elemDefn ])
-    else return [ ElementDefn nam typ ]
-flattenSchemaItem' (ElementScheme [SimpleTypeScheme Nothing ts]
-                                  ifName@(Just nam) Nothing Nothing _ _) = do
-  flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts
-  let elemDefn = ElementDefn nam nam
-  fileNewDefinition elemDefn
-  return $ flatTS ++ [elemDefn]
-flattenSchemaItem' (ElementScheme [ComplexTypeScheme ts attrs Nothing]
-                                  ifName@(Just nam) Nothing Nothing _ _) = do
-  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName
-  let elemDefn = ElementDefn nam nam
-  fileNewDefinition elemDefn
-  return $ flatTS ++ [elemDefn]
+flattenSchemaItem' (ElementScheme contents ifName ifType ifRef ifMin ifMax) =
+  flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (Just nam) Nothing (Just typ) m)) =
   let attrDefn = AttributeDefn nam $ SingleAttributeDefn typ m
@@ -73,8 +50,9 @@ flattenSchemaItem' (AttributeScheme g@(AttributeGroup (Just n) Nothing cs)) = do
     liftIO $ bLabelPrintln "    '--> " res
   return res
   -- error $ show $ labelBlock "TODO flatten AttributeScheme: " $ block g
-flattenSchemaItem' (ComplexTypeScheme (Sequence cts) ats (Just nam)) = do
-  (defs, refs) <- musterComplexSequenceComponents cts ats nam
+flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam)) = do
+  (defs, refs) <-
+    musterComplexSequenceComponents cts (map AttributeScheme ats0 ++ ats) nam
   let tyDefn = SequenceDefn (qName nam) $ refs
   addTypeDefn nam tyDefn
   whenDebugging $ do
@@ -137,6 +115,46 @@ flattenSchemaItem' s = do
   liftIO $ bLabelPrintln "| " s
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
+flattenElementSchemeItem ::
+  [DataScheme] -> (Maybe QName) -> (Maybe QName) -> (Maybe QName)
+  -> (Maybe Int) -> (Maybe Int)
+  -> XSDQ [Definition]
+flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ = do
+  isKnown <- isKnownType typ
+  isSimple <- isSimpleType typ
+  whenDebugging $ do
+    liftIO $ putStrLn $
+      "  - Checking whether " ++ showQName typ ++ " is simple: " ++ show isSimple
+  if isSimple || not isKnown
+    then (do let tyDefn = SimpleSynonymDefn nam typ
+             addTypeDefn nam tyDefn
+             let elemDefn = ElementDefn nam nam
+             fileNewDefinition elemDefn
+             return [ tyDefn, elemDefn ])
+    else return [ ElementDefn nam typ ]
+flattenElementSchemeItem [SimpleTypeScheme Nothing ts]
+                                  ifName@(Just nam) Nothing Nothing _ _ = do
+  flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts
+  let elemDefn = ElementDefn nam nam
+  fileNewDefinition elemDefn
+  return $ flatTS ++ [elemDefn]
+flattenElementSchemeItem [ComplexTypeScheme ts attrs Nothing]
+                                  ifName@(Just nam) Nothing Nothing _ _ = do
+  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName
+  let elemDefn = ElementDefn nam nam
+  fileNewDefinition elemDefn
+  return $ flatTS ++ [elemDefn]
+flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax = do
+  liftIO $ do
+    putStrLn "+--------"
+    bLabelPrintln "|  " ifName
+    bLabelPrintln "|  " ifType
+    bLabelPrintln "|  " ifRef
+    putStrLn $ "|  " ++ show ifMin
+    putStrLn $ "|  " ++ show ifMax
+    bLabelPrintln "|  " contents
+  error "Unmatched case for flattenElementSchemeItem"
+
 musterComplexSequenceComponents ::
   [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])
 musterComplexSequenceComponents steps ats _ = do
@@ -156,60 +174,8 @@ flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
-flattenSchemaRef e@(ElementScheme [] Nothing Nothing (Just r) lower upper) = do
-  let result = ElementRef r lower upper
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening element schema with reference only"
-    liftIO $ bLabelPrintln "       " e
-    liftIO $ bLabelPrintln "    to " result
-  return ([], result)
-flattenSchemaRef e@(ElementScheme [] (Just n) (Just t@(QName resolvedName _resolvedURI _)) Nothing lo up) = do
-  isKnown <- isKnownType t
-  whenDebugging $ do
-    liftIO $ putStrLn $
-      "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-  if isKnown then (do let defn = ElementDefn n t
-                          ref = ElementRef n lo up
-                      fileNewDefinition defn
-                      whenDebugging $ do
-                        liftIO $ putStrLn $ "  > Flattening schema with type"
-                        liftIO $ bLabelPrintln "       " e
-                        liftIO $ bLabelPrintln "    to " defn
-                        liftIO $ bLabelPrintln "       " ref
-                      return ([defn], ref))
-    else (do let defn1 = SimpleSynonymDefn n t
-                 defn2 = ElementDefn n n
-                 ref = ElementRef n lo up
-             addTypeDefn n defn1
-             fileNewDefinition defn2
-             whenDebugging $ do
-               liftIO $ putStrLn $
-                 "  > Flattening element schema with name and type"
-               liftIO $ bLabelPrintln "       " e
-               liftIO $ bLabelPrintln "    to " defn1
-               liftIO $ bLabelPrintln "       " defn2
-               liftIO $ bLabelPrintln "       " ref
-             return ([defn1, defn2], ref))
-flattenSchemaRef s@(ElementScheme [ComplexTypeScheme _ _ Nothing]
-                                  (Just nam) Nothing Nothing lower upper) = do
-  prev <- flattenSchemaItem s
-  let ref = ElementRef nam lower upper
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening element schema with name and nested complex type"
-    liftIO $ bLabelPrintln "       " s
-    liftIO $ bLabelPrintln "    to " prev
-    liftIO $ bLabelPrintln "       " ref
-  return (prev, ref)
-flattenSchemaRef (ElementScheme ctnts maybeName maybeType maybeRef
-                                lower upper) = do
-  liftIO $ do
-    bLabelPrintln "CONTENTS " ctnts
-    putStrLn $ "IFNAME " ++ show maybeName
-    putStrLn $ "IFTYPE " ++ show maybeType
-    putStrLn $ "IFREF " ++ show maybeRef
-    putStrLn $ "LOWER " ++ show lower
-    putStrLn $ "UPPER " ++ show upper
-  error "TODO flattenSchemaRef > unmatched ElementScheme"
+flattenSchemaRef (ElementScheme contents ifName ifType ifRef ifLower ifUpper) =
+  flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper
 flattenSchemaRef sr@(AttributeScheme
                      (SingleAttribute Nothing (Just ref) Nothing useStr)) = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
@@ -238,8 +204,68 @@ flattenSchemaRef (AttributeScheme
 flattenSchemaRef (ComplexTypeScheme _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
-  liftIO $ bLabelPrintln "S " s
-  error $ "TODO flattenSchemaRef > additional case: " ++ show s
+  liftIO $ putStrLn "+--------"
+  liftIO $ putStrLn "| flattenSchemaRef"
+  liftIO $ bLabelPrintln "| arg " s
+  error $ "TODO flattenSchemaRef > additional case:\n" ++ bpp s
+
+flattenElementSchemeRef ::
+  [DataScheme] -> (Maybe QName) -> (Maybe QName) -> (Maybe QName)
+  -> (Maybe Int) -> (Maybe Int)
+  -> XSDQ ([Definition], Reference)
+-- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
+flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper = do
+  let result = ElementRef r lower upper
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening element schema with reference only"
+    liftIO $ bLabelPrintln "    to " result
+  return ([], result)
+flattenElementSchemeRef [] (Just n) (Just t@(QName resolvedName _resolvedURI _)) Nothing lo up = do
+  isKnown <- isKnownType t
+  whenDebugging $ do
+    liftIO $ putStrLn $
+      "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
+  if isKnown then (do let defn = ElementDefn n t
+                          ref = ElementRef n lo up
+                      fileNewDefinition defn
+                      whenDebugging $ do
+                        liftIO $ putStrLn $ "  > Flattening schema with type"
+                        -- liftIO $ bLabelPrintln "       " e
+                        liftIO $ bLabelPrintln "    to " defn
+                        liftIO $ bLabelPrintln "       " ref
+                      return ([defn], ref))
+    else (do let defn1 = SimpleSynonymDefn n t
+                 defn2 = ElementDefn n n
+                 ref = ElementRef n lo up
+             addTypeDefn n defn1
+             fileNewDefinition defn2
+             whenDebugging $ do
+               liftIO $ putStrLn $
+                 "  > Flattening element schema with name and type"
+               -- liftIO $ bLabelPrintln "       " e
+               liftIO $ bLabelPrintln "    to " defn1
+               liftIO $ bLabelPrintln "       " defn2
+               liftIO $ bLabelPrintln "       " ref
+             return ([defn1, defn2], ref))
+flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing]
+                        n@(Just nam) t@Nothing r@Nothing lower upper = do
+  prev <- flattenElementSchemeItem s n t r lower upper
+  let ref = ElementRef nam lower upper
+  whenDebugging $ do
+    liftIO $ putStrLn $ "  > Flattening element schema with name and nested complex type"
+    liftIO $ bLabelPrintln "       " s
+    liftIO $ bLabelPrintln "    to " prev
+    liftIO $ bLabelPrintln "       " ref
+  return (prev, ref)
+flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper = do
+  liftIO $ do
+    bLabelPrintln "CONTENTS " ctnts
+    putStrLn $ "IFNAME " ++ show maybeName
+    putStrLn $ "IFTYPE " ++ show maybeType
+    putStrLn $ "IFREF " ++ show maybeRef
+    putStrLn $ "LOWER " ++ show lower
+    putStrLn $ "UPPER " ++ show upper
+  error "TODO flattenSchemaRef > unmatched ElementScheme"
 
 flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
