@@ -132,13 +132,12 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
   let rootName = firstToUpper $ qName nam
       baseStr = rootName ++ "AttrType"
       rootTypeName = mkName baseStr
-      bangTypes = [ (useBang,
-                     AppT maybeConT $ ConT $ mkName $ firstToUpper $ qName q ++ "AttrType")
+      bangTypes = [ (useBang, AppT maybeConT $ ConT $ mkName $ firstToUpper $
+                                qName q ++ "AttrType")
                   | q <- ads ]
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
 
-      -- TODO
       localNames = take (length ads) $
         map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
       pairEnc (q, s) =
