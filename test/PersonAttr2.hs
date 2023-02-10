@@ -15,4 +15,4 @@ testPersonAttr2 = inGroup "XSD PersonAttr 2" $ do
     p <- lift $ loadPerson "personattr1.xml"
     lift $ putStrLn $ show p
     "Correctly decode <person> in personattr1.xml"
-      ~: PersonType (PersonattrAttrType "Alpha" 4) @==- p
+      ~: PersonType (PersonattrAttrType (Just "Alpha") (Just 4)) @==- p

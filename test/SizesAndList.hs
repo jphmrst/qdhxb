@@ -6,8 +6,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["sizesAndList.xsd"]
--- qdhxb' ["sizesAndList.xsd"]
+-- qdhxb useDebugging ["sizesAndList.xsd"]
+qdhxb' ["sizesAndList.xsd"]
 
 testSizesAndList :: TLT IO ()
 testSizesAndList = inGroup "XSD sizesAndList" $ do

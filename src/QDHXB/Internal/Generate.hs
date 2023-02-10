@@ -133,13 +133,25 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
       baseStr = rootName ++ "AttrType"
       rootTypeName = mkName baseStr
       bangTypes = [ (useBang,
-                     ConT $ mkName $ firstToUpper $ qName q ++ "AttrType")
+                     AppT maybeConT $ ConT $ mkName $ firstToUpper $ qName q ++ "AttrType")
                   | q <- ads ]
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
 
       -- TODO
-      decoder = throwsError "TODO"
+      localNames = take (length ads) $
+        map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
+      pairEnc (q, s) =
+        let dec = mkName ("tryDecode" ++ firstToUpper (qName q))
+        in BindS (VarP s) (AppE (VarE dec) ctxtVarE)
+      bpairs = map pairEnc $ zip ads localNames
+
+      decoder = DoE Nothing $ bpairs ++ [NoBindS $
+                                         applyReturn $
+                                         applyJust $
+                                         foldl (\e n -> AppE e $ VarE n)
+                                          (ConE rootTypeName)
+                                          localNames]
   let res = [
         DataD [] rootTypeName [] Nothing [NormalC rootTypeName bangTypes]
           [DerivClause Nothing [eqConT, showConT]],
@@ -149,7 +161,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
                           (applyExceptCon stringConT
                             (AppT maybeConT (ConT rootTypeName)))),
         FunD safeDecNam [Clause [ctxtVarP]
-                                    (NormalB $ applyReturn decoder)
+                                    (NormalB decoder)
                                     []],
 
         -- Decoder
@@ -161,8 +173,8 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
 
         ]
   whenDebugging $ do
-    liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn TODO"
-    liftIO $ bLabelPrintln "> Generating from " d
+    liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn"
+    liftIO $ bLabelPrintln "  > Generating from " d
     liftIO $ bLabelPrintln "    +--> " res
   return res
 
