@@ -66,6 +66,8 @@ zommap _ Zero = Zero
 zommap f (One m) = One $ f m
 zommap f (Many ms) = Many $ map f ms
 
+-- | Version of `intercalate` for `ZeroOneMany` instead of a list of
+-- lists.
 zomintercalate :: [a] -> ZeroOneMany [a] -> [a]
 zomintercalate _ Zero = []
 zomintercalate _ (One x) = x
