@@ -13,6 +13,7 @@ import Age (testAge)
 import Initials (testInitials)
 import SizesNoList (testSizesNoList)
 import SizesAndList (testSizesAndList)
+import PersonAttr2 (testPersonAttr2)
 
 main :: IO ()
 main = do
@@ -30,6 +31,7 @@ main = do
     testInitials
     testSizesNoList
     testSizesAndList
+    testPersonAttr2
 {-
     inGroup "JTMS tests" $ runJTMST $ do
       testEx1
