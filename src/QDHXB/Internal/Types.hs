@@ -44,14 +44,15 @@ instance VerticalBlockList Reference
 data AttributeDefn =
   SingleAttributeDefn -- ^ Defining a single attribute
       QName   -- ^ ifType
-      String  -- ^ use mode: prohibited, optional (default), required
+      AttributeUsage -- ^ use mode: prohibited, optional (default), required
   | AttributeGroupDefn -- ^ Defining a group of attributes
       [QName] -- ^ names of included attributes and attribute groups
+       -- TODO Should be (QName, AttributeUsage)
   deriving Show
 
 instance Blockable AttributeDefn where
   block (SingleAttributeDefn t m) = stringToBlock $
-    "Single " ++ showQName t ++ " (" ++ m ++ ")"
+    "Single " ++ showQName t ++ " (" ++ show m ++ ")"
   block (AttributeGroupDefn ds) =
     labelBlock "Group " $ stackBlocks $ map (stringToBlock . showQName) ds
 

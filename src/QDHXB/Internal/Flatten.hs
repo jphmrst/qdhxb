@@ -36,7 +36,8 @@ flattenSchemaItem' (ElementScheme contents ifName ifType ifRef ifMin ifMax) =
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (Just nam) Nothing (Just typ) m)) =
-  let attrDefn = AttributeDefn nam $ SingleAttributeDefn typ m
+  let attrDefn =
+        AttributeDefn nam $ SingleAttributeDefn typ $ stringToAttributeUsage m
   in do fileNewDefinition attrDefn
         return [attrDefn]
 flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _)) = do
@@ -213,7 +214,8 @@ flattenSingleAttributeRef Nothing (Just ref) Nothing useStr = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   return ([], res)
 flattenSingleAttributeRef (Just nam) Nothing (Just t) m = do
-  let defn = AttributeDefn nam $ SingleAttributeDefn t m
+  let defn = AttributeDefn nam $
+               SingleAttributeDefn t $ stringToAttributeUsage m
       ref = AttributeRef nam (stringToAttributeUsage m)
   return ([defn], ref)
 flattenSingleAttributeRef maybeName maybeRef maybeType mode = do
@@ -289,7 +291,8 @@ flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
 flattenAttribute (SingleAttribute (Just n) Nothing (Just typ) mode) =
-  return [AttributeDefn n $ SingleAttributeDefn typ mode]
+  return [AttributeDefn n $
+            SingleAttributeDefn typ $ stringToAttributeUsage mode]
 flattenAttribute (AttributeGroup (Just n) Nothing schemes) = do
   let names = map grabName schemes
   sub <- fmap concat $ mapM flattenAttribute schemes
