@@ -7,8 +7,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["books-mod2.xsd"]
--- qdhxb' ["books-mod1.xsd"]
+-- qdhxb useDebugging ["books-mod2.xsd"]
+qdhxb' ["books-mod2.xsd"]
 
 testBooksMod2 :: TLT IO ()
 testBooksMod2 = inGroup "XSD books 2 --- int attr" $ do

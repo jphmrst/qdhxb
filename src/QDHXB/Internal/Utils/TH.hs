@@ -124,7 +124,7 @@ xsdTypeNameTranslation "time" = (timeOfDayType, timeOfDayBasicDecoder)
 xsdTypeNameTranslation "ENTITIES" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation "IDREFS" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
-xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, id)
+xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
 
 -- | Convert an expression of type @Maybe a@ to an expression of type
 -- @Except String a@.  The `String` argument is the exception message
