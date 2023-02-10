@@ -29,7 +29,7 @@ module QDHXB.Internal.Utils.TH (
   -- *** With `Nothing`
   nothingConE, nothingPat,
   -- *** With `Just`
-  justConE, justMatchId, justPat,
+  justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
   mapVarE,
   -- ** @Calendar@
@@ -62,7 +62,8 @@ module QDHXB.Internal.Utils.TH (
   simpleTypeDecoderVarE, spaceSepApp,
 
   -- * Local names
-  xName, yName, zName, xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
+  xName, yName, zName, resName,
+  xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
 
   -- * Other
   firstToUpper, todoStr)
@@ -256,6 +257,10 @@ yName = mkName "y"
 zName :: Name
 zName = mkName "z"
 
+-- | TH `Name` for "res"
+resName :: Name
+resName = mkName "res"
+
 -- | TH `Exp` for "x"
 xVarE :: Exp
 xVarE = VarE xName
@@ -406,6 +411,10 @@ errorVarE = VarE errorName
 -- | TH `Exp` for constructor `Just`
 justConE :: Exp
 justConE = ConE justName
+
+-- | TH `Exp` for constructor `Just`
+applyJust :: Exp -> Exp
+applyJust = AppE justConE
 
 -- | TH `Exp` for constructor `Nothing`
 nothingConE :: Exp
