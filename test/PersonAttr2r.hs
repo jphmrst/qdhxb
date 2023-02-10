@@ -1,21 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module PersonAttr2 where
+module PersonAttr2r where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["personattr2.xsd"]
-qdhxb' ["personattr2.xsd"]
+qdhxb' ["personattr2r.xsd"]
 
-testPersonAttr2 :: TLT IO ()
-testPersonAttr2 = inGroup "XSD PersonAttr 2" $ do
-  inGroup "PersonAttr 2" $ do
-    p <- lift $ loadPerson "personattr1.xml"
-    -- lift $ putStrLn $ show p
-    "Correctly decode <person> in personattr1.xml"
-      ~: PersonType (PersonattrAttrType (Just "Alpha") (Just 4)) @==- p
+testPersonAttr2r :: TLT IO ()
+testPersonAttr2r = inGroup "XSD PersonAttr 2r (for omitted attributes)" $ do
   inGroup "PersonAttr 1-M" $ do
     p <- lift $ loadPerson "personattr1m.xml"
     "Correctly decode <person> in personattr1m.xml"

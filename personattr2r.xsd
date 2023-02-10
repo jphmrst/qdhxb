@@ -1,0 +1,16 @@
+<!-- Variation of https://www.w3schools.com/xml/el_attributegroup.asp -->
+
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:personattr"
+            xmlns:pa="urn:personattr">
+  
+  <xs:complexType name="personType">
+    <xs:attributeGroup name="personattr">
+      <xs:attribute name="attr1" type="string"/>
+      <xs:attribute name="attr2" type="integer" use="required"/>
+    </xs:attributeGroup>
+  </xs:complexType>
+
+  <xsd:element name="person" type="pa:personType"/>
+
+</xsd:schema>
