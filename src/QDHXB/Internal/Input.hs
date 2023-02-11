@@ -59,8 +59,8 @@ encodeElement (QName "complexType" _ _) ats ctnts l = do
   name <- pullAttrQName "name" ats
   case p of
     (Just ds, []) -> return ds
-    (Nothing, as) -> return $ ComplexTypeScheme (Composing [] as) [] name
-    (Just ds, as) -> return $ ComplexTypeScheme (Composing [ds] as) [] name
+    (Nothing, as) -> return $ ComplexTypeScheme (Composing [] as) [] name l
+    (Just ds, as) -> return $ ComplexTypeScheme (Composing [ds] as) [] name l
 encodeElement (QName "simpleType" _ _) ats ctnts ifLn = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of
@@ -231,12 +231,12 @@ separateAndDispatchComplexContents contents ats ifLn =
     -- <sequence>
     (One intl, Zero, Zero, attrSpecs, _) -> do
       whenDebugging $ liftIO $ putStrLn "    (case 1)"
-      res <- encodeComplexTypeScheme ats [] intl attrSpecs
+      res <- encodeComplexTypeScheme ats [] intl attrSpecs ifLn
       return (Just res, [])
     -- <complexContent>
     (Zero, One ctnt, Zero, attrSpecs, _) -> do
       whenDebugging $ liftIO $ putStrLn "    (case 2)"
-      res <- encodeComplexTypeScheme ats [] ctnt attrSpecs
+      res <- encodeComplexTypeScheme ats [] ctnt attrSpecs ifLn
       return (Just res, [])
     (Zero, Zero, Zero, [attrSpec], []) -> do
       whenDebugging $ liftIO $ putStrLn "    (one attribute)"
@@ -303,11 +303,11 @@ separateSimpleTypeContents attrs cts =
    pullContent "list" cts)
 
 encodeComplexTypeScheme ::
-  [Attr] -> [Content] -> Content -> [Content] -> XSDQ DataScheme
+  [Attr] -> [Content] -> Content -> [Content] -> Maybe Line -> XSDQ DataScheme
 encodeComplexTypeScheme ats attrSpecs
-                        (Elem (Element (QName tag _ _) ats' ctnts _)) ats'' =
-  encodeComplexTypeSchemeElement (ats ++ ats') attrSpecs tag ctnts ats''
-encodeComplexTypeScheme ats attrSpecs s ats'' = do
+                        (Elem (Element (QName tag _ _) ats' ctnts _)) ats'' l =
+  encodeComplexTypeSchemeElement (ats ++ ats') attrSpecs tag ctnts ats'' l
+encodeComplexTypeScheme ats attrSpecs s ats'' _l = do
   liftIO $ putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
   liftIO $ putStrLn $ "ATTRSPECS " ++ show attrSpecs
   liftIO $ putStrLn $ "S " ++ show s
@@ -315,34 +315,34 @@ encodeComplexTypeScheme ats attrSpecs s ats'' = do
   error "TODO encodeComplexTypeScheme > another case"
 
 encodeComplexTypeSchemeElement ::
-  [Attr] -> [Content] -> String -> [Content] -> [Content] ->
+  [Attr] -> [Content] -> String -> [Content] -> [Content] -> Maybe Line ->
     XSDQ DataScheme
-encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' =
+encodeComplexTypeSchemeElement ats attrSpecs "complexContent" ctnts ats'' ln =
   case filter isElem ctnts of
-    [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats''
+    [ctnt] -> encodeComplexTypeScheme ats attrSpecs ctnt ats'' ln
     _ -> error $ "Expected a single child for complexContent node"
-encodeComplexTypeSchemeElement ats _ "sequence" ctnts ats'' = do
+encodeComplexTypeSchemeElement ats _ "sequence" ctnts ats'' ln = do
   -- TODO Do something with the attrSpecs (second) argument.
   included <- encodeSchemaItems ctnts
   atrSpecs <- encodeSchemaItems ats''
   -- liftIO $ putStrLn ">>> encodeComplexTypeScheme"
   nameAttrQName <- pullAttrQName "name" ats
   return $ ComplexTypeScheme (Composing (filter nonSkip included) [])
-                             atrSpecs nameAttrQName
-encodeComplexTypeSchemeElement ats _ "restriction" _ctnts _ats'' = do
+                             atrSpecs nameAttrQName ln
+encodeComplexTypeSchemeElement ats _ "restriction" _ctnts _ats'' l = do
   nameAttr <- pullAttrQName "name" ats
   baseType <- pullAttrQName "base" ats
   case baseType of
     Nothing -> error "Attribute base required in <restriction> element"
-    Just t -> return $ ComplexTypeScheme (ComplexRestriction t) [] nameAttr
-encodeComplexTypeSchemeElement ats _ "extension" ctnts _ats'' = do
+    Just t -> return $ ComplexTypeScheme (ComplexRestriction t) [] nameAttr l
+encodeComplexTypeSchemeElement ats _ "extension" ctnts _ats'' l = do
   nameAttr <- pullAttrQName "name" ats
   baseType <- pullAttrQName "base" ats
   included <- encodeSchemaItems ctnts
   case baseType of
     Nothing -> error "Attribute base required in <extension> element"
-    Just t -> return $ ComplexTypeScheme (Extension t included) [] nameAttr
-encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' = do
+    Just t -> return $ ComplexTypeScheme (Extension t included) [] nameAttr l
+encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' _ = do
   liftIO $ putStrLn "+------"
   liftIO $ putStrLn "| TODO encodeComplexTypeScheme > another case"
   liftIO $ putStrLn $ "| ATS "    ++ (intercalate "\n    " $ map showAttr ats)
