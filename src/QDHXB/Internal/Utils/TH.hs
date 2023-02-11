@@ -15,8 +15,10 @@ module QDHXB.Internal.Utils.TH (
 
   -- * Building expressions related to the exceptions in `QDHXB.Errs`
   qHXBExcT,
+  qMiscError, qNoValidContentInUnion, qAtMostOnceIn,
+  qMustBePresentIn, qCrefMustBePresentIn, qCouldNotDecodeSimpleType,
   qthMiscError, qthNoValidContentInUnion, qthAtMostOnceIn,
-  qthMustBePresentIn,
+  qthMustBePresentIn, qthCrefMustBePresentIn, qthCouldNotDecodeSimpleType,
 
   -- * Utilities for building expressions for other standard Haskell types and values
   caseLeftRight, caseLeftRight',
@@ -132,11 +134,11 @@ xsdTypeNameTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
 
 -- | Convert an expression of type @Maybe a@ to an expression of type
--- @Except String a@.  The `String` argument is the exception message
--- when the original `Exp`ression returns `Nothing`.
-maybeToExceptExp :: String -> Exp -> Exp
-maybeToExceptExp s e =
-  caseNothingJust e (applyThrowExp $ quoteStr s) $ applyReturn . VarE
+-- `HXBExcept` @a@.  The first argument should be a quotation of the
+-- `HXBErr` to be raised when the original `Exp`ression returns
+-- `Nothing`.
+maybeToExceptExp :: Exp -> Exp -> Exp
+maybeToExceptExp s e = caseNothingJust e s $ applyReturn . VarE
 
 -- | TH `Int` type representation
 intType :: Type
@@ -144,8 +146,9 @@ intType = ConT intName
 
 -- | TH `Int` type converter from `String`
 intBasicDecoder :: Exp -> Exp
-intBasicDecoder expr = maybeToExceptExp "Could not read Int" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType intType
+intBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "Int" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType intType
 
 -- | TH `String` type representation
 stringType :: Type
@@ -169,8 +172,9 @@ floatType = ConT (mkName "Float")
 
 -- | TH `Float` converter from `String`.
 floatBasicDecoder :: Exp -> Exp
-floatBasicDecoder expr = maybeToExceptExp "Could not read Float" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType floatType
+floatBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "Float" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType floatType
 
 -- | TH `Bool` type representation
 boolType :: Type
@@ -178,8 +182,9 @@ boolType = ConT (mkName "Bool")
 
 -- | TH `Bool` converter from `String`.
 boolBasicDecoder :: Exp -> Exp
-boolBasicDecoder expr =  maybeToExceptExp "Could not read Bool" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
+boolBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "Bool" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
 
 -- | TH `Double` type representation
 doubleType :: Type
@@ -187,8 +192,9 @@ doubleType = ConT (mkName "Double")
 
 -- | TH `Double` converter from `String`.
 doubleBasicDecoder :: Exp -> Exp
-doubleBasicDecoder expr = maybeToExceptExp "Could not read Double" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
+doubleBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "Double" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
 
 -- | TH `Data.Time.LocalTime.ZonedTime` type representation
 zonedTimeType :: Type
@@ -196,8 +202,9 @@ zonedTimeType = zonedTimeConT
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
-zonedTimeBasicDecoder expr = maybeToExceptExp "Could not read ZonedTime" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType zonedTimeConT
+zonedTimeBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "ZonedTime" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType zonedTimeConT
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeType :: Type
@@ -205,8 +212,9 @@ diffTimeType = ConT (mkName "DiffTime")
 
 -- | TH `Data.Time.Clock.DiffTime` converter from `String`.
 diffTimeBasicDecoder :: Exp -> Exp
-diffTimeBasicDecoder expr = maybeToExceptExp "Could not read DiffTime" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType diffTimeType
+diffTimeBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "DiffTime" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType diffTimeType
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
@@ -214,8 +222,9 @@ timeOfDayType = ConT (mkName "TimeOfDay")
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` converter from `String`.
 timeOfDayBasicDecoder :: Exp -> Exp
-timeOfDayBasicDecoder expr = maybeToExceptExp "Could not read TimeOfDay" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType timeOfDayType
+timeOfDayBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "TimeOfDay" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType timeOfDayType
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayType :: Type
@@ -223,8 +232,9 @@ dayType = ConT (mkName "Day")
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` converter from `String`.
 dayBasicDecoder :: Exp -> Exp
-dayBasicDecoder expr =  maybeToExceptExp "Could not read Day" $
-  SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
+dayBasicDecoder expr =
+  maybeToExceptExp (qthCouldNotDecodeSimpleType "Day" Nothing) $
+    SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
@@ -642,7 +652,7 @@ caseNothingJust e el erf = caseNothingJust' e el zName (erf zName)
 -- `String`
 resultOrThrow :: Exp -> Exp
 resultOrThrow ex =
-  caseLeftRight (applyRunExceptExp ex) (throwsErrorExp . VarE) VarE
+  caseLeftRight (applyRunExceptExp ex) (throwsErrorExp . applyBPP . VarE) VarE
 
 --  (`applyCatchErrorExp` (LamE [VarP xName] $ throwsErrorExp (VarE xName)))
 
@@ -680,18 +690,28 @@ mapMName = mkName "QDHXB.Expansions.mapM"
 applyMapM :: Exp -> Exp -> Exp
 applyMapM f = AppE (AppE (VarE mapMName) f)
 
+applyBPP :: Exp -> Exp
+applyBPP = AppE (VarE $ mkName "QDHXB.Expansions.bpp")
+
 -------------------------------------------------------------------
 -- Relating to module Errs ----------------------------------------
 ------------------------------------------------------------------
+
+-- | Helper for building a quoted `Control.Monad.Except`ion using a
+-- constructor taking a `String` and a `Maybe` `Line`.  The first
+-- argument is the `String` name of the constructor, which is assumed
+-- to be re-exported (and prefixed) by `QDHXB.Expansions`.
+qExcStringLoc :: String -> String -> Maybe Line -> Exp
+qExcStringLoc conStr sl ll =
+  app2Exp (ConE $ mkName $ "QDHXB.Expansions." ++ conStr)
+          (quoteStr sl) (quoteLoc ll)
 
 -- | Helper for building a quoted `Control.Monad.Except`ion-thrower
 -- using a constructor taking a `String` and a `Maybe` `Line`.  The
 -- first argument is the `String` name of the constructor, which is
 -- assumed to be re-exported (and prefixed) by `QDHXB.Expansions`.
 qthExcStringLoc :: String -> String -> Maybe Line -> Exp
-qthExcStringLoc conStr sl ll = applyThrowExp $
-  app2Exp (ConE $ mkName $ "QDHXB.Expansions." ++ conStr)
-          (quoteStr sl) (quoteLoc ll)
+qthExcStringLoc c s l = applyThrowExp $ qExcStringLoc c s l
 
 -- | Helper for building a quoted `Control.Monad.Except`ion-thrower
 -- using a constructor taking two `String`s and a `Maybe` `Line`.  The
@@ -707,20 +727,62 @@ qthExcStrStrLoc conStr sl1 sl2 ll = applyThrowExp $
 qthMiscError :: String -> Maybe Line -> Exp
 qthMiscError = qthExcStringLoc "MiscError"
 
+-- | Build an expression to throw a `QDHXB.Errs.MiscError` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qMiscError :: String -> Maybe Line -> Exp
+qMiscError = qExcStringLoc "MiscError"
+
 -- | Build an expression to throw a `QDHXB.Errs.NoValidContentInUnion`
 -- in an `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
 qthNoValidContentInUnion :: String -> Maybe Line -> Exp
 qthNoValidContentInUnion = qthExcStringLoc "NoValidContentInUnion"
 
+-- | Build an expression to throw a `QDHXB.Errs.NoValidContentInUnion`
+-- in an `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qNoValidContentInUnion :: String -> Maybe Line -> Exp
+qNoValidContentInUnion = qExcStringLoc "NoValidContentInUnion"
+
 -- | Build an expression to throw a `QDHXB.Errs.AtMostOnceIn` in an
 -- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
-qthAtMostOnceIn :: String -> String -> Maybe Line -> Exp
-qthAtMostOnceIn = qthExcStrStrLoc "AtMostOnceIn"
+qthAtMostOnceIn :: String -> Maybe Line -> Exp
+qthAtMostOnceIn = qthExcStringLoc "AtMostOnceIn"
+
+-- | Build an expression to throw a `QDHXB.Errs.AtMostOnceIn` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qAtMostOnceIn :: String -> Maybe Line -> Exp
+qAtMostOnceIn = qExcStringLoc "AtMostOnceIn"
 
 -- | Build an expression to throw a `QDHXB.Errs.MustBePresentIn` in an
 -- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
-qthMustBePresentIn :: String -> String -> Maybe Line -> Exp
-qthMustBePresentIn = qthExcStrStrLoc "MustBePresentIn"
+qthMustBePresentIn :: String -> Maybe Line -> Exp
+qthMustBePresentIn = qthExcStringLoc "MustBePresentIn"
+
+-- | Build an expression to throw a `QDHXB.Errs.MustBePresentIn` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qMustBePresentIn :: String -> Maybe Line -> Exp
+qMustBePresentIn = qExcStringLoc "MustBePresentIn"
+
+-- | Build an expression to throw a `QDHXB.Errs.CrefMustBePresentIn`
+-- in an `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qthCrefMustBePresentIn :: String -> Maybe Line -> Exp
+qthCrefMustBePresentIn = qthExcStringLoc "CrefMustBePresentIn"
+
+-- | Build an expression to throw a `QDHXB.Errs.CrefMustBePresentIn`
+-- in an `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qCrefMustBePresentIn :: String -> Maybe Line -> Exp
+qCrefMustBePresentIn = qExcStringLoc "CrefMustBePresentIn"
+
+-- | Build an expression to throw a
+-- `QDHXB.Errs.CouldNotDecodeSimpleType` in an `Control.Monad.Except`
+-- `QDHXB.Errs.HXBErr` @a@ computation.
+qthCouldNotDecodeSimpleType :: String -> Maybe Line -> Exp
+qthCouldNotDecodeSimpleType = qthExcStringLoc "CouldNotDecodeSimpleType"
+
+-- | Build an expression to throw a
+-- `QDHXB.Errs.CouldNotDecodeSimpleType` in an `Control.Monad.Except`
+-- `QDHXB.Errs.HXBErr` @a@ computation.
+qCouldNotDecodeSimpleType :: String -> Maybe Line -> Exp
+qCouldNotDecodeSimpleType = qExcStringLoc "CouldNotDecodeSimpleType"
 
 quoteLoc :: Maybe Line -> Exp
 quoteLoc Nothing = nothingConE

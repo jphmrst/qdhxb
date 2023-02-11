@@ -20,12 +20,22 @@ data HXBErr =
   | AtMostOnceIn -- ^ An element which may occur at most once within a
                  -- container was found more than once
       String -- ^ Contained element tag.
-      String -- ^ Container element tag.
+      -- String -- ^ Container element tag.
       (Maybe Line) -- ^ Location of the element.
   | MustBePresentIn -- ^ An element which must occur within a
                     -- container was not found
       String -- ^ Missing/contained element tag.
+      -- String -- ^ Container element tag.
+      (Maybe Line) -- ^ Location of the element.
+  | CrefMustBePresentIn -- ^ An element which must occur within a
+                        -- container was not found
       String -- ^ Container element tag.
+      (Maybe Line) -- ^ Location of the element.
+  | CouldNotDecodeSimpleType -- ^ The string contents of a
+                             -- simply-typed XML element could not be
+                             -- decoded to the corresponding Haskell
+                             -- type
+      String -- ^ The Haskell type in question.
       (Maybe Line) -- ^ Location of the element.
   deriving Eq
 
@@ -33,6 +43,14 @@ instance Blockable HXBErr where
   block (MiscError s _) = stringToBlock $ "Misc error: " ++ s
   block (NoValidContentInUnion s _) =
     stringToBlock $ "No interpretation of contents for <" ++ s ++ "> union"
+  block (AtMostOnceIn s _) =
+    stringToBlock $ "<" ++ s ++ "> must be present at most once"
+  block (MustBePresentIn s _) =
+    stringToBlock $ "<" ++ s ++ "> must be present"
+  block (CrefMustBePresentIn s _) =
+    stringToBlock $ "CRef must be present in <" ++ s ++ ">"
+  block (CouldNotDecodeSimpleType s _) =
+    stringToBlock $ "Could not decode simple type contents as " ++ s
 
 instance Show HXBErr where show = bpp
 

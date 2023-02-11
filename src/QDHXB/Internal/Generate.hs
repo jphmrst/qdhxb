@@ -19,6 +19,7 @@ import Control.Monad.Except
 import Language.Haskell.TH
 import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName)
+import QDHXB.Errs
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
@@ -59,8 +60,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs) = do
                                             "tryStringDecodeFor" ++ qName t)
                                        (VarE xName)))
                               (LamE [WildP] e))
-                          (applyThrowStrExp $ "No valid content for <"
-                             ++ baseName ++ "> union found")
+                          (qthNoValidContentInUnion baseName Nothing)
                           pairs
       (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
                                                safeDecoder
@@ -90,9 +90,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ) = do
 
         -- Safe decoder
         SigD tryDecNam
-                (fn1Type contentConT
-                         (applyExceptCon stringConT
-                                         (ConT $ mkName typBaseName)))
+                (fn1Type contentConT (qHXBExcT (ConT $ mkName typBaseName)))
         : FunD tryDecNam [Clause [ctxtVarP]
                                  (NormalB tryDecoder) []]
 
@@ -157,8 +155,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
 
         -- Functions
         SigD safeDecNam (fn1Type contentConT
-                          (applyExceptCon stringConT
-                            (AppT maybeConT (ConT rootTypeName)))),
+                          (qHXBExcT (AppT maybeConT (ConT rootTypeName)))),
         FunD safeDecNam [Clause [ctxtVarP]
                                     (NormalB decoder)
                                     []],
@@ -201,9 +198,7 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _)) =
           -- Safe decoder
           : SigD safeDecNam
                  (fn1Type contentConT
-                          (applyExceptCon stringConT
-                                          (AppT maybeConT
-                                                (ConT rootTypeName))))
+                          (qHXBExcT (AppT maybeConT (ConT rootTypeName))))
           : FunD safeDecNam [Clause [ctxtVarP] (NormalB decoder) []]
 
           -- Decoder
@@ -245,8 +240,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs) =
           -- Safe decoder
            : SigD tryDecNam
                   (fn2Type stringConT contentConT
-                           (applyExceptCon stringConT
-                                           (ConT $ mkName nameRoot)))
+                           (qHXBExcT (ConT $ mkName nameRoot)))
            : FunD tryDecNam [Clause [WildP, ctxtVarP]
                                     (NormalB safeDecoder) []]
 
@@ -287,9 +281,8 @@ getSimpleTypeElements baseNameStr pat1 body =
       decStrName = mkName $ "tryStringDecodeFor" ++ baseNameStr
       safeDecAsNam = mkName $ "tryDecodeAs" ++ baseNameStr
       decAsNam = mkName $ "decodeAs" ++ baseNameStr
-      decStrType = fn1Type stringConT (applyExceptCon stringConT typeType)
-      tryDecType = fn2Type stringConT contentConT
-                           (applyExceptCon stringConT typeType)
+      decStrType = fn1Type stringConT (qHXBExcT typeType)
+      tryDecType = fn2Type stringConT contentConT  (qHXBExcT typeType)
       decType = fn2Type stringConT contentConT typeType
 
   in (typeName,
@@ -301,8 +294,7 @@ getSimpleTypeElements baseNameStr pat1 body =
                            (NormalB $
                             app4Exp simpleTypeDecoderVarE
                               (VarE xName) (VarE ctxtName)
-                              (quoteStr $ "QDHXB: CRef must be present within "
-                               ++ baseNameStr)
+                              (qCrefMustBePresentIn baseNameStr Nothing)
                               (VarE decStrName)) []],
 
        SigD decAsNam decType,
@@ -354,22 +346,16 @@ xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
                                 (AppE (AppE (decoderAsExpFor $ qName typeName)
                                             (quoteStr $ qName ref))
                                       (VarE paramName)))
-          (applyThrowStrExp $
-           "QDHXB: " ++ showQName ref ++ " should not occur more than once in "
-           ++ show ctxt ++ " element")
+          (qthAtMostOnceIn (showQName ref) Nothing)
         return $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
-          (applyThrowStrExp $
-           "QDHXB: element " ++ showQName ref ++ " must be present in element "
-           ++ show ctxt)
+          (qthMustBePresentIn (showQName ref) Nothing)
           (\paramName -> applyReturn $
                            AppE (AppE (decoderAsExpFor $ qName typeName)
                                       (quoteStr $ qName ref))
                                 (VarE paramName))
-          (applyThrowStrExp $
-           "QDHXB: " ++ showQName ref ++ " should not occur more than once in "
-           ++ show ctxt ++ " element")
+          (qthAtMostOnceIn (showQName ref) Nothing)
         return $ casePrefix matches
       _ -> return $ applyReturn $
              AppE (AppE mapVarE
@@ -385,7 +371,7 @@ xsdRefToSafeHaskellExpr param (AttributeRef ref usage) _ = do
 
 -- | Called from generated code.
 simpleTypeDecoder ::
-  String -> Content -> String -> (String -> Except String a) -> Except String a
+  String -> Content -> HXBErr -> (String -> HXBExcept a) -> HXBExcept a
 {-# INLINE simpleTypeDecoder #-}
 simpleTypeDecoder elementName contentNode miscFailMsg stringDecoder = do
   case pullCRefContent elementName contentNode of
