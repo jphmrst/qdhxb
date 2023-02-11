@@ -122,7 +122,7 @@ flattenElementSchemeItem ::
   [DataScheme] -> (Maybe QName) -> (Maybe QName) -> (Maybe QName)
   -> (Maybe Int) -> (Maybe Int) -> (Maybe Line)
   -> XSDQ [Definition]
-flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ _ = do
+flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ ln = do
   isKnown <- isKnownType typ
   isSimple <- isSimpleType typ
   whenDebugging $ do
@@ -131,20 +131,22 @@ flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ _ = do
   if isSimple || not isKnown
     then (do let tyDefn = SimpleSynonymDefn nam typ
              addTypeDefn nam tyDefn
-             let elemDefn = ElementDefn nam nam
+             let elemDefn = ElementDefn nam nam ln
              fileNewDefinition elemDefn
              return [ tyDefn, elemDefn ])
-    else return [ ElementDefn nam typ ]
+    else do let elemDefn = ElementDefn nam typ ln
+            fileNewDefinition elemDefn
+            return [ elemDefn ]
 flattenElementSchemeItem [SimpleTypeScheme Nothing ts ln]
                          ifName@(Just nam) Nothing Nothing _ _ _ = do
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln
-  let elemDefn = ElementDefn nam nam
+  let elemDefn = ElementDefn nam nam ln
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
 flattenElementSchemeItem [ComplexTypeScheme ts attrs Nothing l]
                                   ifName@(Just nam) Nothing Nothing _ _ _ = do
   flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l
-  let elemDefn = ElementDefn nam nam
+  let elemDefn = ElementDefn nam nam l
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
 flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax _ = do
@@ -240,12 +242,14 @@ flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper _ = do
     liftIO $ putStrLn $ "  > Flattening element schema with reference only"
     liftIO $ bLabelPrintln "    to " result
   return ([], result)
-flattenElementSchemeRef [] (Just n) (Just t@(QName resolvedName _resolvedURI _)) Nothing lo up _ = do
+flattenElementSchemeRef [] (Just n)
+                        (Just t@(QName resolvedName _resolvedURI _))
+                        Nothing lo up ln = do
   isKnown <- isKnownType t
   whenDebugging $ do
     liftIO $ putStrLn $
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-  if isKnown then (do let defn = ElementDefn n t
+  if isKnown then (do let defn = ElementDefn n t ln
                           ref = ElementRef n lo up
                       fileNewDefinition defn
                       whenDebugging $ do
@@ -255,7 +259,7 @@ flattenElementSchemeRef [] (Just n) (Just t@(QName resolvedName _resolvedURI _))
                         liftIO $ bLabelPrintln "       " ref
                       return ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t
-                 defn2 = ElementDefn n n
+                 defn2 = ElementDefn n n ln
                  ref = ElementRef n lo up
              addTypeDefn n defn1
              fileNewDefinition defn2

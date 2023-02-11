@@ -58,14 +58,19 @@ instance Blockable AttributeDefn where
 
 -- | The actual definition of an XSD element.
 data Definition =
-  ElementDefn QName QName
+  ElementDefn
   -- ^ Defining an element to be of a particular type.
-  | AttributeDefn QName AttributeDefn
+      QName QName
+      (Maybe Line) -- ^ ifLine
+  | AttributeDefn
     -- ^ Defining the attributes and groups.
-  | SimpleSynonymDefn QName QName
+        QName AttributeDefn
+  | SimpleSynonymDefn
     -- ^ Defining one type to have the same structure as another.
-  | SequenceDefn String [Reference]
+        QName QName
+  | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
+        String [Reference]
   | UnionDefn
     -- ^ Define a simple type as a union of other simple types.
       QName
@@ -81,7 +86,7 @@ data Definition =
   deriving Show
 
 instance Blockable Definition where
-  block (ElementDefn n t) = stringToBlock $
+  block (ElementDefn n t _) = stringToBlock $
     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
   block (AttributeDefn n sp) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp

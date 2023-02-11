@@ -77,7 +77,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
       (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs
   packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
-xsdDeclToHaskell decl@(ElementDefn nam typ) = do
+xsdDeclToHaskell decl@(ElementDefn nam typ _ln) = do
   let baseName = firstToUpper $ qName nam
       typBaseName = firstToUpper $ qName typ
       tryDecNam = mkName $ "tryDecode" ++ baseName
@@ -389,7 +389,7 @@ decoderAsExpFor :: String -> Exp
 decoderAsExpFor typ = VarE $ mkName $ "decodeAs" ++ firstToUpper typ
 
 -- elementDefnToTypeDecoderExp :: Reference -> Exp
--- elementDefnToTypeDecoderExp (ElementDefn _ t) =
+-- elementDefnToTypeDecoderExp (ElementDefn _ t _ln) =
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.
