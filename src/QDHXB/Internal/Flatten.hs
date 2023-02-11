@@ -56,17 +56,17 @@ flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) _l) = 
       "  - Have set " ++ qName nam
       ++ " to be known; rechecked as " ++ show recheck
   return $ defs ++ [ tyDefn ]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base)) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) _ln) = do
   let tyDefn = SimpleSynonymDefn nam base
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
 -- types here
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base)) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) _ln) = do
   let tyDefn = SimpleSynonymDefn nam base
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) _ln) = do
   let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax l) =
         ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax l
@@ -75,8 +75,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
         AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l) =
         ComplexTypeScheme form attrs (Just q) l
-      nameUnnamed q (SimpleTypeScheme Nothing detail) =
-        SimpleTypeScheme (Just q) detail
+      nameUnnamed q (SimpleTypeScheme Nothing detail ln) =
+        SimpleTypeScheme (Just q) detail ln
       nameUnnamed _ b = b
 
       pullLabel :: DataScheme -> XSDQ ((QName, QName), [Definition])
@@ -100,7 +100,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts)) = do
   let uDef = UnionDefn nam names
   addTypeDefn nam uDef
   return $ defns ++ [uDef]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType))) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) _ln) = do
   let lDef = ListDefn nam elemType
   addTypeDefn nam lDef
   return [lDef]
@@ -135,9 +135,9 @@ flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ _ = do
              fileNewDefinition elemDefn
              return [ tyDefn, elemDefn ])
     else return [ ElementDefn nam typ ]
-flattenElementSchemeItem [SimpleTypeScheme Nothing ts]
-                                  ifName@(Just nam) Nothing Nothing _ _ _ = do
-  flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts
+flattenElementSchemeItem [SimpleTypeScheme Nothing ts ln]
+                         ifName@(Just nam) Nothing Nothing _ _ _ = do
+  flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln
   let elemDefn = ElementDefn nam nam
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]

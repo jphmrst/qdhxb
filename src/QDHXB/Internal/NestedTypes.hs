@@ -118,8 +118,10 @@ data DataScheme =
                       (Maybe Line) -- ^ ifLine
   | SimpleTypeScheme (Maybe QName) -- ^ ifName
                      SimpleTypeScheme -- ^ Details
+                     (Maybe Line) -- ^ ifLine
   | Group (Maybe QName) -- ^ name
           (Maybe ComplexTypeScheme) -- ^ contents
+          (Maybe Line) -- ^ ifLine
   deriving Show
 
 --  block Skip =
@@ -161,18 +163,18 @@ instance Blockable DataScheme where
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
 
-  block (SimpleTypeScheme name detail) =
+  block (SimpleTypeScheme name detail _ln) =
     labelBlock "SimpleTypeScheme " $
       stackBlocks [
         block name,
         labelBlock "scheme " $ block detail
         ]
 
-  block (Group base (Just ts)) = Block [
+  block (Group base (Just ts) _ln) = Block [
     "Group " ++ show base ++ " with contents",
     "  " ++ show ts
     ]
-  block (Group base Nothing) = stringToBlock $
+  block (Group base Nothing _ln) = stringToBlock $
     "Group " ++ show base ++ " with no contents"
 instance VerticalBlockList DataScheme
 
@@ -197,12 +199,12 @@ labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _) = Just r
 labelOf (ComplexTypeScheme (Extension base _ds) _attrs _ _) = Just base
 labelOf (ComplexTypeScheme (Choice base _ds) _attrs _ _) = base
-labelOf (SimpleTypeScheme j@(Just _) _) = j
-labelOf (SimpleTypeScheme _ (Synonym t)) = Just t
-labelOf (SimpleTypeScheme _ (SimpleRestriction r)) = Just r
-labelOf (SimpleTypeScheme _ (Union _ds)) = Nothing
-labelOf (SimpleTypeScheme _ (List t)) = fmap (withPrefix "List") t
-labelOf (Group base _n) = base
+labelOf (SimpleTypeScheme j@(Just _) _ _) = j
+labelOf (SimpleTypeScheme _ (Synonym t) _) = Just t
+labelOf (SimpleTypeScheme _ (SimpleRestriction r) _) = Just r
+labelOf (SimpleTypeScheme _ (Union _ds) _) = Nothing
+labelOf (SimpleTypeScheme _ (List t) _) = fmap (withPrefix "List") t
+labelOf (Group base _n _l) = base
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool

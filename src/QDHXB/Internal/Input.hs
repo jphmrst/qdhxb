@@ -74,7 +74,7 @@ encodeElement (QName "simpleType" _ _) ats ctnts ifLn = do
            putStrLn "  - Via separateSimpleTypeContents case 2"
          qnam <- decodePrefixedName nam
          alts <- encodeSchemaItems $ filter isElem cs'
-         return $ SimpleTypeScheme (Just qnam) $ Union alts
+         return $ SimpleTypeScheme (Just qnam) (Union alts) ifLn
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' _ _))) -> do
       whenDebugging $ liftIO $
@@ -87,8 +87,8 @@ encodeElement (QName "simpleType" _ _) ats ctnts ifLn = do
             Just n -> decodePrefixedName n
             Nothing -> return $ QName ("List_" ++ qName itemType)
                                       (qURI itemType) (qPrefix itemType)
-          let res = SimpleTypeScheme (Just qnam) $
-                      List (Just itemType)
+          let res = SimpleTypeScheme (Just qnam)
+                      (List (Just itemType)) ifLn
           whenDebugging $ do
             liftIO $ putStrLn "> Encoding simpleType "
             -- liftIO $ bLabelPrintln "    " e
@@ -131,13 +131,13 @@ encodeElement (QName "sequence" _ _) ats ctnts ifLn = do
   case sepPair of
     (Just ds, []) -> return ds
     _ -> error "Unexpected separation from <sequence>"
-encodeElement (QName "group" _ _) ats ctnts _ifLn = do
+encodeElement (QName "group" _ _) ats ctnts ifLn = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
   case filter isElem ctnts of
-    (Elem (Element (QName "choice" _ _) attrs' ctnts' _ifLn')):[] -> do
+    (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
       ts <- encodeChoiceTypeScheme name attrs' ctnts'
-      return $ Group name $ Just ts
+      return $ Group name (Just ts) ifLn'
     (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] -> do
       liftIO $ do
         putStrLn $ "+--------"
@@ -161,7 +161,7 @@ encodeElement (QName "group" _ _) ats ctnts _ifLn = do
       error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
     _ -> do
       liftIO $ putStrLn $ "  - Default is group of nothing"
-      return $ Group name Nothing
+      return $ Group name Nothing ifLn
 encodeElement (QName tag _ _) ats ctnts ifLn = do
   -- whenDebugging $ do
   liftIO $ do
@@ -357,11 +357,11 @@ encodeComplexTypeSchemeElement ats attrSpecs tag ctnts ats'' _ = do
 encodeSimpleTypeByRestriction ::
   Maybe QName -> [Attr] -> Content -> XSDQ DataScheme
 encodeSimpleTypeByRestriction -- Note ignoring ats
-    ifName _ (Elem (Element (QName "restriction" _ _) ats' _ _)) = do
+    ifName _ (Elem (Element (QName "restriction" _ _) ats' _ ln)) = do
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
-      return $ SimpleTypeScheme ifName $ SimpleRestriction baseQName
+      return $ SimpleTypeScheme ifName (SimpleRestriction baseQName) ln
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam ats s = do
   liftIO $ putStrLn "+------"
