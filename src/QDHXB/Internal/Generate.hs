@@ -126,7 +126,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln) = do
     liftIO $ bLabelPrintln "  to " res
   return res
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln) = do
   let rootName = firstToUpper $ qName nam
       baseStr = rootName ++ "AttrType"
       rootTypeName = mkName baseStr
@@ -174,7 +174,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads)) = do
     liftIO $ bLabelPrintln "    +--> " res
   return res
 
-xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _)) =
+xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _ln) =
   let rootName = firstToUpper $ qName nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName

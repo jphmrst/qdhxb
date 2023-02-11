@@ -88,7 +88,7 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition (SimpleSynonymDefn _ _) = return ()
-fileNewDefinition (AttributeDefn _ _)  = return ()
+fileNewDefinition (AttributeDefn _ _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _)   = return ()
 fileNewDefinition (UnionDefn _ _)   = return ()
 fileNewDefinition (ListDefn _ _) = return ()

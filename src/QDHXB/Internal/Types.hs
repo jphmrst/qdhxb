@@ -65,6 +65,7 @@ data Definition =
   | AttributeDefn
     -- ^ Defining the attributes and groups.
         QName AttributeDefn
+      (Maybe Line) -- ^ ifLine
   | SimpleSynonymDefn
     -- ^ Defining one type to have the same structure as another.
         QName QName
@@ -88,7 +89,7 @@ data Definition =
 instance Blockable Definition where
   block (ElementDefn n t _) = stringToBlock $
     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (AttributeDefn n sp) =
+  block (AttributeDefn n sp _ln) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
