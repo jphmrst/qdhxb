@@ -43,7 +43,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln) = do
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
                                                (basicDecoder $ VarE eName)
   packAndDebug decl $ TySynD typeName [] haskellType : decs
-xsdDeclToHaskell decl@(UnionDefn name pairs) = do
+xsdDeclToHaskell decl@(UnionDefn name pairs _ln) = do
   let baseName = qName name
 
       makeConstr :: (QName, QName) -> Con
