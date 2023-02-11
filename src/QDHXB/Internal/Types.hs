@@ -73,6 +73,7 @@ data Definition =
   | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
         String [Reference]
+        (Maybe Line) -- ^ ifLine
   | UnionDefn
     -- ^ Define a simple type as a union of other simple types.
       QName
@@ -94,7 +95,7 @@ instance Blockable Definition where
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (SequenceDefn n rs) = stackBlocks $
+  block (SequenceDefn n rs _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
   block (UnionDefn n ns) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)

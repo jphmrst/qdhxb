@@ -45,11 +45,11 @@ flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _) _l) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs) l) =
   flattenAttributeGroupItem n r cs l
-flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) _l) = do
+flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts
       (map (\x -> AttributeScheme x Nothing) ats0 ++ ats) nam
-  let tyDefn = SequenceDefn (qName nam) $ refs
+  let tyDefn = SequenceDefn (qName nam) refs l
   addTypeDefn nam tyDefn
   whenDebugging $ do
     recheck <- isKnownType nam
