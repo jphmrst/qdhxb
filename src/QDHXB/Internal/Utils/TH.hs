@@ -13,6 +13,11 @@ module QDHXB.Internal.Utils.TH (
   diffTimeBasicDecoder, timeOfDayBasicDecoder, dayBasicDecoder,
   qnameBasicDecoder,
 
+  -- * Building expressions related to the exceptions in `QDHXB.Errs`
+  qHXBExcT,
+  qthMiscError, qthNoValidContentInUnion, qthAtMostOnceIn,
+  qthMustBePresentIn,
+
   -- * Utilities for building expressions for other standard Haskell types and values
   caseLeftRight, caseLeftRight',
   caseNothingJust, caseNothingJust',
@@ -70,8 +75,8 @@ module QDHXB.Internal.Utils.TH (
 where
 
 import Language.Haskell.TH
--- import System.Directory
 import Data.Char
+import Text.XML.Light.Types (Line)
 
 -- | Convert the `String` representation of a primitive XSD type to a
 -- Template Haskell `Type`.
@@ -674,3 +679,60 @@ mapMName = mkName "QDHXB.Expansions.mapM"
 -- `Control.Monad.mapM` function.
 applyMapM :: Exp -> Exp -> Exp
 applyMapM f = AppE (AppE (VarE mapMName) f)
+
+-------------------------------------------------------------------
+-- Relating to module Errs ----------------------------------------
+------------------------------------------------------------------
+
+-- | Helper for building a quoted `Control.Monad.Except`ion-thrower
+-- using a constructor taking a `String` and a `Maybe` `Line`.  The
+-- first argument is the `String` name of the constructor, which is
+-- assumed to be re-exported (and prefixed) by `QDHXB.Expansions`.
+qthExcStringLoc :: String -> String -> Maybe Line -> Exp
+qthExcStringLoc conStr sl ll = applyThrowExp $
+  app2Exp (ConE $ mkName $ "QDHXB.Expansions." ++ conStr)
+          (quoteStr sl) (quoteLoc ll)
+
+-- | Helper for building a quoted `Control.Monad.Except`ion-thrower
+-- using a constructor taking two `String`s and a `Maybe` `Line`.  The
+-- first argument is the `String` name of the constructor, which is
+-- assumed to be re-exported (and prefixed) by `QDHXB.Expansions`.
+qthExcStrStrLoc :: String -> String -> String -> Maybe Line -> Exp
+qthExcStrStrLoc conStr sl1 sl2 ll = applyThrowExp $
+  app3Exp (ConE $ mkName $ "QDHXB.Expansions." ++ conStr)
+          (quoteStr sl1) (quoteStr sl2) (quoteLoc ll)
+
+-- | Build an expression to throw a `QDHXB.Errs.MiscError` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qthMiscError :: String -> Maybe Line -> Exp
+qthMiscError = qthExcStringLoc "MiscError"
+
+-- | Build an expression to throw a `QDHXB.Errs.NoValidContentInUnion`
+-- in an `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qthNoValidContentInUnion :: String -> Maybe Line -> Exp
+qthNoValidContentInUnion = qthExcStringLoc "NoValidContentInUnion"
+
+-- | Build an expression to throw a `QDHXB.Errs.AtMostOnceIn` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qthAtMostOnceIn :: String -> String -> Maybe Line -> Exp
+qthAtMostOnceIn = qthExcStrStrLoc "AtMostOnceIn"
+
+-- | Build an expression to throw a `QDHXB.Errs.MustBePresentIn` in an
+-- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.
+qthMustBePresentIn :: String -> String -> Maybe Line -> Exp
+qthMustBePresentIn = qthExcStrStrLoc "MustBePresentIn"
+
+quoteLoc :: Maybe Line -> Exp
+quoteLoc Nothing = nothingConE
+quoteLoc (Just l) = applyJust $ LitE $ IntegerL l
+
+-- -----------------------------------------------------------------
+
+hxbExceptConT :: Type
+hxbExceptConT = ConT $ mkName "QDHXB.Expansions.HXBExcept"
+
+-- | Build the `Type` of an `Control.Monad.Except` computation
+-- throwing a `QDHXB.Errs.HXBErr`.  The second argument to
+-- `Control.Monad.Except` is not yet supplied.
+qHXBExcT :: Type -> Type
+qHXBExcT = AppT hxbExceptConT

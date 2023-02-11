@@ -389,7 +389,7 @@ simpleTypeDecoder ::
 {-# INLINE simpleTypeDecoder #-}
 simpleTypeDecoder elementName contentNode miscFailMsg stringDecoder = do
   case pullCRefContent elementName contentNode of
-    Nothing -> throwError miscFailMsg
+    Nothing -> stringDecoder ""
     Just v -> stringDecoder v
 
 -- | From an element reference name, construct the associated Haskell
