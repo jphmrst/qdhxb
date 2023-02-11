@@ -76,8 +76,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
         AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln'
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l) =
         ComplexTypeScheme form attrs (Just q) l
-      nameUnnamed q (SimpleTypeScheme Nothing detail ln) =
-        SimpleTypeScheme (Just q) detail ln
+      nameUnnamed q (SimpleTypeScheme Nothing detail ln') =
+        SimpleTypeScheme (Just q) detail ln'
       nameUnnamed _ b = b
 
       pullLabel :: DataScheme -> XSDQ ((QName, QName), [Definition])

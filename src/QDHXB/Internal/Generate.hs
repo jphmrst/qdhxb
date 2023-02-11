@@ -18,7 +18,7 @@ import Control.Monad.Except
 -- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Text.XML.Light.Output (showQName)
-import Text.XML.Light.Types (QName, Content, qName)
+import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.TH
@@ -37,11 +37,11 @@ xsdDeclsToHaskell defns = do
 -- monad, usually updating the internal state to store the new
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln) = do
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln) = do
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
-                                               (basicDecoder $ VarE eName)
+                                               (basicDecoder $ VarE eName) ln
   packAndDebug decl $ TySynD typeName [] haskellType : decs
 xsdDeclToHaskell decl@(UnionDefn name pairs ln) = do
   let baseName = qName name
@@ -63,18 +63,18 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln) = do
                           (qthNoValidContentInUnion baseName ln)
                           pairs
       (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
-                                               safeDecoder
+                                               safeDecoder ln
   packAndDebug decl $
     DataD [] typeName [] Nothing (map makeConstr pairs)
           [DerivClause Nothing [eqConT, showConT]]
      : decs
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef _ln) = do
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln) = do
   let baseStr = firstToUpper $ qName name
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
       elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
       decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
-      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs
+      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs ln
   packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln) = do
@@ -274,8 +274,9 @@ packAndDebug d r = do
   return r
 
 getSimpleTypeElements ::
-  String -> Pat -> Exp -> (Name, {- Name, Name, Type, Type, -} [Dec])
-getSimpleTypeElements baseNameStr pat1 body =
+  String -> Pat -> Exp -> Maybe Line
+  -> (Name, {- Name, Name, Type, Type, -} [Dec])
+getSimpleTypeElements baseNameStr pat1 body l =
   let typeName = mkName baseNameStr
       typeType = ConT typeName
       decStrName = mkName $ "tryStringDecodeFor" ++ baseNameStr
@@ -294,7 +295,7 @@ getSimpleTypeElements baseNameStr pat1 body =
                            (NormalB $
                             app4Exp simpleTypeDecoderVarE
                               (VarE xName) (VarE ctxtName)
-                              (qCrefMustBePresentIn baseNameStr Nothing)
+                              (qCrefMustBePresentIn baseNameStr l)
                               (VarE decStrName)) []],
 
        SigD decAsNam decType,
