@@ -134,9 +134,9 @@ xsdTypeNameTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
 xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
 
 -- | Convert an expression of type @Maybe a@ to an expression of type
--- `HXBExcept` @a@.  The first argument should be a quotation of the
--- `HXBErr` to be raised when the original `Exp`ression returns
--- `Nothing`.
+-- `QDHXB.Errs.HXBExcept` @a@.  The first argument should be a
+-- quotation of the `QDHXB.Errs.HXBErr` to be raised when the original
+-- `Exp`ression returns `Nothing`.
 maybeToExceptExp :: Exp -> Exp -> Exp
 maybeToExceptExp s e = caseNothingJust e s $ applyReturn . VarE
 
@@ -713,6 +713,7 @@ qExcStringLoc conStr sl ll =
 qthExcStringLoc :: String -> String -> Maybe Line -> Exp
 qthExcStringLoc c s l = applyThrowExp $ qExcStringLoc c s l
 
+{-
 -- | Helper for building a quoted `Control.Monad.Except`ion-thrower
 -- using a constructor taking two `String`s and a `Maybe` `Line`.  The
 -- first argument is the `String` name of the constructor, which is
@@ -721,6 +722,7 @@ qthExcStrStrLoc :: String -> String -> String -> Maybe Line -> Exp
 qthExcStrStrLoc conStr sl1 sl2 ll = applyThrowExp $
   app3Exp (ConE $ mkName $ "QDHXB.Expansions." ++ conStr)
           (quoteStr sl1) (quoteStr sl2) (quoteLoc ll)
+-}
 
 -- | Build an expression to throw a `QDHXB.Errs.MiscError` in an
 -- `Control.Monad.Except` `QDHXB.Errs.HXBErr` @a@ computation.

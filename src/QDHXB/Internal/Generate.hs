@@ -330,7 +330,7 @@ assembleTryStatements _ [] _ _ _ =
 -- `Exp`ression representation describing the extraction of the given
 -- value within an `Either` monad.
 xsdRefToSafeHaskellExpr :: Name -> Reference -> Name -> XSDQ Exp
-xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) ctxt =
+xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) _ctxt =
   let casePrefix = CaseE $ subcontentZom ref param
   in do
     typeName <- getElementTypeOrFail ref
@@ -375,7 +375,7 @@ simpleTypeDecoder ::
 {-# INLINE simpleTypeDecoder #-}
 simpleTypeDecoder elementName contentNode miscFailMsg stringDecoder = do
   case pullCRefContent elementName contentNode of
-    Nothing -> stringDecoder ""
+    Nothing -> throwError miscFailMsg
     Just v -> stringDecoder v
 
 -- | From an element reference name, construct the associated Haskell
