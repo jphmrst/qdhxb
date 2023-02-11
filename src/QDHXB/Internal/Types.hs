@@ -17,10 +17,12 @@ import QDHXB.Internal.Utils.BPP
 
 -- | A reference to an XSD element.
 data Reference =
-  ElementRef QName (Maybe Int) (Maybe Int)
+  ElementRef
   -- ^ A named element type, possibly with numeric instance bounds.
-  | AttributeRef QName AttributeUsage
-  -- ^ The name of an attribute.
+      QName (Maybe Int) (Maybe Int) (Maybe Line)
+  | AttributeRef
+    -- ^ The name of an attribute.
+       QName AttributeUsage
 {-
   | ComplexTypeRef String
   -- ^ The name of a complex type.
@@ -28,7 +30,7 @@ data Reference =
   deriving Show
 
 instance Blockable Reference where
-  block (ElementRef name ifLower ifUpper) = stringToBlock $
+  block (ElementRef name ifLower ifUpper _) = stringToBlock $
     "ElementRef " ++ showQName name
     ++ case ifLower of
          Nothing -> " no lower bound"
@@ -83,10 +85,11 @@ data Definition =
         (Maybe Line) -- ^ ifLine
   | ListDefn
     -- ^ Define a simple type as a list of another simple type.
-      QName
-      -- ^ Name of the list type
-      QName
-      -- ^ Name of the element type
+        QName
+        -- ^ Name of the list type
+        QName
+        -- ^ Name of the element type
+        (Maybe Line) -- ^ ifLine
   deriving Show
 
 instance Blockable Definition where
@@ -101,7 +104,7 @@ instance Blockable Definition where
   block (UnionDefn n ns _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
-  block (ListDefn n t) = stringToBlock $
+  block (ListDefn n t _) = stringToBlock $
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName [Definition]

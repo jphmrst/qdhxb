@@ -72,8 +72,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax l) =
         ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax l
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifRef ifType usage) ln) =
-        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln
+                     (SingleAttribute Nothing ifRef ifType usage) ln') =
+        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln'
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l) =
         ComplexTypeScheme form attrs (Just q) l
       nameUnnamed q (SimpleTypeScheme Nothing detail ln) =
@@ -101,8 +101,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
   let uDef = UnionDefn nam names ln
   addTypeDefn nam uDef
   return $ defns ++ [uDef]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) _ln) = do
-  let lDef = ListDefn nam elemType
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) ln) = do
+  let lDef = ListDefn nam elemType ln
   addTypeDefn nam lDef
   return [lDef]
 flattenSchemaItem' s = do
@@ -238,8 +238,8 @@ flattenElementSchemeRef ::
   -> Maybe Int -> Maybe Int -> Maybe Line
   -> XSDQ ([Definition], Reference)
 -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
-flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper _ = do
-  let result = ElementRef r lower upper
+flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper ln = do
+  let result = ElementRef r lower upper ln
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening element schema with reference only"
     liftIO $ bLabelPrintln "    to " result
@@ -252,7 +252,7 @@ flattenElementSchemeRef [] (Just n)
     liftIO $ putStrLn $
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
   if isKnown then (do let defn = ElementDefn n t ln
-                          ref = ElementRef n lo up
+                          ref = ElementRef n lo up ln
                       fileNewDefinition defn
                       whenDebugging $ do
                         liftIO $ putStrLn $ "  > Flattening schema with type"
@@ -262,7 +262,7 @@ flattenElementSchemeRef [] (Just n)
                       return ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t ln
                  defn2 = ElementDefn n n ln
-                 ref = ElementRef n lo up
+                 ref = ElementRef n lo up ln
              addTypeDefn n defn1
              fileNewDefinition defn2
              whenDebugging $ do
@@ -276,7 +276,7 @@ flattenElementSchemeRef [] (Just n)
 flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _]
                         n@(Just nam) t@Nothing r@Nothing lower upper ln = do
   prev <- flattenElementSchemeItem s n t r lower upper ln
-  let ref = ElementRef nam lower upper
+  let ref = ElementRef nam lower upper ln
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening element schema with name and nested complex type"
     liftIO $ bLabelPrintln "       " s

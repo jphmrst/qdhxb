@@ -91,7 +91,7 @@ fileNewDefinition (SimpleSynonymDefn _ _ _) = return ()
 fileNewDefinition (AttributeDefn _ _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _ _)   = return ()
 fileNewDefinition (UnionDefn _ _ _)   = return ()
-fileNewDefinition (ListDefn _ _) = return ()
+fileNewDefinition (ListDefn _ _ _) = return ()
 fileNewDefinition (ElementDefn n t _)    = do
   whenDebugging $ do
     liftIO $ putStrLn $ show $

@@ -43,7 +43,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln) = do
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
                                                (basicDecoder $ VarE eName)
   packAndDebug decl $ TySynD typeName [] haskellType : decs
-xsdDeclToHaskell decl@(UnionDefn name pairs _ln) = do
+xsdDeclToHaskell decl@(UnionDefn name pairs ln) = do
   let baseName = qName name
 
       makeConstr :: (QName, QName) -> Con
@@ -60,7 +60,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs _ln) = do
                                             "tryStringDecodeFor" ++ qName t)
                                        (VarE xName)))
                               (LamE [WildP] e))
-                          (qthNoValidContentInUnion baseName Nothing)
+                          (qthNoValidContentInUnion baseName ln)
                           pairs
       (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
                                                safeDecoder
@@ -68,7 +68,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs _ln) = do
     DataD [] typeName [] Nothing (map makeConstr pairs)
           [DerivClause Nothing [eqConT, showConT]]
      : decs
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef) = do
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef _ln) = do
   let baseStr = firstToUpper $ qName name
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
@@ -330,7 +330,7 @@ assembleTryStatements _ [] _ _ _ =
 -- `Exp`ression representation describing the extraction of the given
 -- value within an `Either` monad.
 xsdRefToSafeHaskellExpr :: Name -> Reference -> Name -> XSDQ Exp
-xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) _ctxt =
+xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax ln) _ctxt =
   let casePrefix = CaseE $ subcontentZom ref param
   in do
     typeName <- getElementTypeOrFail ref
@@ -346,16 +346,16 @@ xsdRefToSafeHaskellExpr param (ElementRef ref occursMin occursMax) _ctxt =
                                 (AppE (AppE (decoderAsExpFor $ qName typeName)
                                             (quoteStr $ qName ref))
                                       (VarE paramName)))
-          (qthAtMostOnceIn (showQName ref) Nothing)
+          (qthAtMostOnceIn (showQName ref) ln)
         return $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
-          (qthMustBePresentIn (showQName ref) Nothing)
+          (qthMustBePresentIn (showQName ref) ln)
           (\paramName -> applyReturn $
                            AppE (AppE (decoderAsExpFor $ qName typeName)
                                       (quoteStr $ qName ref))
                                 (VarE paramName))
-          (qthAtMostOnceIn (showQName ref) Nothing)
+          (qthAtMostOnceIn (showQName ref) ln)
         return $ casePrefix matches
       _ -> return $ applyReturn $
              AppE (AppE mapVarE
@@ -424,7 +424,7 @@ maybeMatches zeroCase oneCaseF = do
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
 xsdRefToBangTypeQ :: Reference -> XSDQ BangType
-xsdRefToBangTypeQ (ElementRef ref lower upper) = do
+xsdRefToBangTypeQ (ElementRef ref lower upper _ln) = do
   typeName <- getElementTypeOrFail ref
   typ <- containForBounds lower upper $ return $ ConT $ mkName $
          firstToUpper $ qName typeName
