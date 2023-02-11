@@ -10,7 +10,7 @@ module QDHXB.Internal.NestedTypes (
   nonSkip, labelOf
 ) where
 
-import Text.XML.Light.Types (QName)
+import Text.XML.Light.Types (QName, Line)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.XMLLight (withPrefix)
@@ -109,7 +109,9 @@ data DataScheme =
                   (Maybe QName) -- ^ ifRef
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
+                  (Maybe Line) -- ^ ifLine
   | AttributeScheme AttributeScheme -- ^ Single vs. group
+                    (Maybe Line) -- ^ ifLine
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
@@ -120,15 +122,15 @@ data DataScheme =
   deriving Show
 
 --  block Skip =
---  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
---  block (AttributeScheme ifName ifType ifRef usage) =
+--  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax ifLine) =
+--  block (AttributeScheme ifName ifType ifRef usage ifLine) =
 --  block (ComplexTypeScheme form attrs ifName) =
 --  block (SimpleTypeScheme name detail) =
 --  block (Group base typeScheme) =
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
-  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax) =
+  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax _ifLine) =
     stack2 (stringToBlock ("ElementScheme name="
                            ++ (case ifName of
                                  Nothing -> "undef"
@@ -151,7 +153,7 @@ instance Blockable DataScheme where
                                  Just s  -> show s)))
            (indent "  " $ block ctnts)
 
-  block (AttributeScheme s) = labelBlock "AttributeScheme " $ block s
+  block (AttributeScheme s _) = labelBlock "AttributeScheme " $ block s
 
   block (ComplexTypeScheme form attrs ifName) =
     (labelBlock "ComplexTypeScheme name=" $ block ifName)
@@ -176,19 +178,19 @@ instance VerticalBlockList DataScheme
 -- | Try to find a name for this `DataScheme`.
 labelOf :: DataScheme -> Maybe QName
 labelOf Skip = Nothing
-labelOf (ElementScheme _ (Just name) _ _ _ _) = Just name
-labelOf (ElementScheme _ _ (Just typ) _ _ _) = Just typ
-labelOf (ElementScheme cs _ _ _ _ _) = makeFirst cs
+labelOf (ElementScheme _ (Just name) _ _ _ _ _) = Just name
+labelOf (ElementScheme _ _ (Just typ) _ _ _ _) = Just typ
+labelOf (ElementScheme cs _ _ _ _ _ _) = makeFirst cs
   where makeFirst [] = Nothing
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds
                              Just r -> Just r
-labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _)) = j
-labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _)) = j
-labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _)) = j
-labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _)) = j
-labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _)) = j
-labelOf (AttributeScheme _) = Nothing
+labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _) _) = j
+labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _) _) = j
+labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _) _) = j
+labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _) _) = j
+labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _) _) = j
+labelOf (AttributeScheme _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _)) = j
 labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _) = Just r

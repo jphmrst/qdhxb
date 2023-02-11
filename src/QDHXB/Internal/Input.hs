@@ -36,7 +36,7 @@ encodeSchemaItem (CRef txt) = do
   return Skip
 
 encodeElement :: QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ DataScheme
-encodeElement (QName "element" _ _) ats content _ = do
+encodeElement (QName "element" _ _) ats content ln = do
   included <- encodeSchemaItems $ filter isElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
@@ -44,12 +44,13 @@ encodeElement (QName "element" _ _) ats content _ = do
   return $ ElementScheme included nameQName typeQName refQName
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
+             ln
 encodeElement q@(QName "attribute" _ _) a c l = do
   scheme <- encodeAttribute q a c l
-  return $ AttributeScheme scheme
+  return $ AttributeScheme scheme l
 encodeElement q@(QName "attributeGroup" _ _) a c l = do
   scheme <- encodeAttribute q a c l
-  return $ AttributeScheme scheme
+  return $ AttributeScheme scheme l
 encodeElement (QName "complexType" _ _) ats ctnts l = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ liftIO $ putStrLn $
