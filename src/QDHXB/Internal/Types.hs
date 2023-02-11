@@ -65,10 +65,11 @@ data Definition =
   | AttributeDefn
     -- ^ Defining the attributes and groups.
         QName AttributeDefn
-      (Maybe Line) -- ^ ifLine
+        (Maybe Line) -- ^ ifLine
   | SimpleSynonymDefn
     -- ^ Defining one type to have the same structure as another.
         QName QName
+        (Maybe Line) -- ^ ifLine
   | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
         String [Reference]
@@ -91,7 +92,7 @@ instance Blockable Definition where
     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
   block (AttributeDefn n sp _ln) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
-  block (SimpleSynonymDefn n t) = stringToBlock $
+  block (SimpleSynonymDefn n t _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs

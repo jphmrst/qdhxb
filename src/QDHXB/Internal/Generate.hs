@@ -37,7 +37,7 @@ xsdDeclsToHaskell defns = do
 -- monad, usually updating the internal state to store the new
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ) = do
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln) = do
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)

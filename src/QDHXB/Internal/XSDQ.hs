@@ -87,7 +87,7 @@ containForBounds _ _ t = [t|[$t]|]
 -- | Register a `Definition` with the tracking tables in the `XSDQ`
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
-fileNewDefinition (SimpleSynonymDefn _ _) = return ()
+fileNewDefinition (SimpleSynonymDefn _ _ _) = return ()
 fileNewDefinition (AttributeDefn _ _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _)   = return ()
 fileNewDefinition (UnionDefn _ _)   = return ()
@@ -135,7 +135,7 @@ isSimpleType :: QName -> XSDQ Bool
 isSimpleType name = do
   defn <- getTypeDefn name
   return $ case defn of
-    Just (SimpleSynonymDefn _ _) -> True
+    Just (SimpleSynonymDefn _ _ _) -> True
     _ -> False
 
 -- | Return `True` if the string argument names a complex XSD type
