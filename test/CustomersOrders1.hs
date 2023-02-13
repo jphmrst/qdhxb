@@ -6,6 +6,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+{- Disabled until we can handle using the same name in different XML scopes. -}
+
 -- qdhxb useDebugging ["customersorders.xsd"]
 -- qdhxb' ["customersorders.xsd"]
 

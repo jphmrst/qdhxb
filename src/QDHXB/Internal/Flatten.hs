@@ -119,17 +119,34 @@ flattenAttributeGroupItem (Just n) Nothing cs l = do
   defs <- flattenAttributes cs
   let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l]
   return res
+flattenAttributeGroupItem name ref contents ln = do
+  liftIO $ do
+    putStrLn      "+------"
+    putStrLn      "| TODO flattenAttributeGroupItem missed case"
+    bLabelPrintln "| NAME " name
+    bLabelPrintln "| REF " ref
+    bLabelPrintln "| CONTENTS " contents
+    putStrLn $ "| LN " ++ show ln
+  error "TODO flattenAttributeGroupItem unmatched"
 
 flattenElementSchemeItem ::
   [DataScheme] -> Maybe QName -> Maybe QName -> (Maybe QName)
   -> (Maybe Int) -> (Maybe Int) -> (Maybe Line)
   -> XSDQ [Definition]
-flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ ln = do
+flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax ifLine =
+  flattenElementSchemeItem' (filter nonSkip contents)
+                            ifName ifType ifRef ifMin ifMax ifLine
+
+flattenElementSchemeItem' ::
+  [DataScheme] -> Maybe QName -> Maybe QName -> (Maybe QName)
+  -> (Maybe Int) -> (Maybe Int) -> (Maybe Line)
+  -> XSDQ [Definition]
+flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln = do
   isKnown <- isKnownType typ
   isSimple <- isSimpleType typ
   whenDebugging $ do
-    liftIO $ putStrLn $
-      "  - Checking whether " ++ showQName typ ++ " is simple: " ++ show isSimple
+    liftIO $ putStrLn $ "  - Checking whether "
+      ++ showQName typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
     then (do let tyDefn = SimpleSynonymDefn nam typ ln
              addTypeDefn nam tyDefn
@@ -139,28 +156,29 @@ flattenElementSchemeItem [] (Just nam) (Just typ) Nothing _ _ ln = do
     else do let elemDefn = ElementDefn nam typ ln
             fileNewDefinition elemDefn
             return [ elemDefn ]
-flattenElementSchemeItem [SimpleTypeScheme Nothing ts ln]
+flattenElementSchemeItem' [SimpleTypeScheme Nothing ts ln]
                          ifName@(Just nam) Nothing Nothing _ _ _ = do
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln
   let elemDefn = ElementDefn nam nam ln
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
-flattenElementSchemeItem [ComplexTypeScheme ts attrs Nothing l]
+flattenElementSchemeItem' [ComplexTypeScheme ts attrs Nothing l]
                                   ifName@(Just nam) Nothing Nothing _ _ _ = do
   flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l
   let elemDefn = ElementDefn nam nam l
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
-flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax _ = do
+flattenElementSchemeItem' contents ifName ifType ifRef ifMin ifMax _ = do
   liftIO $ do
     putStrLn "+--------"
-    bLabelPrintln "|  " ifName
-    bLabelPrintln "|  " ifType
-    bLabelPrintln "|  " ifRef
-    putStrLn $ "|  " ++ show ifMin
-    putStrLn $ "|  " ++ show ifMax
-    bLabelPrintln "|  " contents
-  error "Unmatched case for flattenElementSchemeItem"
+    putStrLn "| flattenElementSchemeItem'"
+    bLabelPrintln "| IFNAME " ifName
+    bLabelPrintln "| IFTYPE " ifType
+    bLabelPrintln "| IFREF " ifRef
+    putStrLn $ "| IFMIN " ++ show ifMin
+    putStrLn $ "| IFMAX " ++ show ifMax
+    bLabelPrintln "| CONTENTS " contents
+  error "Unmatched case for flattenElementSchemeItem'"
 
 musterComplexSequenceComponents ::
   [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])
@@ -183,16 +201,17 @@ flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef ifLower ifUpper ln) =
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln
-flattenSchemaRef (AttributeScheme (SingleAttribute ifName ifRef ifType mode) l) =
-  flattenSingleAttributeRef ifName ifRef ifType mode l
+flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l) =
+  flattenSingleAttributeRef n r t m l
 flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l) =
   flattenAttributeGroupRef ifName ifRef contents l
 flattenSchemaRef (ComplexTypeScheme _ _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
-  liftIO $ putStrLn "+--------"
-  liftIO $ putStrLn "| flattenSchemaRef"
-  liftIO $ bLabelPrintln "| arg " s
+  liftIO $ do
+    putStrLn "+--------"
+    putStrLn "| flattenSchemaRef"
+    bLabelPrintln "| arg " s
   error $ "TODO flattenSchemaRef > additional case:"
 
 flattenAttributeGroupRef ::

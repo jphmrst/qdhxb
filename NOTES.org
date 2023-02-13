@@ -22,7 +22,6 @@ xbxu
 ** Cabal/Stack notes
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
-* TODO CustomerOrders1 current disabled
 * TODO Sizes (no list) example
   - Need to generate the decodeAs[name] function for union types
 * TODO Bootstrap the whole xsd.xsd
