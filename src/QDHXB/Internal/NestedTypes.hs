@@ -107,6 +107,7 @@ data DataScheme =
                   (Maybe QName) -- ^ ifName
                   (Maybe QName) -- ^ ifType
                   (Maybe QName) -- ^ ifRef
+                  (Maybe String) -- ^ ifId
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
                   (Maybe Line) -- ^ ifLine
@@ -125,7 +126,7 @@ data DataScheme =
   deriving Show
 
 --  block Skip =
---  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax ifLine) =
+--  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine) =
 --  block (ComplexTypeScheme form attrs ifName ifLine) =
 --  block (SimpleTypeScheme name detail) =
@@ -133,7 +134,7 @@ data DataScheme =
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
-  block (ElementScheme ctnts ifName ifType ifRef ifMin ifMax _ifLine) =
+  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine) =
     stack2 (stringToBlock ("ElementScheme name="
                            ++ (case ifName of
                                  Nothing -> "undef"
@@ -146,6 +147,10 @@ instance Blockable DataScheme where
                            ++ (case ifRef of
                                  Nothing -> "undef"
                                  Just s  -> "\"" ++ showQName s ++ "\"")
+                           ++ " id="
+                           ++ (case ifId of
+                                 Nothing -> "undef"
+                                 Just s  -> "\"" ++ s ++ "\"")
                            ++ " min="
                            ++ (case ifMin of
                                  Nothing -> "undef"
@@ -181,9 +186,9 @@ instance VerticalBlockList DataScheme
 -- | Try to find a name for this `DataScheme`.
 labelOf :: DataScheme -> Maybe QName
 labelOf Skip = Nothing
-labelOf (ElementScheme _ (Just name) _ _ _ _ _) = Just name
-labelOf (ElementScheme _ _ (Just typ) _ _ _ _) = Just typ
-labelOf (ElementScheme cs _ _ _ _ _ _) = makeFirst cs
+labelOf (ElementScheme _ _ (Just name) _ _ _ _ _) = Just name
+labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _) = Just typ
+labelOf (ElementScheme cs _ _ _ _ _ _ _) = makeFirst cs
   where makeFirst [] = Nothing
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds

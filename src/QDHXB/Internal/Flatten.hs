@@ -32,7 +32,8 @@ flattenSchemaItem s = do
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
-flattenSchemaItem' (ElementScheme contents ifName ifType ifRef ifMin ifMax l) =
+flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
+                                  ifMin ifMax l) =
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (Just nam) Nothing (Just typ) m) l) =
@@ -69,8 +70,9 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) ln) = d
   return $ [ tyDefn ]
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
   let nameUnnamed :: QName -> DataScheme -> DataScheme
-      nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifMin ifMax l) =
-        ElementScheme ctnts (Just q) ifType ifRef ifMin ifMax l
+      nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
+                                   ifMin ifMax l) =
+        ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l
       nameUnnamed q (AttributeScheme
                      (SingleAttribute Nothing ifRef ifType usage) ln') =
         AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln'
@@ -199,7 +201,8 @@ flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
-flattenSchemaRef (ElementScheme c ifName ifType ifRef ifLower ifUpper ln) =
+flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
+                                ifLower ifUpper ln) =
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln
 flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l) =
   flattenSingleAttributeRef n r t m l

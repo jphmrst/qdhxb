@@ -41,7 +41,8 @@ encodeElement (QName "element" _ _) ats content ln = do
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
-  return $ ElementScheme included nameQName typeQName refQName
+  let ifId = pullAttr "id" ats
+  return $ ElementScheme included nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
              ln
