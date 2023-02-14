@@ -4,7 +4,7 @@ module QDHXB.Options (
   -- * Options storage type
   QDHXBOptionSet(QDHXBOptionSet),
   -- ** Component accessors
-  optUseNewType, optDebugging,
+  optUseNewType, optDebugging, optDebuggingDoc,
   -- ** Defaults
   defaultOptionSet,
 
@@ -14,7 +14,7 @@ module QDHXB.Options (
   -- the @QDHXB.Options@ module.
   QDHXBOption,
   -- ** Structure of renamed types
-  useNewType, noUseNewType, useDebugging
+  useNewType, noUseNewType, useDebugging, useDebuggingDoc
   )
 where
 
@@ -26,13 +26,17 @@ data QDHXBOptionSet = QDHXBOptionSet {
                          -- (if `False`) should be used for type alias
                          -- declarations.  The default is `True` for
                          -- @newtype@.
-  optDebugging :: Bool  -- ^ Activates debugging output.  `False` by
-                        -- default.
+  optDebugging :: Bool,  -- ^ Activates debugging output.  `False` by
+                         -- default.
+  optDebuggingDoc :: Bool  -- ^ Activates debugging output for Haddock
+                           -- documentation string.  Has no effect
+                           -- unless the basic `optDebugging` option
+                           -- is alos set; is `False` by default.
   }
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
-defaultOptionSet = QDHXBOptionSet True False
+defaultOptionSet = QDHXBOptionSet True False False
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
@@ -41,14 +45,19 @@ type QDHXBOption = QDHXBOptionSet -> QDHXBOptionSet
 -- | Generate opaque types (@newtype@) when one type is simply a
 -- renaming of another.
 useNewType :: QDHXBOption
-useNewType (QDHXBOptionSet _ dbg) = QDHXBOptionSet True dbg
+useNewType (QDHXBOptionSet _ dbg dbgDoc) = QDHXBOptionSet True dbg dbgDoc
 
 -- | Generate types aliases (@type@) when one type is simply a
 -- renaming of another.
 noUseNewType :: QDHXBOption
-noUseNewType (QDHXBOptionSet _ dbg) = QDHXBOptionSet False dbg
+noUseNewType (QDHXBOptionSet _ dbg dbgDoc) = QDHXBOptionSet False dbg dbgDoc
 
 -- | Generate types aliases (@type@) when one type is simply a
 -- renaming of another.
 useDebugging :: QDHXBOption
-useDebugging (QDHXBOptionSet nt _) = QDHXBOptionSet nt True
+useDebugging (QDHXBOptionSet nt _ dbgDoc) = QDHXBOptionSet nt True dbgDoc
+
+-- | Generate types aliases (@type@) when one type is simply a
+-- renaming of another.
+useDebuggingDoc :: QDHXBOption
+useDebuggingDoc (QDHXBOptionSet nt dbg _) = QDHXBOptionSet nt dbg True

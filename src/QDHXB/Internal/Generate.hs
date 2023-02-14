@@ -141,7 +141,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
       ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if loading or parsing fails" ++ suffix
   return res
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln) = do
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln _doc) = do
   let rootName = firstToUpper $ qName nam
       baseStr = rootName ++ "AttrType"
       rootTypeName = mkName baseStr
@@ -189,7 +189,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln) = do
     liftIO $ bLabelPrintln "    +--> " res
   return res
 
-xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _ln) =
+xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _ln _doc) =
   let rootName = firstToUpper $ qName nam
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName

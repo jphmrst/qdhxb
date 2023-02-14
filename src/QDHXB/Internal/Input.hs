@@ -74,11 +74,11 @@ encodeElement q@(QName "attributeGroup" _ _) a c l _d = do
   let ifDoc = getAnnotationDocFrom c
   scheme <- encodeAttribute q a c l ifDoc
   return $ AttributeScheme scheme l ifDoc
-encodeElement (QName "complexType" _ _) ats ctnts l _d = do
+encodeElement (QName "complexType" _ _) ats ctnts l d = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ liftIO $ putStrLn $
     "  - Using separateAndDispatchComplexContents for <complexType> "
-  p <- separateAndDispatchComplexContents ctnts' ats l
+  p <- separateAndDispatchComplexContents ctnts' ats l d
   name <- pullAttrQName "name" ats
   let d = getAnnotationDocFrom ctnts
   case p of
@@ -147,11 +147,11 @@ encodeElement (QName tagname _ _) _ _ _ _
   whenDebugging $ do
     liftIO $ putStrLn $ "  - Dropping <" ++ tagname ++ "> entry "
   return Skip
-encodeElement (QName "sequence" _ _) ats ctnts ifLn _ifDoc = do
+encodeElement (QName "sequence" _ _) ats ctnts ifLn ifDoc = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ liftIO $ putStrLn $
     "  - Using separateAndDispatchComplexContents for <sequence> "
-  sepPair <- separateAndDispatchComplexContents ctnts' ats ifLn
+  sepPair <- separateAndDispatchComplexContents ctnts' ats ifLn ifDoc
   case sepPair of
     (Just ds, []) -> return ds
     _ -> error "Unexpected separation from <sequence>"
@@ -227,21 +227,21 @@ encodeAttributeScheme c = do
 encodeAttribute ::
   QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
-encodeAttribute (QName "attribute" _ _) ats [] _ _ = do
+encodeAttribute (QName "attribute" _ _) ats [] _ d = do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
   return $ SingleAttribute nameQname refQName typeQName
                            (case pullAttr "use" ats of
                               Nothing -> "optional"
-                              Just s -> s)
-encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ _ = do
+                              Just s -> s) d
+encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ d = do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
   let attrs = filterTagged "attribute" ctnts
       atGroups = filterTagged "attributeGroup" ctnts
   subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
-  return $ AttributeGroup name ref subcontents
+  return $ AttributeGroup name ref subcontents d
 encodeAttribute (QName c _ _) _ _ _ _ =
   error $ "Can't use encodeAttribute with <" ++ c ++ ">"
 
@@ -251,9 +251,9 @@ ifAtLine ifLine = case ifLine of
                     Just line -> " at XSD line " ++ show line
 
 separateAndDispatchComplexContents ::
-  [Content] -> [Attr] -> Maybe Line
+  [Content] -> [Attr] -> Maybe Line -> Maybe String
   -> XSDQ (Maybe DataScheme, [AttributeScheme])
-separateAndDispatchComplexContents contents ats ifLn = do
+separateAndDispatchComplexContents contents ats ifLn ifDoc = do
   let d = getAnnotationDocFrom contents
   case separateComplexTypeContents contents of
     -- <sequence>
@@ -280,7 +280,7 @@ separateAndDispatchComplexContents contents ats ifLn = do
           let allAttr :: [Content]
               allAttr = attrSpecs ++ attrGroups
           attrSchemes <- mapM encodeAttributeScheme allAttr
-          return (Nothing, [AttributeGroup Nothing Nothing attrSchemes])
+          return (Nothing, [AttributeGroup Nothing Nothing attrSchemes ifDoc])
     (Zero, Zero, One ctnt, attrSpecs, _) -> do
       -- whenDebugging $ do
       liftIO $ putStrLn $ "+--------"

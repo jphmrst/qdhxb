@@ -75,14 +75,16 @@ data AttributeScheme =
                   (Maybe QName) -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
+                  (Maybe String) -- ^ idDoc
   | AttributeGroup (Maybe QName) -- ^ ifName
                    (Maybe QName) -- ^ ifRef
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
+                   (Maybe String) -- ^ idDoc
   deriving Show
 
 instance Blockable AttributeScheme where
-  block (SingleAttribute ifName ifRef ifType mode) =
+  block (SingleAttribute ifName ifRef ifType mode _d) =
     stringToBlock "single name="
     `follow` block ifName
     `follow` stringToBlock " ref="
@@ -91,7 +93,7 @@ instance Blockable AttributeScheme where
     `follow` block ifType
     `follow` stringToBlock " mode="
     `follow` stringToBlock mode
-  block (AttributeGroup ifName ifRef attrs) =
+  block (AttributeGroup ifName ifRef attrs _d) =
     stringToBlock "group name="
     `follow` block ifName
     `follow` stringToBlock " ref="
@@ -203,11 +205,11 @@ labelOf (ElementScheme cs _ _ _ _ _ _ _ _) = makeFirst cs
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds
                              Just r -> Just r
-labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _) _ _) = j
-labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _) _ _) = j
-labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _) _ _) = j
-labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _) _ _) = j
-labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _ _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _ _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _ _) _ _) = j
+labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _ _) _ _) = j
+labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _ _) _ _) = j
 labelOf (AttributeScheme _ _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _) _ _) = j
 labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _ _) = Nothing

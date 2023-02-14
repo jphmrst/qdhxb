@@ -12,6 +12,7 @@ import Language.Haskell.TH (mkName, Name)
 import System.IO
 import Text.XML.Light.Input
 import Text.XML.Light.Types
+import QDHXB.Internal.Utils.Misc
 import QDHXB.Internal.Utils.ZeroOneMany
 
 -- | Retrieve the named attribute value from a list of `Attr`
@@ -38,14 +39,14 @@ getAnnotationDoc c = case zomToList $ pullContentFrom "annotation" c of
   [] -> Nothing
   ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
     [] -> Nothing
-    doc:_ -> pullCRef doc
+    doc:_ -> fmap chomp $ pullCRef doc
 
 getAnnotationDocFrom :: [Content] -> Maybe String
 getAnnotationDocFrom cs = case zomToList $ pullContent "annotation" cs of
   [] -> Nothing
   ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
     [] -> Nothing
-    doc:_ -> pullCRefContent "documentation" doc
+    doc:_ -> fmap chomp $ pullCRefContent "documentation" doc
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefContent :: String -> Content -> Maybe String

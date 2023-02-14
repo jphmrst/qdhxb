@@ -11,7 +11,7 @@ module QDHXB.Internal.XSDQ (
   addElementType, getElementType, getElementTypeOrFail,
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
-  getOptions, getUseNewtype, getDebugging, whenDebugging,
+  getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
   pushNamespaces, popNamespaces, getNamespaces, getDefaultNamespace,
   decodePrefixedName, getURIprefix, getNextCapName,
 
@@ -88,7 +88,7 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition (SimpleSynonymDefn _ _ _) = return ()
-fileNewDefinition (AttributeDefn _ _ _)  = return ()
+fileNewDefinition (AttributeDefn _ _ _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _ _)   = return ()
 fileNewDefinition (UnionDefn _ _ _)   = return ()
 fileNewDefinition (ListDefn _ _ _) = return ()
@@ -189,6 +189,11 @@ getDebugging = fmap optDebugging getOptions
 -- |Guard a block executed only when debugging is activated.
 whenDebugging :: XSDQ () -> XSDQ ()
 whenDebugging = whenM getDebugging
+
+-- |Execute one of two blocks depending on whether documentation
+-- debugging is selected.
+ifDebuggingDoc :: XSDQ () -> XSDQ () -> XSDQ ()
+ifDebuggingDoc yes no = ifM getDebugging yes no
 
 -- |Create a new namespace scope on the `XSDQ` state corresponding to
 -- the attributes, presumably from an XSD element schema.

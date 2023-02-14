@@ -10,6 +10,7 @@ import Text.XML.Light.Output
 import QDHXB.Internal.Generate
 import QDHXB.UtilMisc
 import QDHXB.Internal.Utils.BPP
+import QDHXB.Internal.Utils.Misc (pickOrCombine)
 import QDHXB.Internal.Utils.TH (firstToUpper)
 import QDHXB.Internal.Utils.XMLLight (withSuffix)
 import QDHXB.Internal.NestedTypes
@@ -36,16 +37,17 @@ flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
                                   ifMin ifMax l ifDoc) =
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 flattenSchemaItem' (AttributeScheme
-                    (SingleAttribute (Just nam) Nothing (Just typ) m) l _d) =
+                    (SingleAttribute (Just nam) Nothing (Just typ) m d') l d) =
   let attrDefn =
-        AttributeDefn nam ( SingleAttributeDefn typ $ stringToAttributeUsage m)
-                      l
+        AttributeDefn nam (SingleAttributeDefn typ $ stringToAttributeUsage m)
+                      l (pickOrCombine d d')
   in do fileNewDefinition attrDefn
         return [attrDefn]
-flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _) _l _d) = do
+flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _ _)
+                                    _l _d) = do
   return $ error "Reference in attribute"
-flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs) l _d) =
-  flattenAttributeGroupItem n r cs l
+flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _gd) l d) =
+  flattenAttributeGroupItem n r cs l d
 flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l _d) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts
@@ -75,8 +77,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln _d) = do
                                    ifMin ifMax l ifDoc) =
         ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifRef ifType usage) ln' d) =
-        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln' d
+                     (SingleAttribute Nothing ifRef ifType usage d') ln' d) =
+        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage d') ln' d
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l d) =
         ComplexTypeScheme form attrs (Just q) l d
       nameUnnamed q (SimpleTypeScheme Nothing detail ln' d) =
@@ -115,14 +117,14 @@ flattenSchemaItem' s = do
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
 flattenAttributeGroupItem ::
-  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line
+  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
-flattenAttributeGroupItem (Just n) Nothing cs l = do
+flattenAttributeGroupItem (Just n) Nothing cs l d = do
   let names = map grabName cs
   defs <- flattenAttributes cs
-  let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l]
+  let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l d]
   return res
-flattenAttributeGroupItem name ref contents ln = do
+flattenAttributeGroupItem name ref contents ln _d = do
   liftIO $ do
     putStrLn      "+------"
     putStrLn      "| TODO flattenAttributeGroupItem missed case"
@@ -191,11 +193,11 @@ musterComplexSequenceComponents steps ats _ = do
   return (otherDefs ++ atsDefs, atsRefs ++ refs)
 
 grabName :: AttributeScheme -> QName
-grabName (SingleAttribute (Just n) _ _ _) = n
-grabName (SingleAttribute Nothing (Just n) _ _) = n
-grabName (SingleAttribute Nothing Nothing (Just t) _) = t
-grabName (AttributeGroup (Just n) _ _) = n
-grabName (AttributeGroup Nothing (Just n) _) = n
+grabName (SingleAttribute (Just n) _ _ _ _) = n
+grabName (SingleAttribute Nothing (Just n) _ _ _) = n
+grabName (SingleAttribute Nothing Nothing (Just t) _ _) = t
+grabName (AttributeGroup (Just n) _ _ _) = n
+grabName (AttributeGroup Nothing (Just n) _ _) = n
 grabName a = error $ "No useable name in " ++ show a
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
@@ -205,10 +207,10 @@ flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
                                 ifLower ifUpper ln ifDoc) =
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
-flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l _d) =
-  flattenSingleAttributeRef n r t m l
-flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l _d) =
-  flattenAttributeGroupRef ifName ifRef contents l
+flattenSchemaRef (AttributeScheme (SingleAttribute n r t m d') l d) =
+  flattenSingleAttributeRef n r t m l (pickOrCombine d d')
+flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents _gd) l d) =
+  flattenAttributeGroupRef ifName ifRef contents l d
 flattenSchemaRef (ComplexTypeScheme _ _ _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
@@ -219,14 +221,14 @@ flattenSchemaRef s = do
   error $ "TODO flattenSchemaRef > additional case:"
 
 flattenAttributeGroupRef ::
-  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line
+  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
-flattenAttributeGroupRef n@(Just name) Nothing contents l = do
-  refs <- flattenAttributeGroupItem n Nothing contents l
+flattenAttributeGroupRef n@(Just name) Nothing contents l d = do
+  refs <- flattenAttributeGroupItem n Nothing contents l d
   return (refs, AttributeRef name Required)
-flattenAttributeGroupRef Nothing (Just ref) [] _ln = do
+flattenAttributeGroupRef Nothing (Just ref) [] _ln _d = do
   return ([], AttributeRef ref Required)
-flattenAttributeGroupRef ifName ifRef contents _ln = do
+flattenAttributeGroupRef ifName ifRef contents _ln _d = do
   liftIO $ do
     putStrLn "+--------"
     putStrLn "| flattenAttributeGroupRef"
@@ -236,17 +238,18 @@ flattenAttributeGroupRef ifName ifRef contents _ln = do
   error $ "TODO flattenAttributeGroupRef > unmatched"
 
 flattenSingleAttributeRef ::
-  Maybe QName -> Maybe QName -> Maybe QName -> String -> Maybe Line
+  Maybe QName -> Maybe QName -> Maybe QName -> String
+  -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
-flattenSingleAttributeRef Nothing (Just ref) Nothing useStr _ = do
+flattenSingleAttributeRef Nothing (Just ref) Nothing useStr _ _ = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   return ([], res)
-flattenSingleAttributeRef (Just nam) Nothing (Just t) m l = do
+flattenSingleAttributeRef (Just nam) Nothing (Just t) m l d = do
   let defn = AttributeDefn nam
-               (SingleAttributeDefn t $ stringToAttributeUsage m) l
+               (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
   return ([defn], ref)
-flattenSingleAttributeRef maybeName maybeRef maybeType mode _ = do
+flattenSingleAttributeRef maybeName maybeRef maybeType mode _ _ = do
   liftIO $ do
     putStrLn "+--------"
     putStrLn "| flattenSingleAttributeRef"
@@ -320,14 +323,14 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-flattenAttribute (SingleAttribute (Just n) Nothing (Just typ) mode) =
+flattenAttribute (SingleAttribute (Just n) Nothing (Just typ) mode d) =
   return [AttributeDefn n
             (SingleAttributeDefn typ $ stringToAttributeUsage mode)
-            Nothing]
-flattenAttribute (AttributeGroup (Just n) Nothing schemes) = do
+            Nothing d]
+flattenAttribute (AttributeGroup (Just n) Nothing schemes d) = do
   let names = map grabName schemes
   sub <- fmap concat $ mapM flattenAttribute schemes
-  return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing]
+  return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]
 flattenAttribute a = do
   liftIO $ putStrLn $ "+--------"
   liftIO $ bLabelPrintln "| flattenAttribute " a
