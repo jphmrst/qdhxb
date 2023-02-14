@@ -71,14 +71,15 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) ln d) =
   let tyDefn = SimpleSynonymDefn nam base ln d
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln _d) = do
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln d) = do
   let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
                                    ifMin ifMax l ifDoc) =
         ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifRef ifType usage d') ln' d) =
-        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage d') ln' d
+                     (SingleAttribute Nothing ifRef ifType usage d') ln' d'') =
+        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage d') ln'
+          (pickOrCombine d d'')
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l d) =
         ComplexTypeScheme form attrs (Just q) l d
       nameUnnamed q (SimpleTypeScheme Nothing detail ln' d) =
@@ -103,7 +104,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln _d) = do
   labelledAlts <- mapM pullLabel alts
   let (names, defnss) = unzip labelledAlts
       defns = concat defnss
-  let uDef = UnionDefn nam names ln
+  let uDef = UnionDefn nam names ln d
   addTypeDefn nam uDef
   return $ defns ++ [uDef]
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) ln _d) = do

@@ -87,6 +87,7 @@ data Definition =
         [(QName, QName)]
         -- ^ (Constructor name, type name) of each element of the union.
         (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   | ListDefn
     -- ^ Define a simple type as a list of another simple type.
         QName
@@ -109,7 +110,7 @@ instance Blockable Definition where
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs _ _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
-  block (UnionDefn n ns _) = stackBlocks $
+  block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
   block (ListDefn n t _) = stringToBlock $

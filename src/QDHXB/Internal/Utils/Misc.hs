@@ -35,6 +35,7 @@ spaceSep (x:xs) = spaceSep' [x] xs
 
 -- |Remove leading and trailing spaces from a `String`.
 chomp :: String -> String
+chomp e@"" = e
 chomp (c:cs) | isSpace c = chomp cs
 chomp (c:cs) = c : chomp' cs
   where chomp' [] = []
