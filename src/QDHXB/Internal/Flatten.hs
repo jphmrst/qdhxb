@@ -26,9 +26,9 @@ flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
   results <- flattenSchemaItem' s
-  whenDebugging $ do
-    liftIO $ bLabelPrintln "> Flattening " s
-    liftIO $ bLabelPrintln "   `--> " results
+  whenDebugging $ liftIO $ do
+    bLabelPrintln "> Flattening " s
+    bLabelPrintln "   `--> " results
   return results
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
@@ -112,9 +112,10 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemTyp)) ln d) = do
   addTypeDefn nam lDef
   return [lDef]
 flattenSchemaItem' s = do
-  liftIO $ putStrLn      "+------"
-  liftIO $ putStrLn      "| TODO flattenSchemaItem' missed case"
-  liftIO $ bLabelPrintln "| " s
+  liftIO $ do
+    putStrLn      "+------"
+    putStrLn      "| TODO flattenSchemaItem' missed case"
+    bLabelPrintln "| " s
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
 flattenAttributeGroupItem ::
@@ -150,9 +151,8 @@ flattenElementSchemeItem' ::
 flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
   isKnown <- isKnownType typ
   isSimple <- isSimpleType typ
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  - Checking whether "
-      ++ showQName typ ++ " is simple: " ++ show isSimple
+  whenDebugging $ liftIO $ putStrLn $
+    "  - Checking whether " ++ showQName typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
     then (do let tyDefn = SimpleSynonymDefn nam typ ln ifDoc
              addTypeDefn nam tyDefn
@@ -169,7 +169,7 @@ flattenElementSchemeItem' [SimpleTypeScheme Nothing ts ln d]
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
 flattenElementSchemeItem' [ComplexTypeScheme ts attrs Nothing l d]
-                                  ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+                          ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
   flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l d
   let elemDefn = ElementDefn nam nam l ifDoc
   fileNewDefinition elemDefn
@@ -267,48 +267,47 @@ flattenElementSchemeRef ::
 -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
 flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper ln _ifDoc = do
   let result = ElementRef r lower upper ln
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening element schema with reference only"
-    liftIO $ bLabelPrintln "    to " result
+  whenDebugging $ liftIO $ do
+    putStrLn $ "  > Flattening element schema with reference only"
+    bLabelPrintln "    to " result
   return ([], result)
 flattenElementSchemeRef [] (Just n)
                         (Just t@(QName resolvedName _resolvedURI _))
                         Nothing lo up ln ifDoc = do
   isKnown <- isKnownType t
-  whenDebugging $ do
-    liftIO $ putStrLn $
+  whenDebugging $ liftIO $ putStrLn $
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
   if isKnown then (do let defn = ElementDefn n t ln ifDoc
                           ref = ElementRef n lo up ln
                       fileNewDefinition defn
-                      whenDebugging $ do
-                        liftIO $ putStrLn $ "  > Flattening schema with type"
-                        -- liftIO $ bLabelPrintln "       " e
-                        liftIO $ bLabelPrintln "    to " defn
-                        liftIO $ bLabelPrintln "       " ref
+                      whenDebugging $ liftIO $ do
+                        putStrLn $ "  > Flattening schema with type"
+                        -- bLabelPrintln "       " e
+                        bLabelPrintln "    to " defn
+                        bLabelPrintln "       " ref
                       return ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t ln ifDoc
                  defn2 = ElementDefn n n ln ifDoc
                  ref = ElementRef n lo up ln
              addTypeDefn n defn1
              fileNewDefinition defn2
-             whenDebugging $ do
-               liftIO $ putStrLn $
+             whenDebugging $ liftIO $ do
+               putStrLn $
                  "  > Flattening element schema with name and type"
-               -- liftIO $ bLabelPrintln "       " e
-               liftIO $ bLabelPrintln "    to " defn1
-               liftIO $ bLabelPrintln "       " defn2
-               liftIO $ bLabelPrintln "       " ref
+               -- bLabelPrintln "       " e
+               bLabelPrintln "    to " defn1
+               bLabelPrintln "       " defn2
+               bLabelPrintln "       " ref
              return ([defn1, defn2], ref))
 flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _ _]
                         n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
   prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
   let ref = ElementRef nam lower upper ln
-  whenDebugging $ do
-    liftIO $ putStrLn $ "  > Flattening element schema with name and nested complex type"
-    liftIO $ bLabelPrintln "       " s
-    liftIO $ bLabelPrintln "    to " prev
-    liftIO $ bLabelPrintln "       " ref
+  whenDebugging $ liftIO $ do
+    putStrLn $ "  > Flattening element schema with name and nested complex type"
+    bLabelPrintln "       " s
+    bLabelPrintln "    to " prev
+    bLabelPrintln "       " ref
   return (prev, ref)
 flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ _ = do
   liftIO $ do
@@ -333,7 +332,8 @@ flattenAttribute (AttributeGroup (Just n) Nothing schemes d) = do
   sub <- fmap concat $ mapM flattenAttribute schemes
   return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]
 flattenAttribute a = do
-  liftIO $ putStrLn $ "+--------"
-  liftIO $ bLabelPrintln "| flattenAttribute " a
+  liftIO $ do
+    putStrLn $ "+--------"
+    bLabelPrintln "| flattenAttribute " a
   error "TODO flattenAttribute missing case"
 

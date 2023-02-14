@@ -143,9 +143,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   pushDeclHaddock ifDoc loadNam
     ("Load a @\\<" ++ origName ++ ">@ element from the given file")
 
-  whenDebugging $ do
-    liftIO $ bLabelPrintln "> Generating from " decl
-    liftIO $ bLabelPrintln "  to " res
+  whenDebugging $ liftIO $ do
+    bLabelPrintln "> Generating from " decl
+    bLabelPrintln "  to " res
 
   return res
 
@@ -199,10 +199,10 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
     "Representation of the attributes defined in the @\\<" ++ xmlName
     ++ ">@ attribute group"
 
-  whenDebugging $ do
-    liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn"
-    liftIO $ bLabelPrintln "  > Generating from " d
-    liftIO $ bLabelPrintln "    +--> " res
+  whenDebugging $ liftIO $ do
+    putStrLn "> xsdDeclToHaskell AttributeGroupDefn"
+    bLabelPrintln "  > Generating from " d
+    bLabelPrintln "    +--> " res
   return res
 
 xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
@@ -260,9 +260,9 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
     pushDeclHaddock ifDoc rootTypeName $
       "Representation of the @\\<" ++ xmlName ++ ">@ attribute"
 
-    whenDebugging $ do
-      liftIO $ bLabelPrintln "> Generating from " decl
-      liftIO $ bLabelPrintln "  to " res
+    whenDebugging $ liftIO $ do
+      bLabelPrintln "> Generating from " decl
+      bLabelPrintln "  to " res
     return res
 
 xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln ifDoc) =
@@ -315,17 +315,17 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln ifDoc) =
     pushDeclHaddock ifDoc typNam $
       "Representation of the @\\<" ++ namStr ++ ">@ attribute"
 
-    whenDebugging $ do
-      liftIO $ bLabelPrintln "> Generating from " decl
-      liftIO $ bLabelPrintln "  to " res
+    whenDebugging $ liftIO $ do
+      bLabelPrintln "> Generating from " decl
+      bLabelPrintln "  to " res
 
     return res
 
 packAndDebug :: Blockable a => Definition -> a -> XSDQ a
 packAndDebug d r = do
-  whenDebugging $ do
-    liftIO $ bLabelPrintln "> Generating from " d
-    liftIO $ bLabelPrintln "  to " r
+  whenDebugging $ liftIO $ do
+    bLabelPrintln "> Generating from " d
+    bLabelPrintln "  to " r
   return r
 
 getSimpleTypeElements ::
