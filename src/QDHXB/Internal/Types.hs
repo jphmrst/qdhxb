@@ -74,6 +74,7 @@ data Definition =
     -- ^ Defining one type to have the same structure as another.
         QName QName
         (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
         String [Reference]
@@ -103,7 +104,7 @@ instance Blockable Definition where
                  Just d -> "  doc=\"" ++ d ++ "\"")
   block (AttributeDefn n sp _ln _d) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
-  block (SimpleSynonymDefn n t _) = stringToBlock $
+  block (SimpleSynonymDefn n t _ _d) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (SequenceDefn n rs _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs

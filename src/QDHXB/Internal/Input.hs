@@ -8,6 +8,7 @@ import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Output
 import Text.XML.Light.Types
+import QDHXB.Internal.Utils.Misc (pickOrCombine)
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.ZeroOneMany
 import QDHXB.Internal.Utils.XMLLight
@@ -80,11 +81,11 @@ encodeElement (QName "complexType" _ _) ats ctnts l d = do
     "  - Using separateAndDispatchComplexContents for <complexType> "
   p <- separateAndDispatchComplexContents ctnts' ats l d
   name <- pullAttrQName "name" ats
-  let d = getAnnotationDocFrom ctnts
+  let d' = pickOrCombine d $ getAnnotationDocFrom ctnts
   case p of
     (Just ds, []) -> return ds
-    (Nothing, as) -> return $ ComplexTypeScheme (Composing [] as) [] name l d
-    (Just ds, as) -> return $ ComplexTypeScheme (Composing [ds] as) [] name l d
+    (Nothing, as) -> return $ ComplexTypeScheme (Composing [] as) [] name l d'
+    (Just ds, as) -> return $ ComplexTypeScheme (Composing [ds] as) [] name l d'
 encodeElement (QName "simpleType" _ _) ats ctnts ifLn ifDoc = do
   let ctnts' = filter isElem ctnts
   case separateSimpleTypeContents ats ctnts' of

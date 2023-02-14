@@ -61,14 +61,14 @@ flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l _d) 
       "  - Have set " ++ qName nam
       ++ " to be known; rechecked as " ++ show recheck
   return $ defs ++ [ tyDefn ]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln _d) = do
-  let tyDefn = SimpleSynonymDefn nam base ln
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
+  let tyDefn = SimpleSynonymDefn nam base ln d
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
 -- types here
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) ln _d) = do
-  let tyDefn = SimpleSynonymDefn nam base ln
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) ln d) = do
+  let tyDefn = SimpleSynonymDefn nam base ln d
   addTypeDefn nam tyDefn
   return $ [ tyDefn ]
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln _d) = do
@@ -153,7 +153,7 @@ flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
     liftIO $ putStrLn $ "  - Checking whether "
       ++ showQName typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
-    then (do let tyDefn = SimpleSynonymDefn nam typ ln
+    then (do let tyDefn = SimpleSynonymDefn nam typ ln ifDoc
              addTypeDefn nam tyDefn
              let elemDefn = ElementDefn nam nam ln ifDoc
              fileNewDefinition elemDefn
@@ -286,7 +286,7 @@ flattenElementSchemeRef [] (Just n)
                         liftIO $ bLabelPrintln "    to " defn
                         liftIO $ bLabelPrintln "       " ref
                       return ([defn], ref))
-    else (do let defn1 = SimpleSynonymDefn n t ln
+    else (do let defn1 = SimpleSynonymDefn n t ln ifDoc
                  defn2 = ElementDefn n n ln ifDoc
                  ref = ElementRef n lo up ln
              addTypeDefn n defn1
