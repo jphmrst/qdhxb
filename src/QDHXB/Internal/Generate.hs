@@ -39,11 +39,13 @@ xsdDeclsToHaskell defns = do
 -- monad, usually updating the internal state to store the new
 -- `Definition`.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln _doc) = do
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
-      (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
-                                               (basicDecoder $ VarE eName) ln
+  (typeName, decs) <- getSimpleTypeElements baseName (VarP eName)
+                                            (basicDecoder $ VarE eName) ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Representation of the @" ++ qName nam ++ "@ simple type"
   packAndDebug decl $ TySynD typeName [] haskellType : decs
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   let baseName = qName name
@@ -64,21 +66,25 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
                               (LamE [WildP] e))
                           (qthNoValidContentInUnion baseName ln)
                           pairs
-      (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
-                                               safeDecoder ln
-  whenJust ifDoc (liftQtoXSDQ . addModFinalizer . putDoc (DeclDoc typeName))
+  (typeName, decs) <- getSimpleTypeElements baseName (VarP xName)
+                                            safeDecoder ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Representation of the @\\<" ++ baseName ++ ">@ union"
   packAndDebug decl $
     DataD [] typeName [] Nothing (map makeConstr pairs)
           [DerivClause Nothing [eqConT, showConT]]
      : decs
 xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
-  let baseStr = firstToUpper $ qName name
+  let xmlName = qName name
+      baseStr = firstToUpper xmlName
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
       elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
       decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
-      (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs ln
-  whenJust ifDoc (liftQtoXSDQ . addModFinalizer . putDoc (DeclDoc typeName))
+  (typeName, decs) <-
+    getSimpleTypeElements baseStr (VarP eName) decodeAs ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Type associated with the @\\<" ++ xmlName ++ ">@ list type"
   packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
@@ -126,20 +132,21 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
         -}
 
         : [])
+
+  pushDeclHaddock ifDoc decNam
+    ("Load a @\\<" ++ origName ++ ">@ element from the given file")
+  pushDeclHaddock ifDoc tryDecNam
+    ("Attempt to decode a @\\<" ++ origName ++ ">@ element as a `"
+      ++ typBaseName
+      ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in "
+      ++ "the `Control.Monad.Except` monad if loading or parsing fails")
+  pushDeclHaddock ifDoc loadNam
+    ("Load a @\\<" ++ origName ++ ">@ element from the given file")
+
   whenDebugging $ do
     liftIO $ bLabelPrintln "> Generating from " decl
     liftIO $ bLabelPrintln "  to " res
-  let suffix = maybe "." (": " ++) ifDoc
-  liftQtoXSDQ $ do
-    addModFinalizer $ putDoc (DeclDoc loadNam) $
-      "Load a @\\<" ++ origName ++ ">@ element from the given file" ++ suffix
-    addModFinalizer $ putDoc (DeclDoc decNam) $
-      "Decode a @\\<" ++ origName ++ ">@ element as a `" ++ typBaseName
-      ++ "` value from parsed XML content" ++ suffix
-    addModFinalizer $ putDoc (DeclDoc tryDecNam) $
-      "Attempt to decode a @\\<" ++ origName ++ ">@ element as a `"
-      ++ typBaseName
-      ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if loading or parsing fails" ++ suffix
+
   return res
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
@@ -178,21 +185,20 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
         FunD decNam [Clause [ctxtVarP]
                        (NormalB $ resultOrThrow $
                           AppE (VarE safeDecNam) ctxtVarE) []]
-
         ]
-  let suffix = maybe "." (": " ++) ifDoc
-   in liftQtoXSDQ $ do
-     addModFinalizer $ putDoc (DeclDoc safeDecNam) $
-       "Attempt to decode the attributes defined in the @\\<" ++ xmlName
-       ++ ">@ attribute group as a `" ++ baseStr
-       ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
-       ++ suffix
-     addModFinalizer $ putDoc (DeclDoc decNam) $
-       "Decode the attributes defined in the @\\<" ++ xmlName ++
-       ">@ attribute group as a `" ++ baseStr ++ "`" ++ suffix
-     addModFinalizer $ putDoc (DeclDoc rootTypeName) $
-       "Representation of the attributes defined in the @\\<" ++ xmlName
-       ++ ">@ attribute group" ++ suffix
+
+  pushDeclHaddock ifDoc safeDecNam $
+    "Attempt to decode the attributes defined in the @\\<" ++ xmlName
+    ++ ">@ attribute group as a `" ++ baseStr
+    ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except`"
+    ++ " monad if extraction fails"
+  pushDeclHaddock ifDoc decNam $
+    "Decode the attributes defined in the @\\<" ++ xmlName
+    ++ ">@ attribute group as a `" ++ baseStr ++ "`"
+  pushDeclHaddock ifDoc rootTypeName $
+    "Representation of the attributes defined in the @\\<" ++ xmlName
+    ++ ">@ attribute group"
+
   whenDebugging $ do
     liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn"
     liftIO $ bLabelPrintln "  > Generating from " d
@@ -242,18 +248,18 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
                                                  (quoteStr "TODO")) []]
           -}
           : [])
-    let suffix = maybe "." (": " ++) ifDoc
-     in liftQtoXSDQ $ do
-       addModFinalizer $ putDoc (DeclDoc safeDecNam) $
-         "Attempt to decode the @\\<" ++ xmlName
-         ++ ">@ attribute as a `" ++ show rootTypeName
-         ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
-         ++ suffix
-       addModFinalizer $ putDoc (DeclDoc decNam) $
-         "Decode the @\\<" ++ xmlName ++
-         ">@ attribute as a `" ++ show rootTypeName ++ "`" ++ suffix
-       addModFinalizer $ putDoc (DeclDoc rootTypeName) $
-         "Representation of the @\\<" ++ xmlName ++ ">@ attribute" ++ suffix
+
+    pushDeclHaddock ifDoc safeDecNam $
+      "Attempt to decode the @\\<" ++ xmlName
+      ++ ">@ attribute as a `" ++ show rootTypeName
+      ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except`"
+      ++ " monad if extraction fails"
+    pushDeclHaddock ifDoc decNam $
+      "Decode the @\\<" ++ xmlName ++ ">@ attribute as a `"
+      ++ show rootTypeName ++ "`"
+    pushDeclHaddock ifDoc rootTypeName $
+      "Representation of the @\\<" ++ xmlName ++ ">@ attribute"
+
     whenDebugging $ do
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
@@ -269,6 +275,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln ifDoc) =
     let subNames = map (mkName . ("s" ++) . show) [1..length refs]
     safeDecoder <- fmap (DoE Nothing) $
       assembleTryStatements refs subNames ctxtName (ConE typNam) []
+
     let res = (
           -- Type declaration
           DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
@@ -298,21 +305,20 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln ifDoc) =
            -}
 
            : [])
-    let suffix = maybe "." (": " ++) ifDoc
-     in liftQtoXSDQ $ do
-       addModFinalizer $ putDoc (DeclDoc tryDecNam) $
-         "Attempt to decode the @\\<" ++ namStr
+
+    pushDeclHaddock ifDoc tryDecNam $
+      "Attempt to decode the @\\<" ++ namStr
          ++ ">@ attribute as a `" ++ nameRoot
          ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
-         ++ suffix
-       addModFinalizer $ putDoc (DeclDoc decNam) $
-         "Decode the @\\<" ++ namStr ++
-         ">@ attribute as a `" ++ nameRoot ++ "`" ++ suffix
-       addModFinalizer $ putDoc (DeclDoc typNam) $
-         "Representation of the @\\<" ++ namStr ++ ">@ attribute" ++ suffix
+    pushDeclHaddock ifDoc decNam $
+      "Decode the @\\<" ++ namStr ++ ">@ attribute as a `" ++ nameRoot ++ "`"
+    pushDeclHaddock ifDoc typNam $
+      "Representation of the @\\<" ++ namStr ++ ">@ attribute"
+
     whenDebugging $ do
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
+
     return res
 
 packAndDebug :: Blockable a => Definition -> a -> XSDQ a
@@ -323,9 +329,9 @@ packAndDebug d r = do
   return r
 
 getSimpleTypeElements ::
-  String -> Pat -> Exp -> Maybe Line
-  -> (Name, {- Name, Name, Type, Type, -} [Dec])
-getSimpleTypeElements baseNameStr pat1 body l =
+  String -> Pat -> Exp -> Maybe Line -> Maybe String
+  -> XSDQ (Name, {- Name, Name, Type, Type, -} [Dec])
+getSimpleTypeElements baseNameStr pat1 body l ifDoc = do
   let typeName = mkName baseNameStr
       typeType = ConT typeName
       decStrName = mkName $ "tryStringDecodeFor" ++ baseNameStr
@@ -335,30 +341,43 @@ getSimpleTypeElements baseNameStr pat1 body l =
       tryDecType = fn2Type stringConT contentConT  (qHXBExcT typeType)
       decType = fn2Type stringConT contentConT typeType
 
-  in (typeName,
-      [SigD decStrName decStrType,
-       FunD decStrName [Clause [pat1] (NormalB body) []],
+  pushDeclHaddock ifDoc decStrName $
+    "Attempt to decode a string representing a value of the XSD simple type as a `"
+    ++ baseNameStr ++ "` value, throwing a `QDHXB.Errs.HXBErr` in "
+    ++ "the `Control.Monad.Except` monad if loading or parsing fails"
+  pushDeclHaddock ifDoc safeDecAsNam $
+    "Attempt to decode an element of simple type represented as `"
+    ++ baseNameStr ++ "`, throwing a `QDHXB.Errs.HXBErr` in "
+    ++ "the `Control.Monad.Except` monad if loading or parsing fails"
+  pushDeclHaddock ifDoc decAsNam $
+    "Decode an element of simple type represented as `" ++ baseNameStr
+    ++ "`, or fail with a top-level `error`"
 
-       SigD safeDecAsNam tryDecType,
-       FunD safeDecAsNam [Clause [VarP xName, VarP ctxtName]
-                           (NormalB $
-                            app4Exp simpleTypeDecoderVarE
-                              (VarE xName) (VarE ctxtName)
-                              (qCrefMustBePresentIn baseNameStr l)
-                              (VarE decStrName)) []],
+  return (typeName,
+          [SigD decStrName decStrType,
+           FunD decStrName [Clause [pat1] (NormalB body) []],
 
-       SigD decAsNam decType,
-       FunD decAsNam [Clause [VarP xName, ctxtVarP]
-                       (NormalB $ resultOrThrow $
-                         app2Exp (VarE safeDecAsNam) (VarE xName) ctxtVarE)
-                       []]
-       {-
-       -- TODO Encoder
-       SigD encNam encType
-       FunD encNam [Clause [] (NormalB $ AppE errorVarE
-                                              (quoteStr "TODO")) []]
-       -}
-      ])
+           SigD safeDecAsNam tryDecType,
+           FunD safeDecAsNam [Clause [VarP xName, VarP ctxtName]
+                               (NormalB $
+                                app4Exp simpleTypeDecoderVarE
+                                  (VarE xName) (VarE ctxtName)
+                                  (qCrefMustBePresentIn baseNameStr l)
+                                  (VarE decStrName)) []],
+
+           SigD decAsNam decType,
+           FunD decAsNam [Clause [VarP xName, ctxtVarP]
+                           (NormalB $ resultOrThrow $
+                             app2Exp (VarE safeDecAsNam) (VarE xName)
+                                     ctxtVarE)
+                           []]
+           {-
+           -- TODO Encoder
+           SigD encNam encType
+           FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                                  (quoteStr "TODO")) []]
+           -}
+          ])
 
 assembleTryStatements ::
   [Reference] -> [Name] -> Name -> Exp -> [Exp] -> XSDQ [Stmt]
@@ -498,3 +517,12 @@ unpackAttrDecoderForUsage Required expr = fmap (CaseE expr) $
 -- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness
+
+pushDeclHaddock :: Maybe String -> Name -> String -> XSDQ ()
+pushDeclHaddock ifDoc = do
+  pushDeclHaddock' $ maybe "." (": " ++) ifDoc
+
+pushDeclHaddock' :: String -> Name -> String -> XSDQ ()
+pushDeclHaddock' suffix name spec = do
+  liftQtoXSDQ $ addModFinalizer $ putDoc (DeclDoc name) $ spec ++ suffix
+

@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Test for Haddock documentation generation.
 module QDHXB.HaddockTest where
 import Data.Time.Calendar
 import QDHXB
