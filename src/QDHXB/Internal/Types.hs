@@ -95,6 +95,7 @@ data Definition =
         QName
         -- ^ Name of the element type
         (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   deriving Show
 
 instance Blockable Definition where
@@ -113,7 +114,7 @@ instance Blockable Definition where
   block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
-  block (ListDefn n t _) = stringToBlock $
+  block (ListDefn n t _ _) = stringToBlock $
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName [Definition]

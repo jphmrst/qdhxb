@@ -107,8 +107,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln d) = do
   let uDef = UnionDefn nam names ln d
   addTypeDefn nam uDef
   return $ defns ++ [uDef]
-flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) ln _d) = do
-  let lDef = ListDefn nam elemType ln
+flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemType)) ln d) = do
+  let lDef = ListDefn nam elemType ln d
   addTypeDefn nam lDef
   return [lDef]
 flattenSchemaItem' s = do

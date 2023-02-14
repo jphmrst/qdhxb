@@ -69,7 +69,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln _d) = do
     DataD [] typeName [] Nothing (map makeConstr pairs)
           [DerivClause Nothing [eqConT, showConT]]
      : decs
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln) = do
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln _d) = do
   let baseStr = firstToUpper $ qName name
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
