@@ -2,7 +2,7 @@
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
-    pullCRef, pullCRefContent,
+    pullCRef, pullCRefContent, getAnnotationDoc, getAnnotationDocFrom,
     filterTagged, isElem, isTagged,
 
     __loadElement, loadElementName,
@@ -32,6 +32,20 @@ pullCRef :: Content -> Maybe String
 pullCRef (Text (CData _ str _)) = Just str
 -- pullCRef (CRef str) = Just str
 pullCRef _ = Nothing
+
+getAnnotationDoc :: Content -> Maybe String
+getAnnotationDoc c = case zomToList $ pullContentFrom "annotation" c of
+  [] -> Nothing
+  ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
+    [] -> Nothing
+    doc:_ -> pullCRef doc
+
+getAnnotationDocFrom :: [Content] -> Maybe String
+getAnnotationDocFrom cs = case zomToList $ pullContent "annotation" cs of
+  [] -> Nothing
+  ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
+    [] -> Nothing
+    doc:_ -> pullCRefContent "documentation" doc
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefContent :: String -> Content -> Maybe String

@@ -41,11 +41,30 @@ encodeElement (QName "element" _ _) ats content ln = do
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
+  let ifDoc = getAnnotationDocFrom content
+  {-
+  liftIO $ do
+    putStrLn $ "+++ "
+      ++ show (pullContent "annotation" content)
+    putStrLn $ "--- "
+      ++ case zomToList $ pullContent "annotation" content of
+           [] -> "none"
+           ann:_ -> show $ pullContentFrom "documentation" ann
+    putStrLn $ "--- "
+      ++ case zomToList $ pullContent "annotation" content of
+           [] -> "none"
+           ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
+             [] -> "none"
+             doc:_ -> show $ pullCRefContent "documentation" doc
+    putStrLn $
+      "*** Docstring for " ++ show (fmap showQName nameQName)
+        ++ " is " ++ show ifDoc
+    -}
   let ifId = pullAttr "id" ats
   return $ ElementScheme included nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-             ln
+             ln ifDoc
 encodeElement q@(QName "attribute" _ _) a c l = do
   scheme <- encodeAttribute q a c l
   return $ AttributeScheme scheme l

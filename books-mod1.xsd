@@ -4,6 +4,11 @@
             xmlns:bks="urn:books">
 
   <xsd:complexType name="BookForm">
+    <xsd:annotation>
+      <xsd:documentation>
+        This is Test A.
+      </xsd:documentation>
+    </xsd:annotation>
     <xsd:sequence>
       <xsd:element name="author"   type="xsd:string"/>
       <xsd:element name="title"    type="xsd:string"/>
@@ -16,6 +21,11 @@
   </xsd:complexType>
 
   <xsd:complexType name="BooksForm">
+    <xsd:annotation>
+      <xsd:documentation>
+        This is Test C.
+      </xsd:documentation>
+    </xsd:annotation>
     <xsd:sequence>
       <xsd:element name="book" 
                   type="BookForm" 
@@ -24,5 +34,11 @@
       </xsd:sequence>
   </xsd:complexType>
 
-  <xsd:element name="books" type="BooksForm"/>
+  <xsd:element name="books" type="BooksForm">
+    <xsd:annotation>
+      <xsd:documentation>
+        This is Test B.
+      </xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
 </xsd:schema>

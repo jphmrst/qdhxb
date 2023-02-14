@@ -92,7 +92,7 @@ fileNewDefinition (AttributeDefn _ _ _)  = return ()
 fileNewDefinition (SequenceDefn _ _ _)   = return ()
 fileNewDefinition (UnionDefn _ _ _)   = return ()
 fileNewDefinition (ListDefn _ _ _) = return ()
-fileNewDefinition (ElementDefn n t _)    = do
+fileNewDefinition (ElementDefn n t _ _)    = do
   whenDebugging $ do
     liftIO $ putStrLn $ show $
       (labelBlock "Filing ElementDefn: " $ block n)

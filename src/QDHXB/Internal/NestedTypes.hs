@@ -111,6 +111,7 @@ data DataScheme =
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
                   (Maybe Line) -- ^ ifLine
+                  (Maybe String) -- ^ ifDocumentation
   | AttributeScheme AttributeScheme -- ^ Single vs. group
                     (Maybe Line) -- ^ ifLine
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
@@ -126,7 +127,7 @@ data DataScheme =
   deriving Show
 
 --  block Skip =
---  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine) =
+--  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine ifDoc) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine) =
 --  block (ComplexTypeScheme form attrs ifName ifLine) =
 --  block (SimpleTypeScheme name detail) =
@@ -134,8 +135,9 @@ data DataScheme =
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
-  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine) =
-    stack2 (stringToBlock ("ElementScheme name="
+  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine ifDoc) =
+    stackBlocks [
+      stringToBlock ("ElementScheme name="
                            ++ (case ifName of
                                  Nothing -> "undef"
                                  Just s  -> "\"" ++ showQName s ++ "\"")
@@ -158,8 +160,12 @@ instance Blockable DataScheme where
                            ++ " max="
                            ++ (case ifMax of
                                  Nothing -> "undef"
-                                 Just s  -> show s)))
-           (indent "  " $ block ctnts)
+                                 Just s  -> show s)),
+        indent "  " $ block ctnts,
+        case ifDoc of
+          Nothing -> indent "  " $ stringToBlock "no doc"
+          Just doc -> stringToBlock $ "doc=\"" ++ doc ++ "\""
+      ]
 
   block (AttributeScheme s _) = labelBlock "AttributeScheme " $ block s
 
@@ -186,9 +192,9 @@ instance VerticalBlockList DataScheme
 -- | Try to find a name for this `DataScheme`.
 labelOf :: DataScheme -> Maybe QName
 labelOf Skip = Nothing
-labelOf (ElementScheme _ _ (Just name) _ _ _ _ _) = Just name
-labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _) = Just typ
-labelOf (ElementScheme cs _ _ _ _ _ _ _) = makeFirst cs
+labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _) = Just name
+labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _) = Just typ
+labelOf (ElementScheme cs _ _ _ _ _ _ _ _) = makeFirst cs
   where makeFirst [] = Nothing
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds

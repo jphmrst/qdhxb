@@ -33,8 +33,8 @@ flattenSchemaItem s = do
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
 flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
-                                  ifMin ifMax l) =
-  flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l
+                                  ifMin ifMax l ifDoc) =
+  flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (Just nam) Nothing (Just typ) m) l) =
   let attrDefn =
@@ -71,8 +71,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (SimpleRestriction base) ln) = d
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
   let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
-                                   ifMin ifMax l) =
-        ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l
+                                   ifMin ifMax l ifDoc) =
+        ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
       nameUnnamed q (AttributeScheme
                      (SingleAttribute Nothing ifRef ifType usage) ln') =
         AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln'
@@ -132,18 +132,18 @@ flattenAttributeGroupItem name ref contents ln = do
   error "TODO flattenAttributeGroupItem unmatched"
 
 flattenElementSchemeItem ::
-  [DataScheme] -> Maybe QName -> Maybe QName -> (Maybe QName)
-  -> (Maybe Int) -> (Maybe Int) -> (Maybe Line)
+  [DataScheme] -> Maybe QName -> Maybe QName -> Maybe QName
+  -> Maybe Int -> Maybe Int -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
-flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax ifLine =
+flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax ifLine ifDoc =
   flattenElementSchemeItem' (filter nonSkip contents)
-                            ifName ifType ifRef ifMin ifMax ifLine
+                            ifName ifType ifRef ifMin ifMax ifLine ifDoc
 
 flattenElementSchemeItem' ::
   [DataScheme] -> Maybe QName -> Maybe QName -> (Maybe QName)
-  -> (Maybe Int) -> (Maybe Int) -> (Maybe Line)
+  -> (Maybe Int) -> (Maybe Int) -> (Maybe Line) -> Maybe String
   -> XSDQ [Definition]
-flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln = do
+flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
   isKnown <- isKnownType typ
   isSimple <- isSimpleType typ
   whenDebugging $ do
@@ -152,25 +152,25 @@ flattenElementSchemeItem' [] (Just nam) (Just typ) Nothing _ _ ln = do
   if isSimple || not isKnown
     then (do let tyDefn = SimpleSynonymDefn nam typ ln
              addTypeDefn nam tyDefn
-             let elemDefn = ElementDefn nam nam ln
+             let elemDefn = ElementDefn nam nam ln ifDoc
              fileNewDefinition elemDefn
              return [ tyDefn, elemDefn ])
-    else do let elemDefn = ElementDefn nam typ ln
+    else do let elemDefn = ElementDefn nam typ ln ifDoc
             fileNewDefinition elemDefn
             return [ elemDefn ]
 flattenElementSchemeItem' [SimpleTypeScheme Nothing ts ln]
-                         ifName@(Just nam) Nothing Nothing _ _ _ = do
+                         ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln
-  let elemDefn = ElementDefn nam nam ln
+  let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
 flattenElementSchemeItem' [ComplexTypeScheme ts attrs Nothing l]
-                                  ifName@(Just nam) Nothing Nothing _ _ _ = do
+                                  ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
   flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l
-  let elemDefn = ElementDefn nam nam l
+  let elemDefn = ElementDefn nam nam l ifDoc
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
-flattenElementSchemeItem' contents ifName ifType ifRef ifMin ifMax _ = do
+flattenElementSchemeItem' contents ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   liftIO $ do
     putStrLn "+--------"
     putStrLn "| flattenElementSchemeItem'"
@@ -202,8 +202,8 @@ flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
-                                ifLower ifUpper ln) =
-  flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln
+                                ifLower ifUpper ln ifDoc) =
+  flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
 flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l) =
   flattenSingleAttributeRef n r t m l
 flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l) =
@@ -257,10 +257,10 @@ flattenSingleAttributeRef maybeName maybeRef maybeType mode _ = do
 
 flattenElementSchemeRef ::
   [DataScheme] -> Maybe QName -> Maybe QName -> Maybe QName
-  -> Maybe Int -> Maybe Int -> Maybe Line
+  -> Maybe Int -> Maybe Int -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
 -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
-flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper ln = do
+flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper ln _ifDoc = do
   let result = ElementRef r lower upper ln
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening element schema with reference only"
@@ -268,12 +268,12 @@ flattenElementSchemeRef [] Nothing Nothing (Just r) lower upper ln = do
   return ([], result)
 flattenElementSchemeRef [] (Just n)
                         (Just t@(QName resolvedName _resolvedURI _))
-                        Nothing lo up ln = do
+                        Nothing lo up ln ifDoc = do
   isKnown <- isKnownType t
   whenDebugging $ do
     liftIO $ putStrLn $
       "  - Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-  if isKnown then (do let defn = ElementDefn n t ln
+  if isKnown then (do let defn = ElementDefn n t ln ifDoc
                           ref = ElementRef n lo up ln
                       fileNewDefinition defn
                       whenDebugging $ do
@@ -283,7 +283,7 @@ flattenElementSchemeRef [] (Just n)
                         liftIO $ bLabelPrintln "       " ref
                       return ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t ln
-                 defn2 = ElementDefn n n ln
+                 defn2 = ElementDefn n n ln ifDoc
                  ref = ElementRef n lo up ln
              addTypeDefn n defn1
              fileNewDefinition defn2
@@ -296,8 +296,8 @@ flattenElementSchemeRef [] (Just n)
                liftIO $ bLabelPrintln "       " ref
              return ([defn1, defn2], ref))
 flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _]
-                        n@(Just nam) t@Nothing r@Nothing lower upper ln = do
-  prev <- flattenElementSchemeItem s n t r lower upper ln
+                        n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
+  prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
   let ref = ElementRef nam lower upper ln
   whenDebugging $ do
     liftIO $ putStrLn $ "  > Flattening element schema with name and nested complex type"
@@ -305,7 +305,7 @@ flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _]
     liftIO $ bLabelPrintln "    to " prev
     liftIO $ bLabelPrintln "       " ref
   return (prev, ref)
-flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ = do
+flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ _ = do
   liftIO $ do
     bLabelPrintln "CONTENTS " ctnts
     putStrLn $ "IFNAME " ++ show maybeName

@@ -64,6 +64,7 @@ data Definition =
   -- ^ Defining an element to be of a particular type.
       QName QName
       (Maybe Line) -- ^ ifLine
+      (Maybe String) -- ^ Documentation string, if available
   | AttributeDefn
     -- ^ Defining the attributes and groups.
         QName AttributeDefn
@@ -93,8 +94,12 @@ data Definition =
   deriving Show
 
 instance Blockable Definition where
-  block (ElementDefn n t _) = stringToBlock $
-    "ElementDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (ElementDefn n t _ dm) =
+    (stringToBlock $
+     "ElementDefn " ++ showQName n ++ " :: " ++ showQName t)
+    `stack2` (stringToBlock $ case dm of
+                 Nothing -> "  no doc"
+                 Just d -> "  doc=\"" ++ d ++ "\"")
   block (AttributeDefn n sp _ln) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t _) = stringToBlock $

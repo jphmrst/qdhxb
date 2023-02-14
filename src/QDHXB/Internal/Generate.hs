@@ -17,6 +17,7 @@ where
 import Control.Monad.Except
 -- import Control.Monad.IO.Class
 import Language.Haskell.TH
+import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
@@ -77,8 +78,9 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln) = do
       (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs ln
   packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
-xsdDeclToHaskell decl@(ElementDefn nam typ _ln) = do
-  let baseName = firstToUpper $ qName nam
+xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
+  let origName = qName nam
+      baseName = firstToUpper $ origName
       typBaseName = firstToUpper $ qName typ
       tryDecNam = mkName $ "tryDecode" ++ baseName
       decNam = mkName $ "decode" ++ baseName
@@ -124,6 +126,19 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln) = do
   whenDebugging $ do
     liftIO $ bLabelPrintln "> Generating from " decl
     liftIO $ bLabelPrintln "  to " res
+  let suffix = case ifDoc of
+        Nothing -> "."
+        Just doc -> ": " ++ doc
+  liftQtoXSDQ $ do
+    addModFinalizer $ putDoc (DeclDoc loadNam) $
+      "Load a @\\<" ++ origName ++ ">@ element from the given file" ++ suffix
+    addModFinalizer $ putDoc (DeclDoc decNam) $
+      "Decode a @\\<" ++ origName ++ ">@ element as a `" ++ typBaseName
+      ++ "` value from parsed XML content" ++ suffix
+    addModFinalizer $ putDoc (DeclDoc tryDecNam) $
+      "Attempt to decode a @\\<" ++ origName ++ ">@ element as a `"
+      ++ typBaseName
+      ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if loading or parsing fails" ++ suffix
   return res
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln) = do
@@ -390,7 +405,7 @@ decoderAsExpFor :: String -> Exp
 decoderAsExpFor typ = VarE $ mkName $ "decodeAs" ++ firstToUpper typ
 
 -- elementDefnToTypeDecoderExp :: Reference -> Exp
--- elementDefnToTypeDecoderExp (ElementDefn _ t _ln) =
+-- elementDefnToTypeDecoderExp (ElementDefn _ t _ln _ifDoc) =
 
 -- | From an element reference name, construct the associated Haskell
 -- decoder function `Exp`ression.
