@@ -36,20 +36,21 @@ flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
                                   ifMin ifMax l ifDoc) =
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 flattenSchemaItem' (AttributeScheme
-                    (SingleAttribute (Just nam) Nothing (Just typ) m) l) =
+                    (SingleAttribute (Just nam) Nothing (Just typ) m) l _d) =
   let attrDefn =
         AttributeDefn nam ( SingleAttributeDefn typ $ stringToAttributeUsage m)
                       l
   in do fileNewDefinition attrDefn
         return [attrDefn]
-flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _) _l) = do
+flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _) _l _d) = do
   return $ error "Reference in attribute"
-flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs) l) =
+flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs) l _d) =
   flattenAttributeGroupItem n r cs l
 flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts
-      (map (\x -> AttributeScheme x Nothing) ats0 ++ ats) nam
+      -- TODO DOC possible to add a docstring here?
+      (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
   let tyDefn = SequenceDefn (qName nam) refs l
   addTypeDefn nam tyDefn
   whenDebugging $ do
@@ -74,8 +75,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
                                    ifMin ifMax l ifDoc) =
         ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifRef ifType usage) ln') =
-        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln'
+                     (SingleAttribute Nothing ifRef ifType usage) ln' d) =
+        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln' d
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l) =
         ComplexTypeScheme form attrs (Just q) l
       nameUnnamed q (SimpleTypeScheme Nothing detail ln') =
@@ -204,9 +205,9 @@ flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
                                 ifLower ifUpper ln ifDoc) =
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
-flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l) =
+flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l _d) =
   flattenSingleAttributeRef n r t m l
-flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l) =
+flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l _d) =
   flattenAttributeGroupRef ifName ifRef contents l
 flattenSchemaRef (ComplexTypeScheme _ _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"

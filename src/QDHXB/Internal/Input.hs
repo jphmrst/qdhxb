@@ -66,11 +66,13 @@ encodeElement (QName "element" _ _) ats content ln = do
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
              ln ifDoc
 encodeElement q@(QName "attribute" _ _) a c l = do
-  scheme <- encodeAttribute q a c l
-  return $ AttributeScheme scheme l
+  let ifDoc = getAnnotationDocFrom c
+  scheme <- encodeAttribute q a c l ifDoc
+  return $ AttributeScheme scheme l ifDoc
 encodeElement q@(QName "attributeGroup" _ _) a c l = do
-  scheme <- encodeAttribute q a c l
-  return $ AttributeScheme scheme l
+  let ifDoc = getAnnotationDocFrom c
+  scheme <- encodeAttribute q a c l ifDoc
+  return $ AttributeScheme scheme l ifDoc
 encodeElement (QName "complexType" _ _) ats ctnts l = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ liftIO $ putStrLn $
@@ -211,7 +213,8 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = do
 encodeAttributeScheme :: Content -> XSDQ AttributeScheme
 encodeAttributeScheme (Elem (Element q a c l)) = do
   whenDebugging $ liftIO $ bLabelPrintln "    - Encoding attribute " q
-  res <- encodeAttribute q a c l
+  let ifDoc = getAnnotationDocFrom c
+  res <- encodeAttribute q a c l ifDoc
   whenDebugging $ liftIO $ bLabelPrintln "        `--> " res
   return res
 encodeAttributeScheme c = do
@@ -219,8 +222,9 @@ encodeAttributeScheme c = do
   error $ "Illegal use of encodeAttributeScheme on\n" ++ showContent c
 
 encodeAttribute ::
-  QName -> [Attr] -> [Content] -> Maybe Line -> XSDQ AttributeScheme
-encodeAttribute (QName "attribute" _ _) ats [] _ = do
+  QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String
+  -> XSDQ AttributeScheme
+encodeAttribute (QName "attribute" _ _) ats [] _ _ = do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
@@ -228,14 +232,14 @@ encodeAttribute (QName "attribute" _ _) ats [] _ = do
                            (case pullAttr "use" ats of
                               Nothing -> "optional"
                               Just s -> s)
-encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ = do
+encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ _ = do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
   let attrs = filterTagged "attribute" ctnts
       atGroups = filterTagged "attributeGroup" ctnts
   subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
   return $ AttributeGroup name ref subcontents
-encodeAttribute (QName c _ _) _ _ _ =
+encodeAttribute (QName c _ _) _ _ _ _ =
   error $ "Can't use encodeAttribute with <" ++ c ++ ">"
 
 ifAtLine :: Maybe Line -> String

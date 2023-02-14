@@ -19,7 +19,7 @@ import QDHXB.Internal.Utils.XMLLight (withPrefix)
 -- elements.
 data SimpleTypeScheme =
   Synonym -- ^ One type which is just the same as another
-    QName -- ^ Base type
+      QName -- ^ Base type
   | SimpleRestriction -- ^ One type with certain values excluded.
       QName -- ^ Base type
   | Union -- ^ A type defined as a collection (union) of values from
@@ -114,6 +114,7 @@ data DataScheme =
                   (Maybe String) -- ^ ifDocumentation
   | AttributeScheme AttributeScheme -- ^ Single vs. group
                     (Maybe Line) -- ^ ifLine
+                    (Maybe String) -- ^ ifDocumentation
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
@@ -128,7 +129,7 @@ data DataScheme =
 
 --  block Skip =
 --  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine ifDoc) =
---  block (AttributeScheme ifName ifType ifRef usage ifLine) =
+--  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
 --  block (ComplexTypeScheme form attrs ifName ifLine) =
 --  block (SimpleTypeScheme name detail) =
 --  block (Group base typeScheme) =
@@ -167,7 +168,7 @@ instance Blockable DataScheme where
           Just doc -> stringToBlock $ "doc=\"" ++ doc ++ "\""
       ]
 
-  block (AttributeScheme s _) = labelBlock "AttributeScheme " $ block s
+  block (AttributeScheme s _ _) = labelBlock "AttributeScheme " $ block s
 
   block (ComplexTypeScheme form attrs ifName _ln) =
     (labelBlock "ComplexTypeScheme name=" $ block ifName)
@@ -199,12 +200,12 @@ labelOf (ElementScheme cs _ _ _ _ _ _ _ _) = makeFirst cs
         makeFirst (d:ds) = case labelOf d of
                              Nothing -> makeFirst ds
                              Just r -> Just r
-labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _) _) = j
-labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _) _) = j
-labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _) _) = j
-labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _) _) = j
-labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _) _) = j
-labelOf (AttributeScheme _ _) = Nothing
+labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _) _ _) = j
+labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _) _ _) = j
+labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _) _ _) = j
+labelOf (AttributeScheme _ _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _) _) = j
 labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _) = Just r
