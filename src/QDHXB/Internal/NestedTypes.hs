@@ -124,9 +124,10 @@ data DataScheme =
                      SimpleTypeScheme -- ^ Details
                      (Maybe Line) -- ^ ifLine
                      (Maybe String) -- ^ ifDocumentation
-  | Group (Maybe QName) -- ^ name
-          (Maybe ComplexTypeScheme) -- ^ contents
-          (Maybe Line) -- ^ ifLine
+  | GroupScheme (Maybe QName) -- ^ name
+                (Maybe ComplexTypeScheme) -- ^ contents
+                (Maybe Line) -- ^ ifLine
+                (Maybe String) -- ^ ifDocumentation
   deriving Show
 
 --  block Skip =
@@ -134,7 +135,7 @@ data DataScheme =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
---  block (Group base typeScheme) =
+--  block (GroupScheme base typeScheme ifLine ifDoc) =
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
@@ -184,11 +185,11 @@ instance Blockable DataScheme where
         labelBlock "scheme " $ block detail
         ]
 
-  block (Group base (Just ts) _ln) = Block [
+  block (GroupScheme base (Just ts) _ln _d) = Block [
     "Group " ++ show base ++ " with contents",
     "  " ++ show ts
     ]
-  block (Group base Nothing _ln) = stringToBlock $
+  block (GroupScheme base Nothing _ln _d) = stringToBlock $
     "Group " ++ show base ++ " with no contents"
 instance VerticalBlockList DataScheme
 
@@ -218,7 +219,7 @@ labelOf (SimpleTypeScheme _ (Synonym t) _ _) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r) _ _) = Just r
 labelOf (SimpleTypeScheme _ (Union _ds) _ _) = Nothing
 labelOf (SimpleTypeScheme _ (List t) _ _) = fmap (withPrefix "List") t
-labelOf (Group base _n _l) = base
+labelOf (GroupScheme base _n _l _d) = base
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool

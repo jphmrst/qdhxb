@@ -155,13 +155,13 @@ encodeElement (QName "sequence" _ _) ats ctnts ifLn _ifDoc = do
   case sepPair of
     (Just ds, []) -> return ds
     _ -> error "Unexpected separation from <sequence>"
-encodeElement (QName "group" _ _) ats ctnts ifLn _ifDoc = do
+encodeElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
   case filter isElem ctnts of
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
       ts <- encodeChoiceTypeScheme name attrs' ctnts'
-      return $ Group name (Just ts) ifLn'
+      return $ GroupScheme name (Just ts) ifLn' ifDoc
     (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] -> do
       liftIO $ do
         putStrLn $ "+--------"
@@ -173,7 +173,8 @@ encodeElement (QName "group" _ _) ats ctnts ifLn _ifDoc = do
         putStrLn $ "| CTNTS " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
       error $ "TODO encodeSchemaItem > group with sequence" ++ ifAtLine ifLn'
-    (Elem (Element (QName "all" _ _) _ats _ ifLn')):[] -> do
+    (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
+      -- let ifDoc' = getAnnotationDocFrom contents
       liftIO $ do
         putStrLn $ "+-------"
         putStrLn $
@@ -185,7 +186,7 @@ encodeElement (QName "group" _ _) ats ctnts ifLn _ifDoc = do
       error $ "TODO encodeSchemaItem > group with all" ++ ifAtLine ifLn'
     _ -> do
       liftIO $ putStrLn $ "  - Default is group of nothing"
-      return $ Group name Nothing ifLn
+      return $ GroupScheme name Nothing ifLn ifDoc
 encodeElement (QName tag _ _) ats ctnts ifLn _ifDoc = do
   -- whenDebugging $ do
   liftIO $ do
