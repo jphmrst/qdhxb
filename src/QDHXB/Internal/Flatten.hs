@@ -48,12 +48,12 @@ flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _ _)
   return $ error "Reference in attribute"
 flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _gd) l d) =
   flattenAttributeGroupItem n r cs l d
-flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l _d) = do
+flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l d) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts
       -- TODO DOC possible to add a docstring here?
       (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
-  let tyDefn = SequenceDefn (qName nam) refs l
+  let tyDefn = SequenceDefn (qName nam) refs l d
   addTypeDefn nam tyDefn
   whenDebugging $ do
     recheck <- isKnownType nam

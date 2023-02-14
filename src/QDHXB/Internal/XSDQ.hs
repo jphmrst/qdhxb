@@ -89,7 +89,7 @@ containForBounds _ _ t = [t|[$t]|]
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition (SimpleSynonymDefn _ _ _ _) = return ()
 fileNewDefinition (AttributeDefn _ _ _ _)  = return ()
-fileNewDefinition (SequenceDefn _ _ _)   = return ()
+fileNewDefinition (SequenceDefn _ _ _ _)   = return ()
 fileNewDefinition (UnionDefn _ _ _)   = return ()
 fileNewDefinition (ListDefn _ _ _) = return ()
 fileNewDefinition (ElementDefn n t _ _)    = do
@@ -144,7 +144,7 @@ isComplexType :: QName -> XSDQ Bool
 isComplexType name = do
   defn <- getTypeDefn name
   return $ case defn of
-    Just (SequenceDefn _ _ _) -> True
+    Just (SequenceDefn _ _ _ _) -> True
     _ -> False
 
 -- | Register the type name associated with an element tag with the
