@@ -15,6 +15,7 @@ module QDHXB.Internal.Generate (
 where
 
 import Control.Monad.Except
+import Control.Monad.Extra (whenJust)
 -- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
@@ -44,7 +45,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln _doc) = do
       (typeName, decs) = getSimpleTypeElements baseName (VarP eName)
                                                (basicDecoder $ VarE eName) ln
   packAndDebug decl $ TySynD typeName [] haskellType : decs
-xsdDeclToHaskell decl@(UnionDefn name pairs ln _d) = do
+xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   let baseName = qName name
 
       makeConstr :: (QName, QName) -> Con
@@ -65,17 +66,19 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln _d) = do
                           pairs
       (typeName, decs) = getSimpleTypeElements baseName (VarP xName)
                                                safeDecoder ln
+  whenJust ifDoc (liftQtoXSDQ . addModFinalizer . putDoc (DeclDoc typeName))
   packAndDebug decl $
     DataD [] typeName [] Nothing (map makeConstr pairs)
           [DerivClause Nothing [eqConT, showConT]]
      : decs
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln _d) = do
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
   let baseStr = firstToUpper $ qName name
       elemStr = firstToUpper $ qName elemTypeRef
       elemName = mkName elemStr
       elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
       decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
       (typeName, decs) = getSimpleTypeElements baseStr (VarP eName) decodeAs ln
+  whenJust ifDoc (liftQtoXSDQ . addModFinalizer . putDoc (DeclDoc typeName))
   packAndDebug decl $ TySynD typeName [] (AppT ListT $ ConT elemName) : decs
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
@@ -126,9 +129,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ do
     liftIO $ bLabelPrintln "> Generating from " decl
     liftIO $ bLabelPrintln "  to " res
-  let suffix = case ifDoc of
-        Nothing -> "."
-        Just doc -> ": " ++ doc
+  let suffix = maybe "." (": " ++) ifDoc
   liftQtoXSDQ $ do
     addModFinalizer $ putDoc (DeclDoc loadNam) $
       "Load a @\\<" ++ origName ++ ">@ element from the given file" ++ suffix
@@ -141,8 +142,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
       ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if loading or parsing fails" ++ suffix
   return res
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln _doc) = do
-  let rootName = firstToUpper $ qName nam
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
+  let xmlName = qName nam
+      rootName = firstToUpper xmlName
       baseStr = rootName ++ "AttrType"
       rootTypeName = mkName baseStr
       bangTypes = [ (useBang, AppT maybeConT $ ConT $ mkName $ firstToUpper $
@@ -150,20 +152,15 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln _doc) = do
                   | q <- ads ]
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
-
       localNames = take (length ads) $
         map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
       pairEnc (q, s) =
         let dec = mkName ("tryDecode" ++ firstToUpper (qName q))
         in BindS (VarP s) (AppE (VarE dec) ctxtVarE)
       bpairs = map pairEnc $ zip ads localNames
-
-      decoder = DoE Nothing $ bpairs ++ [NoBindS $
-                                         applyReturn $
-                                         applyJust $
+      decoder = DoE Nothing $ bpairs ++ [NoBindS $ applyReturn $ applyJust $
                                          foldl (\e n -> AppE e $ VarE n)
-                                          (ConE rootTypeName)
-                                          localNames]
+                                          (ConE rootTypeName) localNames]
   let res = [
         DataD [] rootTypeName [] Nothing [NormalC rootTypeName bangTypes]
           [DerivClause Nothing [eqConT, showConT]],
@@ -183,14 +180,28 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln _doc) = do
                           AppE (VarE safeDecNam) ctxtVarE) []]
 
         ]
+  let suffix = maybe "." (": " ++) ifDoc
+   in liftQtoXSDQ $ do
+     addModFinalizer $ putDoc (DeclDoc safeDecNam) $
+       "Attempt to decode the attributes defined in the @\\<" ++ xmlName
+       ++ ">@ attribute group as a `" ++ baseStr
+       ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
+       ++ suffix
+     addModFinalizer $ putDoc (DeclDoc decNam) $
+       "Decode the attributes defined in the @\\<" ++ xmlName ++
+       ">@ attribute group as a `" ++ baseStr ++ "`" ++ suffix
+     addModFinalizer $ putDoc (DeclDoc rootTypeName) $
+       "Representation of the attributes defined in the @\\<" ++ xmlName
+       ++ ">@ attribute group" ++ suffix
   whenDebugging $ do
     liftIO $ putStrLn "> xsdDeclToHaskell AttributeGroupDefn"
     liftIO $ bLabelPrintln "  > Generating from " d
     liftIO $ bLabelPrintln "    +--> " res
   return res
 
-xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _ln _doc) =
-  let rootName = firstToUpper $ qName nam
+xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
+  let xmlName = qName nam
+      rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
@@ -231,12 +242,24 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _ln _doc) =
                                                  (quoteStr "TODO")) []]
           -}
           : [])
+    let suffix = maybe "." (": " ++) ifDoc
+     in liftQtoXSDQ $ do
+       addModFinalizer $ putDoc (DeclDoc safeDecNam) $
+         "Attempt to decode the @\\<" ++ xmlName
+         ++ ">@ attribute as a `" ++ show rootTypeName
+         ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
+         ++ suffix
+       addModFinalizer $ putDoc (DeclDoc decNam) $
+         "Decode the @\\<" ++ xmlName ++
+         ">@ attribute as a `" ++ show rootTypeName ++ "`" ++ suffix
+       addModFinalizer $ putDoc (DeclDoc rootTypeName) $
+         "Representation of the @\\<" ++ xmlName ++ ">@ attribute" ++ suffix
     whenDebugging $ do
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
     return res
 
-xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln _doc) =
+xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln ifDoc) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
@@ -246,7 +269,6 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln _doc) =
     let subNames = map (mkName . ("s" ++) . show) [1..length refs]
     safeDecoder <- fmap (DoE Nothing) $
       assembleTryStatements refs subNames ctxtName (ConE typNam) []
-      -- assembleTryDecoder refs subNames ctxtName (ConE typNam) []
     let res = (
           -- Type declaration
           DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
@@ -276,6 +298,18 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs _ln _doc) =
            -}
 
            : [])
+    let suffix = maybe "." (": " ++) ifDoc
+     in liftQtoXSDQ $ do
+       addModFinalizer $ putDoc (DeclDoc tryDecNam) $
+         "Attempt to decode the @\\<" ++ namStr
+         ++ ">@ attribute as a `" ++ nameRoot
+         ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except` monad if extraction fails"
+         ++ suffix
+       addModFinalizer $ putDoc (DeclDoc decNam) $
+         "Decode the @\\<" ++ namStr ++
+         ">@ attribute as a `" ++ nameRoot ++ "`" ++ suffix
+       addModFinalizer $ putDoc (DeclDoc typNam) $
+         "Representation of the @\\<" ++ namStr ++ ">@ attribute" ++ suffix
     whenDebugging $ do
       liftIO $ bLabelPrintln "> Generating from " decl
       liftIO $ bLabelPrintln "  to " res
