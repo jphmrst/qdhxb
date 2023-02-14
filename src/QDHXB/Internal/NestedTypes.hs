@@ -119,6 +119,7 @@ data DataScheme =
                       [DataScheme] -- ^ addlAttrs
                       (Maybe QName) -- ^ ifName
                       (Maybe Line) -- ^ ifLine
+                      (Maybe String) -- ^ ifDocumentation
   | SimpleTypeScheme (Maybe QName) -- ^ ifName
                      SimpleTypeScheme -- ^ Details
                      (Maybe Line) -- ^ ifLine
@@ -130,7 +131,7 @@ data DataScheme =
 --  block Skip =
 --  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine ifDoc) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
---  block (ComplexTypeScheme form attrs ifName ifLine) =
+--  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail) =
 --  block (Group base typeScheme) =
 
@@ -170,7 +171,7 @@ instance Blockable DataScheme where
 
   block (AttributeScheme s _ _) = labelBlock "AttributeScheme " $ block s
 
-  block (ComplexTypeScheme form attrs ifName _ln) =
+  block (ComplexTypeScheme form attrs ifName _ln _d) =
     (labelBlock "ComplexTypeScheme name=" $ block ifName)
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
@@ -206,11 +207,11 @@ labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _) _ _) = j
 labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _) _ _) = j
 labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _) _ _) = j
 labelOf (AttributeScheme _ _ _) = Nothing
-labelOf (ComplexTypeScheme _ _ j@(Just _) _) = j
-labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _) = Nothing
-labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _) = Just r
-labelOf (ComplexTypeScheme (Extension base _ds) _attrs _ _) = Just base
-labelOf (ComplexTypeScheme (Choice base _ds) _attrs _ _) = base
+labelOf (ComplexTypeScheme _ _ j@(Just _) _ _) = j
+labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _ _) = Nothing
+labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _ _) = Just r
+labelOf (ComplexTypeScheme (Extension base _ds) _attrs _ _ _) = Just base
+labelOf (ComplexTypeScheme (Choice base _ds) _attrs _ _ _) = base
 labelOf (SimpleTypeScheme j@(Just _) _ _) = j
 labelOf (SimpleTypeScheme _ (Synonym t) _) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r) _) = Just r

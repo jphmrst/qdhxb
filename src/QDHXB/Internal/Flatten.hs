@@ -46,7 +46,7 @@ flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _) _l _d) = do
   return $ error "Reference in attribute"
 flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs) l _d) =
   flattenAttributeGroupItem n r cs l
-flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l) = do
+flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l _d) = do
   (defs, refs) <-
     musterComplexSequenceComponents cts
       -- TODO DOC possible to add a docstring here?
@@ -77,8 +77,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln) = do
       nameUnnamed q (AttributeScheme
                      (SingleAttribute Nothing ifRef ifType usage) ln' d) =
         AttributeScheme (SingleAttribute (Just q) ifRef ifType usage) ln' d
-      nameUnnamed q (ComplexTypeScheme form attrs Nothing l) =
-        ComplexTypeScheme form attrs (Just q) l
+      nameUnnamed q (ComplexTypeScheme form attrs Nothing l d) =
+        ComplexTypeScheme form attrs (Just q) l d
       nameUnnamed q (SimpleTypeScheme Nothing detail ln') =
         SimpleTypeScheme (Just q) detail ln'
       nameUnnamed _ b = b
@@ -165,9 +165,9 @@ flattenElementSchemeItem' [SimpleTypeScheme Nothing ts ln]
   let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
-flattenElementSchemeItem' [ComplexTypeScheme ts attrs Nothing l]
+flattenElementSchemeItem' [ComplexTypeScheme ts attrs Nothing l d]
                                   ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
-  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l
+  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l d
   let elemDefn = ElementDefn nam nam l ifDoc
   fileNewDefinition elemDefn
   return $ flatTS ++ [elemDefn]
@@ -209,7 +209,7 @@ flattenSchemaRef (AttributeScheme (SingleAttribute n r t m) l _d) =
   flattenSingleAttributeRef n r t m l
 flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents) l _d) =
   flattenAttributeGroupRef ifName ifRef contents l
-flattenSchemaRef (ComplexTypeScheme _ _ _ _) = -- typeDetail _ maybeName
+flattenSchemaRef (ComplexTypeScheme _ _ _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s = do
   liftIO $ do
@@ -296,7 +296,7 @@ flattenElementSchemeRef [] (Just n)
                liftIO $ bLabelPrintln "       " defn2
                liftIO $ bLabelPrintln "       " ref
              return ([defn1, defn2], ref))
-flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _]
+flattenElementSchemeRef s@[ComplexTypeScheme _ _ Nothing _ _]
                         n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
   prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
   let ref = ElementRef nam lower upper ln
