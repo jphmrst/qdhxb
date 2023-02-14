@@ -123,6 +123,7 @@ data DataScheme =
   | SimpleTypeScheme (Maybe QName) -- ^ ifName
                      SimpleTypeScheme -- ^ Details
                      (Maybe Line) -- ^ ifLine
+                     (Maybe String) -- ^ ifDocumentation
   | Group (Maybe QName) -- ^ name
           (Maybe ComplexTypeScheme) -- ^ contents
           (Maybe Line) -- ^ ifLine
@@ -132,7 +133,7 @@ data DataScheme =
 --  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine ifDoc) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
---  block (SimpleTypeScheme name detail) =
+--  block (SimpleTypeScheme name detail ifDoc) =
 --  block (Group base typeScheme) =
 
 instance Blockable DataScheme where
@@ -176,7 +177,7 @@ instance Blockable DataScheme where
     `stack2` (indent "  " $ block form)
     `stack2` (indent "  " $ block attrs)
 
-  block (SimpleTypeScheme name detail _ln) =
+  block (SimpleTypeScheme name detail _ln _d) =
     labelBlock "SimpleTypeScheme " $
       stackBlocks [
         block name,
@@ -212,11 +213,11 @@ labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _ _) = Nothing
 labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _ _) = Just r
 labelOf (ComplexTypeScheme (Extension base _ds) _attrs _ _ _) = Just base
 labelOf (ComplexTypeScheme (Choice base _ds) _attrs _ _ _) = base
-labelOf (SimpleTypeScheme j@(Just _) _ _) = j
-labelOf (SimpleTypeScheme _ (Synonym t) _) = Just t
-labelOf (SimpleTypeScheme _ (SimpleRestriction r) _) = Just r
-labelOf (SimpleTypeScheme _ (Union _ds) _) = Nothing
-labelOf (SimpleTypeScheme _ (List t) _) = fmap (withPrefix "List") t
+labelOf (SimpleTypeScheme j@(Just _) _ _ _) = j
+labelOf (SimpleTypeScheme _ (Synonym t) _ _) = Just t
+labelOf (SimpleTypeScheme _ (SimpleRestriction r) _ _) = Just r
+labelOf (SimpleTypeScheme _ (Union _ds) _ _) = Nothing
+labelOf (SimpleTypeScheme _ (List t) _ _) = fmap (withPrefix "List") t
 labelOf (Group base _n _l) = base
 
 -- | Predicate returning `False` on `Skip` values
