@@ -38,6 +38,12 @@ data HXBErr =
       String -- ^ The Haskell type in question.
       (Maybe Line) -- ^ Location of the element.
   deriving Eq
+--  | MultiplePrimaryComplexTypeContents -- ^ More than one primary
+--                                       -- sub-element of a complexType
+--                                       -- found
+--      String -- ^ First incompatible sub-element.
+--      String -- ^ Second incompatible sub-element.
+--      (Maybe Line) -- ^ Location of the element.
 
 instance Blockable HXBErr where
   block (MiscError s _) = stringToBlock $ "Misc error: " ++ s
@@ -51,6 +57,10 @@ instance Blockable HXBErr where
     stringToBlock $ "CRef must be present in <" ++ s ++ ">"
   block (CouldNotDecodeSimpleType s _) =
     stringToBlock $ "Could not decode simple type contents as " ++ s
+--  block (MultiplePrimaryComplexTypeContents n1 n2 _) =
+--    stringToBlock $
+--      "Multiple primary sub-elements " ++ n1 ++ " and " ++ n2
+--      ++ " of a complexType"
 
 instance Show HXBErr where show = bpp
 
