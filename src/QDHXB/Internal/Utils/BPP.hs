@@ -165,4 +165,5 @@ instance VerticalBlockList QName
 instance Blockable Dec   where block = stringToBlock . pprint
 -- | Allow [`Dec`] from the Template Haskell library to be pretty-printed.
 instance VerticalBlockList Dec
+instance VerticalBlockList Content
 
