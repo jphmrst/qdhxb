@@ -525,4 +525,3 @@ pushDeclHaddock ifDoc = do
 pushDeclHaddock' :: String -> Name -> String -> XSDQ ()
 pushDeclHaddock' suffix name spec = do
   liftQtoXSDQ $ addModFinalizer $ putDoc (DeclDoc name) $ spec ++ suffix
-
