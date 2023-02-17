@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["xsd.xsd"]
+-- qdhxb useDebugging ["xsd.xsd"]
 -- qdhxb' ["xsd.xsd"]
 
 testXSD1 :: TLT IO ()

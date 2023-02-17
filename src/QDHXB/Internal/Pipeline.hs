@@ -29,7 +29,7 @@ elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
   pushNamespaces attrs
   whenDebugging $ do
     liftIO $ putStrLn "======================================== INPUT"
-  schemaReps <- encodeSchemaItems forms
+  schemaReps <- inputSchemaItems forms
   whenDebugging $ do
     liftIO $ putStrLn "----------------------------------------"
     liftIO $ bLabelPrintln "Final: " schemaReps
