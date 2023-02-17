@@ -86,9 +86,8 @@ inputElement (QName "complexType" _ _) ats ctnts l d = do
       return $ ComplexTypeScheme (Composing [] atrSpecs) [] name l d
     Just (_, tag, uri, pfx, qn, ats', subctnts, _) -> case tag of
       "sequence" -> do
-        included <- inputSchemaItems subctnts
-        atrSpecs <- mapM encodeAttributeScheme $ atspecs' ++ atgrspecs'
-        return $ ComplexTypeScheme (Composing included atrSpecs) [] name l d
+        ct <- encodeSequenceTypeScheme subctnts (atspecs'++atgrspecs')
+        return $ ComplexTypeScheme ct [] name l d
       "choice" -> do
         whenDebugging $ liftIO $
           putStrLn "      inputElement > complexType > case \"choice\""
@@ -239,7 +238,9 @@ inputElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
       ts <- encodeChoiceTypeScheme name attrs' ctnts'
       return $ GroupScheme name (Just ts) ifLn' ifDoc
-    (Elem (Element (QName "sequence" _ _) _ats _ ifLn')):[] -> do
+    (Elem (Element (QName "sequence" _ _) _ats ctnts ifLn')):[] -> do
+      seq <- encodeSequenceTypeScheme ctnts []
+      return $ GroupScheme name (Just seq) ifLn ifDoc
       liftIO $ do
         putStrLn $ "+--------"
         putStrLn $ "| Case 1 after (filter isElem ctnts)"
@@ -274,6 +275,12 @@ inputElement (QName tag _ _) ats ctnts ifLn _ifDoc = do
     bLabelPrintln "| ATS " ats
     bLabelPrintln "| CTNTS " $ filter isElem ctnts
   error $ "TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
+
+encodeSequenceTypeScheme :: [Content] -> [Content] -> XSDQ ComplexTypeScheme
+encodeSequenceTypeScheme subcontents attrSpecs = do
+  included <- inputSchemaItems subcontents
+  atrSpecs <- mapM encodeAttributeScheme attrSpecs
+  return $ Composing included atrSpecs
 
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
