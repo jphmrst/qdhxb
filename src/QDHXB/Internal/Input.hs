@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
 module QDHXB.Internal.Input (encodeSchemaItems) where
@@ -82,7 +84,7 @@ encodeElement (QName "complexType" _ _) ats ctnts l d = do
     Nothing -> do
       atrSpecs <- mapM encodeAttributeScheme $ atspecs' ++ atgrspecs'
       return $ ComplexTypeScheme (Composing [] atrSpecs) [] name l d
-    Just (tag, uri, pfx, qn, ats', subctnts, _) -> case tag of
+    Just (_, tag, uri, pfx, qn, ats', subctnts, _) -> case tag of
       "sequence" -> do
         included <- encodeSchemaItems subctnts
         atrSpecs <- mapM encodeAttributeScheme $ atspecs' ++ atgrspecs'
@@ -96,7 +98,7 @@ encodeElement (QName "complexType" _ _) ats ctnts l d = do
           "      encodeElement > complexType > case \"complexContent\""
         (pr', _, _) <- separateComplexContents subctnts l
         case pr' of
-          Just (_, _, _, sqn, sats', ssubctnts, ssline) ->
+          Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
             encodeElement sqn sats' ssubctnts ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
@@ -205,16 +207,27 @@ encodeElement (QName "restriction" _ _) ats ctnts ifLn ifDoc = do
         ComplexTypeScheme (ComplexRestriction baseQName) [] ifName ifLn
                           (pickOrCombine ifDoc ifDoc')
     Nothing -> error "restriction without base"
-encodeElement (QName "extension" _ _) ats ctnts ifLn _ifDoc = do
-  -- whenDebugging $ do
-  liftIO $ do
-    putStrLn $ "+-------"
-    putStrLn $
-      "| TODO encodeSchemaItem > extension case" ++ ifAtLine ifLn
-    putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-    putStrLn $ "| CTNTS "
-      ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-  error $ "TODO encodeSchemaItem > extension case" ++ ifAtLine ifLn
+encodeElement (QName "extension" _ _) ats ctnts ifLn ifDoc = do
+  maybeBase <- pullAttrQName "base" ats
+  let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
+                id maybeBase
+  ifName <- pullAttrQName "name" ats
+  (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
+  whenDebugging $ liftIO $ do
+    putStrLn "      - Complex extension"
+    bLabelPrintln "        - base " base
+    bLabelPrintln "        - ext " ext
+    bLabelPrintln "        - newAttrs " newAttrs
+    bLabelPrintln "        - newAttrGroups " newAttrGroups
+  case ext of
+    Nothing -> do
+      return $
+        ComplexTypeScheme (Extension base []) [] ifName ifLn ifDoc
+    Just (e,_,_,_,_,_,_,_) -> do
+      ext <- encodeSchemaItem e
+      return $
+        ComplexTypeScheme (Extension base [ext]) [] ifName ifLn ifDoc
+
 encodeElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
   whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
   name <- pullAttrQName "name" ats
@@ -250,13 +263,12 @@ encodeElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
 encodeElement (QName tag _ _) ats ctnts ifLn _ifDoc = do
   -- whenDebugging $ do
   liftIO $ do
-    putStrLn $ "+-------"
+    putStrLn "+-------"
     putStrLn $
       "| TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
     putStrLn $ "| TAG " ++ show tag
-    putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-    putStrLn $ "| CTNTS "
-      ++ (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+    bLabelPrintln "| ATS " ats
+    bLabelPrintln "| CTNTS " $ filter isElem ctnts
   error $ "TODO encodeSchemaItem > another Element case" ++ ifAtLine ifLn
 
 encodeChoiceTypeScheme ::
@@ -318,6 +330,16 @@ ifAtLine ifLine = case ifLine of
                     Nothing -> ""
                     Just line -> " at XSD line " ++ show line
 
+type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
+                            [Attr], [Content], Maybe Line)
+
+instance Blockable PrimaryBundle where
+  block (_,_,_,_,q,a,c,_) = stackBlocks [
+    labelBlock "name " $ block q,
+    labelBlock "attrs " $ block a,
+    labelBlock "subcontents " $ block $ filter isElem c]
+
+
 -- | Separate the innards of a complexType element into:
 --
 --  1. The primary subcontents, if any
@@ -327,20 +349,13 @@ ifAtLine ifLine = case ifLine of
 --  3. Attribute group definitions
 --
 separateComplexContents ::
-  [Content] -> Maybe Line
-  -> XSDQ (Maybe (String, Maybe String, Maybe String, QName,
-                  [Attr], [Content], Maybe Line),
-           [Content], [Content])
+  [Content] -> Maybe Line -> XSDQ (Maybe PrimaryBundle, [Content], [Content])
 separateComplexContents contents ifLn =
   separateComplexContents' Nothing [] [] contents
 
   where separateComplexContents' ::
-          Maybe (String, Maybe String, Maybe String, QName,
-                 [Attr], [Content], Maybe Line)
-          -> [Content] -> [Content] -> [Content]
-          -> XSDQ (Maybe (String, Maybe String, Maybe String, QName,
-                          [Attr], [Content], Maybe Line),
-                   [Content], [Content])
+          Maybe PrimaryBundle -> [Content] -> [Content] -> [Content]
+          -> XSDQ (Maybe PrimaryBundle, [Content], [Content])
         separateComplexContents' primary annAcc annGroupAcc [] =
           return (primary, reverse annAcc, reverse annGroupAcc)
         separateComplexContents' pr as ags (e:xs) =
@@ -352,9 +367,9 @@ separateComplexContents contents ifLn =
               "documentation" -> separateComplexContents' pr as ags xs
               _ -> case pr of
                 Nothing -> separateComplexContents'
-                             (Just (n, u, p, q, a, c, l))
+                             (Just (e, n, u, p, q, a, c, l))
                              as ags xs
-                Just (n', _, _, _, _, _, _) -> error $
+                Just (_, n', _, _, _, _, _, _) -> error $
                   "Multiple primary sub-elements " ++ n' ++ " and " ++ n
                   ++ " as complexType contents"
                   ++ maybe "" ((" at line " ++) . show) ifLn
