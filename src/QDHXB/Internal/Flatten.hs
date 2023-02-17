@@ -25,9 +25,11 @@ flattenSchemaItems = fmap concat . mapM flattenSchemaItem
 flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
-  results <- flattenSchemaItem' s
   whenDebugging $ liftIO $ do
     bLabelPrintln "> Flattening " s
+  results <- flattenSchemaItem' s
+  whenDebugging $ liftIO $ do
+    bLabelPrintln ". Flattening " s
     bLabelPrintln "   `--> " results
   return results
 
@@ -50,7 +52,7 @@ flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _gd) l d) =
   flattenAttributeGroupItem n r cs l d
 flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l d) = do
   (defs, refs) <-
-    musterComplexSequenceComponents cts
+    musterComplexSequenceComponents (filter nonSkip cts)
       -- TODO DOC possible to add a docstring here?
       (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
   let tyDefn = SequenceDefn (qName nam) refs l d
@@ -189,6 +191,8 @@ flattenElementSchemeItem' contents ifName ifType ifRef ifMin ifMax _ _ifDoc = do
 musterComplexSequenceComponents ::
   [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])
 musterComplexSequenceComponents steps ats _ = do
+  whenDebugging $ liftIO $ do
+    putStrLn "musterComplexSequenceComponents"
   (otherDefs, refs) <- flattenSchemaRefs steps
   (atsDefs, atsRefs) <- flattenSchemaRefs ats
   return (otherDefs ++ atsDefs, atsRefs ++ refs)

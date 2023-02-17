@@ -150,8 +150,8 @@ instance Blockable DataScheme where
                            ++ " type="
                            ++ (case ifType of
                                  Nothing -> "undef"
-                                 Just s  -> "\"" ++ showQName s ++ "\"")
-                           ++ " ref="
+                                 Just s  -> "\"" ++ showQName s ++ "\"")),
+      indent "  " $ stringToBlock ("ref="
                            ++ (case ifRef of
                                  Nothing -> "undef"
                                  Just s  -> "\"" ++ showQName s ++ "\"")
