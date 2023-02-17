@@ -45,6 +45,8 @@ chomp (c:cs) = c : chomp' cs
                                       ds' -> d:ds'
         chomp' (d:ds) = d : chomp' ds
 
+-- |Combine to possible `String`s, appending them with a line
+-- separator if both are present.
 pickOrCombine :: Maybe String -> Maybe String -> Maybe String
 pickOrCombine Nothing x = x
 pickOrCombine x Nothing = x
