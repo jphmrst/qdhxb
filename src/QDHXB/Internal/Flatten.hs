@@ -115,9 +115,10 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (List (Just elemTyp)) ln d) = do
   return [lDef]
 flattenSchemaItem' s = do
   liftIO $ do
-    putStrLn      "+------"
-    putStrLn      "| TODO flattenSchemaItem' missed case"
+    putStrLn "+------"
+    putStrLn "| TODO flattenSchemaItem' missed case"
     bLabelPrintln "| " s
+    putStrLn "+--------"
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
 flattenAttributeGroupItem ::
@@ -136,6 +137,7 @@ flattenAttributeGroupItem name ref contents ln _d = do
     bLabelPrintln "| REF " ref
     bLabelPrintln "| CONTENTS " contents
     putStrLn $ "| LN " ++ show ln
+    putStrLn "+--------"
   error "TODO flattenAttributeGroupItem unmatched"
 
 flattenElementSchemeItem ::
@@ -186,6 +188,7 @@ flattenElementSchemeItem' contents ifName ifType ifRef ifMin ifMax _ _ifDoc = do
     putStrLn $ "| IFMIN " ++ show ifMin
     putStrLn $ "| IFMAX " ++ show ifMax
     bLabelPrintln "| CONTENTS " contents
+    putStrLn "+--------"
   error "Unmatched case for flattenElementSchemeItem'"
 
 musterComplexSequenceComponents ::
@@ -223,6 +226,7 @@ flattenSchemaRef s = do
     putStrLn "+--------"
     putStrLn "| flattenSchemaRef"
     bLabelPrintln "| arg " s
+    putStrLn "+--------"
   error $ "TODO flattenSchemaRef > additional case:"
 
 flattenAttributeGroupRef ::
@@ -240,6 +244,7 @@ flattenAttributeGroupRef ifName ifRef contents _ln _d = do
     bLabelPrintln "| IFNAME " ifName
     bLabelPrintln "| IFREF " ifRef
     bLabelPrintln "| CONTENTS " contents
+    putStrLn "+--------"
   error $ "TODO flattenAttributeGroupRef > unmatched"
 
 flattenSingleAttributeRef ::
@@ -262,6 +267,7 @@ flattenSingleAttributeRef maybeName maybeRef maybeType mode _ _ = do
     bLabelPrintln "| IFREF " maybeRef
     bLabelPrintln "| IFTYPE " maybeType
     putStrLn $ "| MODE " ++ mode
+    putStrLn "+--------"
   error "TODO flattenSingleAttributeRef > unmatched case"
 
 flattenElementSchemeRef ::
@@ -337,7 +343,8 @@ flattenAttribute (AttributeGroup (Just n) Nothing schemes d) = do
   return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]
 flattenAttribute a = do
   liftIO $ do
-    putStrLn $ "+--------"
+    putStrLn "+--------"
     bLabelPrintln "| flattenAttribute " a
+    putStrLn "+--------"
   error "TODO flattenAttribute missing case"
 

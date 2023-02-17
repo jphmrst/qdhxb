@@ -180,6 +180,7 @@ inputElement (QName "simpleType" _ _) ats ctnts ifLn ifDoc = do
         putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
         putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
         putStrLn $ "| ZOMLIST "  ++ (show zomList)
+        putStrLn "+--------"
       error $ "TODO inputElement > simpleType > another separation case"
         ++ ifAtLine ifLn
 inputElement (QName "annotation" _ _) _ _ _ _ = do
@@ -250,6 +251,7 @@ inputElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
         putStrLn $ "| NAME " ++ show (fmap showQName name)
         putStrLn $ "| CTNTS " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+        putStrLn "+--------"
       error $ "TODO inputSchemaItem > group with sequence" ++ ifAtLine ifLn'
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
       -- let ifDoc' = getAnnotationDocFrom contents
@@ -261,6 +263,7 @@ inputElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
         putStrLn $ "| NAME " ++ show (fmap showQName name)
         putStrLn $ "| CTNTS " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
+        putStrLn "+--------"
       error $ "TODO inputSchemaItem > group with all" ++ ifAtLine ifLn'
     _ -> do
       liftIO $ putStrLn $ "  - Default is group of nothing"
@@ -269,11 +272,11 @@ inputElement (QName tag _ _) ats ctnts ifLn _ifDoc = do
   -- whenDebugging $ do
   liftIO $ do
     putStrLn "+-------"
-    putStrLn $
-      "| TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
+    putStrLn $ "| TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
     putStrLn $ "| TAG " ++ show tag
     bLabelPrintln "| ATS " ats
     bLabelPrintln "| CTNTS " $ filter isElem ctnts
+    putStrLn "+--------"
   error $ "TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
 
 encodeSequenceTypeScheme :: [Content] -> [Content] -> XSDQ ComplexTypeScheme
@@ -417,6 +420,7 @@ encodeSimpleTypeByRestriction ifNam ats s = do
         putStrLn $ "| source line: " ++ show l
       _ -> return ()
     bLabelPrintln "| S " s
+    putStrLn "+--------"
   error "TODO encodeSimpleTypeByRestriction > additional cases"
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
