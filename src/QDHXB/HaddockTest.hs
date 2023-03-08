@@ -6,6 +6,6 @@ import Data.Time.Calendar
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/books-mod1.xsd"]
-qdhxb' ["test/books-mod1.xsd"]
+-- qdhxb useDebugging ["test/Books/books-mod1.xsd"]
+qdhxb' ["test/Books/books-mod1.xsd"]
 

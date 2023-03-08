@@ -1,18 +1,18 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module SizesAndList where
+module SizesAndList.SizesAndList where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/sizesAndList.xsd"]
-qdhxb' ["test/sizesAndList.xsd"]
+-- qdhxb useDebugging ["test/SizesAndList/sizesAndList.xsd"]
+qdhxb' ["test/SizesAndList/sizesAndList.xsd"]
 
 testSizesAndList :: TLT IO ()
 testSizesAndList = inGroup "XSD sizesAndList" $ do
   inGroup "SizesAndList 0a" $ do
-    p <- lift $ loadSizes "test/sizesAndList1.xml"
+    p <- lift $ loadSizes "test/SizesAndList/sizesAndList1.xml"
     -- lift $ putStrLn $ show p
     "Correctly decode sizesAndList1.xml" ~:
       [SizeTypeTop2Union1SimpleRestrinteger 12,
