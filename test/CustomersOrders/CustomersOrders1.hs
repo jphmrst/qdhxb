@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module CustomersOrders1 where
+module CustomersOrders.CustomersOrders1 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
