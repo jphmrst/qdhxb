@@ -1,15 +1,17 @@
 <!-- https://www.w3schools.com/xml/el_attributegroup.asp -->
 
-<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
             targetNamespace="urn:personattr"
             xmlns:pa="urn:personattr">
   
   <xs:complexType name="personType">
     <xs:attributeGroup name="personattr">
       <xs:attribute name="attr1">
-        <xs:restriction base="xs:string">
-          <xs:pattern value="[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]"/>
-        </xs:restriction>
+        <xs:simpleType name="attrType">
+          <xs:restriction base="xs:string">
+            <xs:pattern value="[a-zA-Z0-9][a-zA-Z0-9][a-zA-Z0-9]"/>
+          </xs:restriction>
+        </xs:simpleType>
       </xs:attribute>
       <xs:attribute name="attr2" type="integer"/>
     </xs:attributeGroup>

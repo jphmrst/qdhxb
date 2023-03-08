@@ -1,4 +1,3 @@
-
 -- | Internal representation directly reflecting XSD code, in
 -- particular allowing nested definitions.
 module QDHXB.Internal.Flatten (flattenSchemaItems) where
@@ -154,7 +153,7 @@ flattenAttributeGroupItem ::
 flattenAttributeGroupItem (Just n) Nothing cs l d = do
   whenDebugging $ dbgLn "Flattening attribute group"
   let names = map grabName cs
-  defs <- flattenAttributes cs
+  defs <- indenting $ flattenAttributes cs
   let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l d]
   return res
 flattenAttributeGroupItem name ref contents ln _d = do
@@ -380,16 +379,58 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-flattenAttribute (SingleAttribute (Just n) Nothing (NameRef typ) mode d) =
-  return [AttributeDefn n
-            (SingleAttributeDefn typ $ stringToAttributeUsage mode)
-            Nothing d]
+flattenAttribute (SingleAttribute (Just n) Nothing (NameRef typ) mode d) = do
+  whenDebugging $ dbgPt "Flattening single attribute with type reference"
+  dbgResult "Flattened to" $ [
+    AttributeDefn n
+      (SingleAttributeDefn typ $ stringToAttributeUsage mode)
+      Nothing d
+    ]
+flattenAttribute (SingleAttribute (Just n) Nothing (Nested ds) mode d) = do
+  whenDebugging $ dbgPt "Flattening single attribute with nested type"
+  (defs, ref) <- flattenSchemaRef ds
+  boxed $ do
+    dbgLn "flattenAttribute nested single"
+    dbgBLabel "N " n
+    dbgBLabel "DS " ds
+    dbgLn $ "MODE " ++ mode
+    dbgLn $ "D " ++ show d
+    dbgLn ""
+    dbgLn "flattenAttribute nested single (II)"
+    dbgBLabel "DEFS" defs
+    dbgBLabel "REF" ref
+  case ref of
+    TypeRef qn (Just 1) (Just 1) ln doc -> do
+      dbgResult "Flattened to" $ defs ++ [
+        AttributeDefn n
+          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
+          Nothing d
+        ]
+    TypeRef qn Nothing Nothing ln doc -> do
+      dbgResult "Flattened to" $ defs ++ [
+        AttributeDefn n
+          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
+          Nothing d
+        ]
+    TypeRef qn mn (Just 1) ln _ ->
+      error $ "minOccurs " ++ show mn ++ " for attribute type "
+              ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
+    TypeRef qn mn Nothing ln _ ->
+      error $ "minOccurs " ++ show mn ++ " for attribute type "
+              ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
+    TypeRef qn _ mx ln _ ->
+      error $ "maxOccurs " ++ show mx ++ " for attribute type "
+              ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
+    ref ->
+      error $ "Nested type " ++ show ref
+              ++ " for attribute " ++ showQName n ++ " not allowed"
 flattenAttribute (AttributeGroup (Just n) Nothing schemes d) = do
   let names = map grabName schemes
   sub <- fmap concat $ mapM flattenAttribute schemes
   return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]
 flattenAttribute a = do
   boxed $ do
-    dbgBLabel "flattenAttribute " a
+    dbgLn "flattenAttribute "
+    dbgBLabel "ARG " a
   error "TODO flattenAttribute missing case"
 

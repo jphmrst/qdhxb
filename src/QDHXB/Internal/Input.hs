@@ -442,7 +442,7 @@ encodeAttributeWithNestedType ::
   -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
 encodeAttributeWithNestedType outer ifName ifRef tySpec [] use _ d = do
-  ds <- inputSchemaItem "ZZZZZ" tySpec
+  ds <- inputSchemaItem outer tySpec
   return $ SingleAttribute ifName ifRef (Nested ds) use d
 encodeAttributeWithNestedType _ _ _ tySpec (s:ss) _ _ _ = do
   boxed $ do

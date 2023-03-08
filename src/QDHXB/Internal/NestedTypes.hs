@@ -112,11 +112,11 @@ data AttributeScheme =
 
 instance Blockable AttributeScheme where
   block (SingleAttribute ifName ifRef ifType mode _d) =
-    stringToBlock "single name="
+    stringToBlock "single attr name="
     `follow` block ifName
     `follow` stringToBlock " ref="
     `follow` block ifRef
-    `follow` stringToBlock " type="
+    `stack2` stringToBlock "  type="
     `follow` block ifType
     `follow` stringToBlock " mode="
     `follow` stringToBlock mode
