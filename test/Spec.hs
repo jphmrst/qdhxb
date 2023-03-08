@@ -14,6 +14,7 @@ import SizesAndList.SizesAndList (testSizesAndList)
 import SizesAndList.SizesAndListInline (testSizesAndListInline)
 import PersonAttr1.PersonAttr1 (testPersonAttr1)
 import PersonAttr2.PersonAttr2 (testPersonAttr2)
+import PersonAttr2.PersonAttr2Inline (testPersonAttr2Inline)
 import PersonAttr2r.PersonAttr2r (testPersonAttr2r)
 
 import OFX1 (testOFX1)
@@ -38,4 +39,5 @@ main = do
     testSizesAndListInline
     testPersonAttr1
     testPersonAttr2
+    testPersonAttr2Inline
     testPersonAttr2r
