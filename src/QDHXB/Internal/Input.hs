@@ -55,7 +55,7 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
   whenDebugging $ do
     dbgPt $ "inputElement for element tag"
     dbgLn $ "  outer tag " ++ outer
-  included <- indenting $ inputSchemaItems $ filter isElem content
+  included <- indenting $ inputSchemaItems $ filter isNonKeyElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
@@ -64,7 +64,7 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
       sub = case included of
         [] -> Nothing
         [x] -> Just x
-        _ -> error "More than one subelement to <element>"
+        _ -> error $ "More than one subelement to <element>" ++ ifAtLine ln
   dbgResult "Element inputElement result" $
     ElementScheme sub nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)

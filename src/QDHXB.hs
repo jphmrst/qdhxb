@@ -25,5 +25,5 @@ module QDHXB (
 
   ) where
 
-import QDHXB.API
+import QDHXB.Internal.API
 import QDHXB.Options

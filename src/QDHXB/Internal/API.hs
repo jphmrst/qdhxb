@@ -1,6 +1,6 @@
 
 -- | Top-level calls
-module QDHXB.API (qdhxb, qdhxb') where
+module QDHXB.Internal.API (qdhxb, qdhxb') where
 
 import Language.Haskell.TH (Q, Dec)
 import System.IO
