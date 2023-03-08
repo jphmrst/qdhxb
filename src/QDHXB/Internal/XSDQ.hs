@@ -12,9 +12,10 @@ module QDHXB.Internal.XSDQ (
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
-  pushNamespaces, popNamespaces, getNamespaces, getDefaultNamespace,
+  pushNamespaces, popNamespaces,
+  getNamespaces, getDefaultNamespace, inDefaultNamespace,
   decodePrefixedName, getURIprefix, getNextCapName,
-  indenting, indentingWith, dbgLn, dbgBLabel, boxed,
+  indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
   dbgResult,
 
   -- * Miscellaneous
@@ -241,6 +242,11 @@ getDefaultNamespace = liftStatetoXSDQ $ do
           getFirstActual (r@(Just _) : _) = return r
           getFirstActual (Nothing : ds) = getFirstActual ds
 
+inDefaultNamespace :: String -> XSDQ QName
+inDefaultNamespace s = do
+  uri <- getDefaultNamespace
+  return $ QName s uri Nothing
+
 -- |Given a string which may be namespace-prefixed, reconstruct the
 -- corresponding `QName` according to the current `XSDQ` state.
 decodePrefixedName :: String -> XSDQ QName
@@ -322,10 +328,16 @@ dbgLn s = do
   ind <- getIndentation
   liftIO $ putStrLn $ ind ++ s
 
+dbgPt :: String -> XSDQ ()
+dbgPt s = dbgLn $ "- " ++ s
+
 dbgBLabel :: Blockable c => String -> c -> XSDQ ()
 dbgBLabel s m = do
   ind <- getIndentation
   liftIO $ bLabelPrintln (ind ++ s) m
+
+dbgBLabelPt :: Blockable c => String -> c -> XSDQ ()
+dbgBLabelPt s = dbgBLabel ("- " ++ s)
 
 boxed :: XSDQ a -> XSDQ a
 boxed s = do

@@ -53,7 +53,7 @@ flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _ _)
                                     _l _d) = do
   return $ error "Reference in attribute"
 
-flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _gd) l d) = do
+flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _) l d) = do
   whenDebugging $ dbgLn "Relaying to flattenAttributeGroupItem"
   indenting $
     flattenAttributeGroupItem n r cs l d
@@ -203,13 +203,13 @@ flattenElementSchemeItem' (Just (ComplexTypeScheme ts attrs Nothing l d))
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
 flattenElementSchemeItem' content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   boxed $ do
-    dbgLn "| flattenElementSchemeItem'"
-    dbgBLabel "| CONTENT " content
-    dbgBLabel "| IFNAME " ifName
-    dbgBLabel "| IFTYPE " ifType
-    dbgBLabel "| IFREF " ifRef
-    dbgLn $ "| IFMIN " ++ show ifMin
-    dbgLn $ "| IFMAX " ++ show ifMax
+    dbgLn "flattenElementSchemeItem'"
+    dbgBLabel "CONTENT " content
+    dbgBLabel "IFNAME " ifName
+    dbgBLabel "IFTYPE " ifType
+    dbgBLabel "IFREF " ifRef
+    dbgLn $ "IFMIN " ++ show ifMin
+    dbgLn $ "IFMAX " ++ show ifMax
   error "Unmatched case for flattenElementSchemeItem'"
 
 flattenWithNameTypeOnly ::
@@ -258,8 +258,8 @@ flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
 flattenSchemaRef (AttributeScheme (SingleAttribute n r t m d') l d) =
   flattenSingleAttributeRef n r t m l (pickOrCombine d d')
-flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef contents _gd) l d) =
-  flattenAttributeGroupRef ifName ifRef contents l d
+flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef cs _) l d) =
+  flattenAttributeGroupRef ifName ifRef cs l d
 flattenSchemaRef (ComplexTypeScheme _ _ _ _ _) = -- typeDetail _ maybeName
   error "TODO flattenSchemaRef > ComplexTypeScheme"
 flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do

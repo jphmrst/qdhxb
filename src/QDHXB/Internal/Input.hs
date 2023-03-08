@@ -35,15 +35,15 @@ inputSchemaItems' outer items = do
 
 inputSchemaItem :: String -> Content -> XSDQ DataScheme
 inputSchemaItem o e@(Elem (Element q a c l)) = do
-  whenDebugging $ dbgLn $ "> Encoding element " ++ showContent e
+  whenDebugging $ dbgPt $ "Encoding element " ++ showContent e
   res <- indenting $ inputElement q a c o l $ getAnnotationDocFrom c
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 inputSchemaItem _ (Text _) = do
-  whenDebugging $ dbgLn "> Dropping Text entry "
+  whenDebugging $ dbgPt "Dropping Text entry "
   return Skip
 inputSchemaItem _ (CRef txt) = do
-  whenDebugging $ dbgLn $ "> Dropping CRef entry " ++ txt
+  whenDebugging $ dbgPt $ "Dropping CRef entry " ++ txt
   return Skip
 
 
@@ -53,7 +53,7 @@ inputElement ::
 
 inputElement (QName "element" _ _) ats content outer ln _d = do
   whenDebugging $ do
-    dbgLn $ "- inputElement for element tag"
+    dbgPt $ "inputElement for element tag"
     dbgLn $ "  outer tag " ++ outer
   included <- indenting $ inputSchemaItems $ filter isElem content
   typeQName <- pullAttrQName "type" ats
@@ -143,18 +143,18 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
 inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
   let ctnts' = filter isElem ctnts
   whenDebugging $ do
-    dbgLn "- Input element is simpletype"
+    dbgPt "Input element is simpletype"
     dbgLn $ "  Outer name " ++ outer
   indenting $ case separateSimpleTypeContents ats ctnts' of
     (nam, One restr, Zero, Zero) -> do
-      whenDebugging $ dbgLn "- Subcase restr"
+      whenDebugging $ dbgPt "Subcase restr"
       qnam <- mapM decodePrefixedName nam
       res <- indenting $ encodeSimpleTypeByRestriction qnam
                     (case nam of Nothing -> outer ++ "Simple"
                                  Just n -> outer ++ n) ats restr
       dbgResult "Subcase result" res
     (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) ->
-      do whenDebugging $ dbgLn "- Subcase union"
+      do whenDebugging $ dbgPt "Subcase union"
          qnam <- decodePrefixedName nam
          alts <- indenting $ inputSchemaItems' (outer ++ "Union") $
            filter isElem cs'
@@ -162,25 +162,29 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
            SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
-      whenDebugging $ dbgLn "- Subcase list"
+      whenDebugging $ dbgPt "Subcase list"
       itemTypeAttr <- pullAttrQName "itemType" ats'
       let simpleWithin = pullContent "simpleType" ctnts''
       indenting $ case (itemTypeAttr, simpleWithin) of
         (Nothing, Zero) -> error $
           "Simple type list without itemType attribute" ++ ifAtLine ifLn
         (Nothing, One node) -> do
-          whenDebugging $ dbgLn "- Subcase with included element type"
+          whenDebugging $ dbgPt "Subcase with included element type"
           tds <- indenting $ inputSchemaItem (outer ++ "List") node
-          let tdsLabel = labelOf tds
-          qnam <- case tdsLabel of
-                    Just n -> return $ withSuffix "Element" n
-                    Nothing -> do
-                      fresh <- liftQtoXSDQ $ newName "List"
-                      return $ QName (nameBase fresh) Nothing Nothing
+          thisName <- case ifNam of
+            Just n -> inDefaultNamespace n
+            Nothing -> do
+              let tdsLabel = labelOf tds
+              case tdsLabel of
+                Just n -> return $ withSuffix "Element" n
+                Nothing -> do
+                  fresh <- liftQtoXSDQ $ newName "List"
+                  return $ QName (nameBase fresh) Nothing Nothing
           dbgResult "Subcase result" $
-            SimpleTypeScheme (Just qnam) (List Nothing (Just tds)) ifLn ifDoc
+            SimpleTypeScheme (Just thisName) (List Nothing (Just tds))
+                             ifLn ifDoc
         (Just itemType, Zero) -> do
-          whenDebugging $ dbgLn "- Subcase with element type reference"
+          whenDebugging $ dbgPt "Subcase with element type reference"
           qnam <- case ifNam of
             Just n -> decodePrefixedName n
             Nothing -> return $ QName ("List_" ++ qName itemType)
@@ -191,8 +195,8 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
         (x, y) -> do
           boxed $ do
             dbgLn "Disallowed subsubcase within list subcase"
-            dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-            dbgLn $ "CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+            dbgBLabel "ATS " ats
+            dbgBLabel "CTNTS' " ctnts'
             dbgLn $ "OUTER " ++ outer
             dbgBLabel "X " x
             dbgBLabel "Y " y
@@ -201,13 +205,13 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
       -- whenDebugging
       boxed $ do
         dbgLn "TODO inputElement > simpleType > another separation case"
-        dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
-        dbgLn $ "CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+        dbgBLabel "ATS " ats
+        dbgBLabel "CTNTS' " ctnts'
         dbgLn $ "OUTER " ++ outer
         dbgLn $ "IFNAME " ++ show ifName
-        dbgLn $ "ZOMRESTR " ++ (show $ zomToList zomRestr)
-        dbgLn $ "ZOMUNION " ++ (show $ zomToList zomUnion)
-        dbgLn $ "ZOMLIST "  ++ (show zomList)
+        dbgBLabel "ZOMRESTR " zomRestr
+        dbgBLabel "ZOMUNION " zomUnion
+        dbgBLabel "ZOMLIST " zomList
       error $ "TODO inputElement > simpleType > another separation case"
         ++ ifAtLine ifLn
 
@@ -215,7 +219,7 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
 inputElement (QName "annotation" _ _) _ _ _ _ _ = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
-  whenDebugging $ dbgLn $ "- Dropping <annotation> element"
+  whenDebugging $ dbgPt $ "Dropping <annotation> element"
   return Skip
 
 inputElement (QName tag _ _) _ _ _ l _d | tag=="include" || tag=="import" = do
@@ -225,7 +229,7 @@ inputElement (QName tag _ _) _ _ _ l _d | tag=="include" || tag=="import" = do
 
 inputElement (QName tagname _ _) _ _ _ _ _
   | tagname == "key" || tagname == "keyref" = do
-  whenDebugging $ dbgLn $ "- Dropping <" ++ tagname ++ "> entry "
+  whenDebugging $ dbgPt $ "Dropping <" ++ tagname ++ "> entry "
   return Skip
 
 inputElement (QName "sequence" _ _) ats ctnts _ ifLn ifDoc = do
@@ -238,7 +242,7 @@ inputElement (QName "sequence" _ _) ats ctnts _ ifLn ifDoc = do
     ComplexTypeScheme (Composing included []) [] ifName ifLn ifDoc
 
 inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
-  whenDebugging $ dbgLn $ "- Restriction, outer name " ++ outer
+  whenDebugging $ dbgPt $ "Restriction, outer name " ++ outer
   let ifDoc' = getAnnotationDocFrom ctnts
   ifName <- pullAttrQName "name" ats
   case pullAttr "base" ats of
@@ -254,15 +258,15 @@ inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
     Nothing -> error "restriction without base"
 
 inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
-  whenDebugging $ dbgLn $ "- Extension, outer name " ++ outer
+  whenDebugging $ dbgPt $ "Extension, outer name " ++ outer
   maybeBase <- pullAttrQName "base" ats
   let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
                 id maybeBase
   ifName <- pullAttrQName "name" ats
   (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
   whenDebugging $ do
-    dbgLn "- Complex extension"
-    dbgLn $ "- outer name " ++ outer
+    dbgPt "Complex extension"
+    dbgPt $ "outer name " ++ outer
     dbgBLabel "- base " base
     dbgBLabel "- ext " ext
     dbgBLabel "- newAttrs " newAttrs
@@ -281,19 +285,19 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
 
 inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ do
-    dbgLn "- For <group> schema:"
+    dbgPt "For <group> schema:"
     dbgLn $ "  outer name " ++ outer
   name <- pullAttrQName "name" ats
   indenting $ case filter isElem ctnts of
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
-      whenDebugging $ dbgLn "- choice subcase"
+      whenDebugging $ dbgPt "choice subcase"
       ts <- indenting $ encodeChoiceTypeScheme name attrs' ctnts'
       dbgResult "Subcase result" $ GroupScheme name (Just ts) ifLn' ifDoc
     (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
-      whenDebugging $ dbgLn "- sequence subcase"
+      whenDebugging $ dbgPt "sequence subcase"
       seqn <- indenting $ encodeSequenceTypeScheme outer ctnts' []
       whenDebugging $ do
-        dbgLn $ "- Case 1 after (filter isElem ctnts)"
+        dbgPt $ "Case 1 after (filter isElem ctnts)"
         dbgLn $ "-- group attrs " ++ (intercalate "\n    " $ map showAttr ats)
         dbgLn $ "-- sequence attrs " ++ (intercalate "\n    " $
                                            map showAttr _ats)
@@ -304,7 +308,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts')
       dbgResult "Subcase result" $ GroupScheme name (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
-      whenDebugging $ dbgLn "- all subcase"
+      whenDebugging $ dbgPt "all subcase"
       -- let ifDoc' = getAnnotationDocFrom contents
       boxed $ do
         dbgLn $
@@ -315,17 +319,17 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
       error $ "TODO inputElement > group with all" ++ ifAtLine ifLn'
     _ -> do
-      whenDebugging $ dbgLn "- Default subcase is group of nothing"
+      whenDebugging $ dbgPt "Default subcase is group of nothing"
       dbgResult "Subcase result" $ GroupScheme name Nothing ifLn ifDoc
 
 inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
-  whenDebugging $ dbgLn "- For <choice> scheme:"
+  whenDebugging $ dbgPt "For <choice> scheme:"
   -- whenDebugging $ do
   name <- pullAttrQName "name" ats
   let minOcc = decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats
       maxOcc = decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats
   whenDebugging $ do
-    dbgLn $ "- inputElement > choice" ++ ifAtLine ifLn
+    dbgPt $ "inputElement > choice" ++ ifAtLine ifLn
     dbgLn $ "-- minOccurs " ++ show minOcc
     dbgLn $ "-- maxOccurs " ++ show maxOcc
     dbgBLabel "-- ats " ats
@@ -475,7 +479,7 @@ encodeSimpleTypeByRestriction ::
   Maybe QName -> String -> [Attr] -> Content -> XSDQ DataScheme
 encodeSimpleTypeByRestriction -- Note ignoring ats
     ifName outer _ (Elem (Element (QName "restriction" _ _) ats' cs ln)) = do
-  whenDebugging $ dbgLn $ "- encode simple by restr, outer name " ++ outer
+  whenDebugging $ dbgPt $ "encode simple by restr, outer name " ++ outer
   let ifDoc = getAnnotationDocFrom cs
   case pullAttr "base" ats' of
     Just base -> do
