@@ -55,16 +55,23 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
   whenDebugging $ do
     dbgPt $ "inputElement for element tag"
     dbgLn $ "  outer tag " ++ outer
-  included <- indenting $ inputSchemaItems $ filter isNonKeyElem content
+  included <- indenting $
+    fmap (filter nonSkip) $ inputSchemaItems $ filter isNonKeyElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
   let ifDoc = getAnnotationDocFrom content
       ifId = pullAttr "id" ats
-      sub = case included of
-        [] -> Nothing
-        [x] -> Just x
-        _ -> error $ "More than one subelement to <element>" ++ ifAtLine ln
+  sub <- case included of
+           [] -> return Nothing
+           [x] -> return $ Just x
+           _ -> do
+             boxed $ do
+               dbgLn $ "More than one subelement to <element>" ++ ifAtLine ln
+               dbgBLabel "ATS " ats
+               dbgBLabel "CONTENT " content
+               dbgBLabel "INCLUDED " included
+             error $ "More than one subelement to <element>" ++ ifAtLine ln
   dbgResult "Element inputElement result" $
     ElementScheme sub nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
@@ -104,7 +111,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         (pr', _, _) <- separateComplexContents subctnts l
         case pr' of
           Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
-            inputElement sqn sats' ssubctnts (outer ++ "Complex") ssline Nothing
+            inputElement sqn sats' (filter isNonKeyElem ssubctnts)
+                         (outer ++ "Complex") ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
         -- error "inputElement > complexType > case \"complexContent\""

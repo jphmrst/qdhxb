@@ -2,6 +2,7 @@
 
 module QDHXB.Internal.Fullspec(victory) where
 import QDHXB.Internal.API
+import QDHXB.Options
 import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["src/QDHXB/xsd.xsd"]
