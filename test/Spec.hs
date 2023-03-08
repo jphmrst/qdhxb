@@ -1,8 +1,8 @@
 import Test.TLT
 -- import Control.Monad.IO.Class
-import Shiporder0 (testShiporder0)
-import Shiporder1 (testShiporder1)
-import Shiporder2 (testShiporder2)
+import Shiporder.Shiporder0 (testShiporder0)
+import Shiporder.Shiporder1 (testShiporder1)
+import Shiporder.Shiporder2 (testShiporder2)
 import Books.Books1 (testBooks1)
 import Books.BooksMod1 (testBooksMod1)
 import Books.BooksMod2 (testBooksMod2)
