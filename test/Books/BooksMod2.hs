@@ -1,14 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module BooksMod2 where
+module Books.BooksMod2 where
 import Data.Time.Calendar
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/books-mod2.xsd"]
-qdhxb' ["test/books-mod2.xsd"]
+-- qdhxb useDebugging ["test/Books/books-mod2.xsd"]
+qdhxb' ["test/Books/books-mod2.xsd"]
 
 testBooksMod2 :: TLT IO ()
 testBooksMod2 = inGroup "XSD books 2 --- int attr" $ do
@@ -20,5 +20,5 @@ testBooksMod2 = inGroup "XSD books 2 --- int attr" $ do
         BookForm (Just 3004) "Poet" "The Poet's First Poem" "Poem"
                  24.95 (read "2005-11-09") "Least poetic poems."
                 ]
-        @== (lift $ loadBooks "test/booksInt.xml")
+        @== (lift $ loadBooks "test/Books/booksInt.xml")
   return ()
