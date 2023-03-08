@@ -5,7 +5,7 @@
 module QDHXB.Internal.Input (inputSchemaItems) where
 
 -- import System.Directory
-import Control.Monad.IO.Class
+import Language.Haskell.TH (newName, nameBase)
 import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Output
@@ -21,307 +21,373 @@ import QDHXB.Internal.XSDQ
 -- sequence of internal XSD representations.
 inputSchemaItems :: [Content] -> XSDQ [DataScheme]
 inputSchemaItems items = do
-  res <- mapM inputSchemaItem items
-  -- liftIO $ putStrLn $ show res
+  res <- inputSchemaItems' "Top" items
+  -- dbgLn $ show res
   return res
 
-inputSchemaItem :: Content -> XSDQ DataScheme
-inputSchemaItem e@(Elem (Element q a c l)) = do
-  whenDebugging $ liftIO $ putStrLn $ "> Encoding element " ++ showContent e
-  res <- inputElement q a c l $ getAnnotationDocFrom c
-  whenDebugging $ liftIO $ bLabelPrintln "    `--> " res
+inputSchemaItems' :: String -> [Content] -> XSDQ [DataScheme]
+inputSchemaItems' outer items = do
+  res <- mapM (\(s, i) ->
+                 inputSchemaItem (outer ++ show i) s) $
+              zip items ([1..] :: [Int])
+  -- dbgLn $ show res
   return res
-inputSchemaItem (Text _) = do
-  whenDebugging $ liftIO $ putStrLn "> Dropping Text entry "
+
+inputSchemaItem :: String -> Content -> XSDQ DataScheme
+inputSchemaItem o e@(Elem (Element q a c l)) = do
+  whenDebugging $ dbgLn $ "> Encoding element " ++ showContent e
+  res <- indenting $ inputElement q a c o l $ getAnnotationDocFrom c
+  whenDebugging $ dbgBLabel "  Encoding result " res
+  return res
+inputSchemaItem _ (Text _) = do
+  whenDebugging $ dbgLn "> Dropping Text entry "
   return Skip
-inputSchemaItem (CRef txt) = do
-  whenDebugging $ liftIO $ putStrLn $ "> Dropping CRef entry " ++ txt
+inputSchemaItem _ (CRef txt) = do
+  whenDebugging $ dbgLn $ "> Dropping CRef entry " ++ txt
   return Skip
+
 
 inputElement ::
-  QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String -> XSDQ DataScheme
-inputElement (QName "element" _ _) ats content ln _d = do
-  included <- inputSchemaItems $ filter isElem content
+  QName -> [Attr] -> [Content] -> String -> Maybe Line -> Maybe String
+  -> XSDQ DataScheme
+
+inputElement (QName "element" _ _) ats content outer ln _d = do
+  whenDebugging $ do
+    dbgLn $ "- inputElement for element tag"
+    dbgLn $ "  outer tag " ++ outer
+  included <- indenting $ inputSchemaItems $ filter isElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
   let ifDoc = getAnnotationDocFrom content
-  {-
-  liftIO $ do
-    putStrLn $ "+++ "
-      ++ show (pullContent "annotation" content)
-    putStrLn $ "--- "
-      ++ case zomToList $ pullContent "annotation" content of
-           [] -> "none"
-           ann:_ -> show $ pullContentFrom "documentation" ann
-    putStrLn $ "--- "
-      ++ case zomToList $ pullContent "annotation" content of
-           [] -> "none"
-           ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
-             [] -> "none"
-             doc:_ -> show $ pullCRefContent "documentation" doc
-    putStrLn $
-      "*** Docstring for " ++ show (fmap showQName nameQName)
-        ++ " is " ++ show ifDoc
-    -}
-  let ifId = pullAttr "id" ats
-  return $ ElementScheme included nameQName typeQName refQName ifId
+      ifId = pullAttr "id" ats
+      sub = case included of
+        [] -> Nothing
+        [x] -> Just x
+        _ -> error "More than one subelement to <element>"
+  dbgResult "Element inputElement result" $
+    ElementScheme sub nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
              ln ifDoc
-inputElement q@(QName "attribute" _ _) a c l _d = do
+
+inputElement q@(QName "attribute" _ _) a c _ l _d = do
   let ifDoc = getAnnotationDocFrom c
   scheme <- encodeAttribute q a c l ifDoc
   return $ AttributeScheme scheme l ifDoc
-inputElement q@(QName "attributeGroup" _ _) a c l _d = do
+
+inputElement q@(QName "attributeGroup" _ _) a c _ l _d = do
   let ifDoc = getAnnotationDocFrom c
   scheme <- encodeAttribute q a c l ifDoc
   return $ AttributeScheme scheme l ifDoc
-inputElement (QName "complexType" _ _) ats ctnts l d = do
+
+
+inputElement (QName "complexType" _ _) ats ctnts outer l d = do
   (pr, atspecs', atgrspecs') <- separateComplexContents ctnts l
   name <- pullAttrQName "name" ats
   case pr of
     Nothing -> do
       atrSpecs <- mapM encodeAttributeScheme $ atspecs' ++ atgrspecs'
       return $ ComplexTypeScheme (Composing [] atrSpecs) [] name l d
-    Just (_, tag, uri, pfx, qn, ats', subctnts, _) -> case tag of
+    Just (_, tag, _uri, _pfx, qn, ats', subctnts, _) -> case tag of
       "sequence" -> do
-        ct <- encodeSequenceTypeScheme subctnts (atspecs'++atgrspecs')
+        ct <- encodeSequenceTypeScheme (outer ++ "Complex") subctnts
+                                       (atspecs'++atgrspecs')
         return $ ComplexTypeScheme ct [] name l d
       "choice" -> do
-        whenDebugging $ liftIO $
-          putStrLn "      inputElement > complexType > case \"choice\""
+        whenDebugging $
+          dbgLn "inputElement > complexType > case \"choice\""
         error "inputElement > complexType > case \"choice\""
       "complexContent" -> do
-        whenDebugging $ liftIO $ putStrLn
+        whenDebugging $ dbgLn
           "      inputElement > complexType > case \"complexContent\""
         (pr', _, _) <- separateComplexContents subctnts l
         case pr' of
           Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
-            inputElement sqn sats' ssubctnts ssline Nothing
+            inputElement sqn sats' ssubctnts (outer ++ "Complex") ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
         -- error "inputElement > complexType > case \"complexContent\""
         {-
         -- <complexContent>
         (Zero, One ctnt, Zero, attrSpecs, _) -> do
-          whenDebugging $ liftIO $ putStrLn "    (case 2) data scheme only"
+          whenDebugging $ dbgLn "(case 2) data scheme only"
           res <- encodeComplexTypeScheme ats [] ctnt attrSpecs ifLn d
-          whenDebugging $ liftIO $ bLabelPrintln "      --> " res
+          whenDebugging $ dbgBLabel "  Case result " res
           return (Just res, [])
         -}
 
       "simpleContent" -> do
-        whenDebugging $ liftIO $ putStrLn
+        whenDebugging $ dbgLn
           "      inputElement > complexType > case \"simpleContent\""
         error "inputElement > complexType > case \"simpleContent\""
-      _ -> do
-        liftIO $ do
-          putStrLn      "+--------"
-          putStrLn      "| inputElement > complexType > another tag case"
-          bLabelPrintln "| ATS " ats
-          bLabelPrintln "| CTNTS " $ filter isElem ctnts
-          putStrLn $    "| L " ++ show l
-          putStrLn $    "| D " ++ show d
-          putStrLn      "+--------"
-          bLabelPrintln "| ATSPECS' " atspecs'
-          bLabelPrintln "| ATGRSPECS' " atgrspecs'
-          bLabelPrintln "| NAME " name
-          putStrLn      "+--------"
-          putStrLn $    "| TAG " ++ show tag
-          bLabelPrintln "| QN " qn
-          bLabelPrintln "| ATS' " ats'
-          bLabelPrintln "| SUBCTNTS " $ filter isElem subctnts
-          putStrLn      "+--------"
-        error "inputElement > complexType > unmatched"
-inputElement (QName "simpleType" _ _) ats ctnts ifLn ifDoc = do
+      _ -> boxed $ do
+              dbgLn      "inputElement > complexType > another tag case"
+              dbgBLabel "ATS " ats
+              dbgBLabel "CTNTS " $ filter isElem ctnts
+              dbgLn $    "OUTER " ++ show outer
+              dbgLn $    "L " ++ show l
+              dbgLn $    "D " ++ show d
+              dbgLn      "-------"
+              dbgBLabel "ATSPECS' " atspecs'
+              dbgBLabel "ATGRSPECS' " atgrspecs'
+              dbgBLabel "NAME " name
+              dbgLn      "-------"
+              dbgLn $    "TAG " ++ show tag
+              dbgBLabel "QN " qn
+              dbgBLabel "ATS' " ats'
+              dbgBLabel "SUBCTNTS " $ filter isElem subctnts
+              error "inputElement > complexType > unmatched"
+
+
+inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
   let ctnts' = filter isElem ctnts
-  case separateSimpleTypeContents ats ctnts' of
+  whenDebugging $ do
+    dbgLn "- Input element is simpletype"
+    dbgLn $ "  Outer name " ++ outer
+  indenting $ case separateSimpleTypeContents ats ctnts' of
     (nam, One restr, Zero, Zero) -> do
-      whenDebugging $ liftIO $
-        putStrLn "  - Via separateSimpleTypeContents case 1"
+      whenDebugging $ dbgLn "- Subcase restr"
       qnam <- mapM decodePrefixedName nam
-      encodeSimpleTypeByRestriction qnam ats restr
+      res <- indenting $ encodeSimpleTypeByRestriction qnam
+                    (case nam of Nothing -> outer ++ "Simple"
+                                 Just n -> outer ++ n) ats restr
+      dbgResult "Subcase result" res
     (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) ->
-      do whenDebugging $ liftIO $
-           putStrLn "  - Via separateSimpleTypeContents case 2"
+      do whenDebugging $ dbgLn "- Subcase union"
          qnam <- decodePrefixedName nam
-         alts <- inputSchemaItems $ filter isElem cs'
-         return $ SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
+         alts <- indenting $ inputSchemaItems' (outer ++ "Union") $
+           filter isElem cs'
+         dbgResult "Subcase result" $
+           SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
     (ifNam, Zero, Zero,
-     One (Elem (Element (QName "list" _ _) ats' _ _))) -> do
-      whenDebugging $ liftIO $
-        putStrLn "  - Via separateSimpleTypeContents case 3"
+     One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
+      whenDebugging $ dbgLn "- Subcase list"
       itemTypeAttr <- pullAttrQName "itemType" ats'
-      case itemTypeAttr of
-        Nothing -> error "Simple type list without itemType attribute"
-        Just itemType -> do
+      let simpleWithin = pullContent "simpleType" ctnts''
+      indenting $ case (itemTypeAttr, simpleWithin) of
+        (Nothing, Zero) -> error $
+          "Simple type list without itemType attribute" ++ ifAtLine ifLn
+        (Nothing, One node) -> do
+          whenDebugging $ dbgLn "- Subcase with included element type"
+          tds <- indenting $ inputSchemaItem (outer ++ "List") node
+          let tdsLabel = labelOf tds
+          qnam <- case tdsLabel of
+                    Just n -> return $ withSuffix "Element" n
+                    Nothing -> do
+                      fresh <- liftQtoXSDQ $ newName "List"
+                      return $ QName (nameBase fresh) Nothing Nothing
+          dbgResult "Subcase result" $
+            SimpleTypeScheme (Just qnam) (List Nothing (Just tds)) ifLn ifDoc
+        (Just itemType, Zero) -> do
+          whenDebugging $ dbgLn "- Subcase with element type reference"
           qnam <- case ifNam of
             Just n -> decodePrefixedName n
             Nothing -> return $ QName ("List_" ++ qName itemType)
                                       (qURI itemType) (qPrefix itemType)
-          let res = SimpleTypeScheme (Just qnam)
-                      (List (Just itemType)) ifLn ifDoc
-          whenDebugging $ liftIO $ do
-            putStrLn "> Encoding simpleType "
-            -- bLabelPrintln "    " e
-            bLabelPrintln "  as " res
-          return res
+          dbgResult "Subcase result" $
+            SimpleTypeScheme (Just qnam)
+                             (List (Just itemType) Nothing) ifLn ifDoc
+        (x, y) -> do
+          boxed $ do
+            dbgLn "Disallowed subsubcase within list subcase"
+            dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+            dbgLn $ "CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+            dbgLn $ "OUTER " ++ outer
+            dbgBLabel "X " x
+            dbgBLabel "Y " y
+          error $ "Disallowed subcase within subcase list" ++ ifAtLine ifLn
     (ifName, zomRestr, zomUnion, zomList) -> do
       -- whenDebugging
-      liftIO $ do
-        putStrLn "+------"
-        putStrLn $
-          "| TODO inputSchemaItem > simpleType > another separation case"
-        putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-        putStrLn $ "| CTNTS' "
-          ++ (intercalate "\n    " $ map showContent ctnts')
-        putStrLn $ "| IFNAME " ++ show ifName
-        putStrLn $ "| ZOMRESTR " ++ (show $ zomToList zomRestr)
-        putStrLn $ "| ZOMUNION " ++ (show $ zomToList zomUnion)
-        putStrLn $ "| ZOMLIST "  ++ (show zomList)
-        putStrLn "+--------"
+      boxed $ do
+        dbgLn "TODO inputElement > simpleType > another separation case"
+        dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+        dbgLn $ "CTNTS' " ++ (intercalate "\n    " $ map showContent ctnts')
+        dbgLn $ "OUTER " ++ outer
+        dbgLn $ "IFNAME " ++ show ifName
+        dbgLn $ "ZOMRESTR " ++ (show $ zomToList zomRestr)
+        dbgLn $ "ZOMUNION " ++ (show $ zomToList zomUnion)
+        dbgLn $ "ZOMLIST "  ++ (show zomList)
       error $ "TODO inputElement > simpleType > another separation case"
         ++ ifAtLine ifLn
-inputElement (QName "annotation" _ _) _ _ _ _ = do
+
+
+inputElement (QName "annotation" _ _) _ _ _ _ _ = do
   -- We do nothing with documentation and other annotations; currently
   -- there is no way to pass Haddock docstrings via the TH API.
-  whenDebugging $ liftIO $ putStrLn $ "> Dropping <annotation> element"
+  whenDebugging $ dbgLn $ "- Dropping <annotation> element"
   return Skip
-inputElement (QName tag _ _) _ _ l _d | tag=="include" || tag=="import" = do
+
+inputElement (QName tag _ _) _ _ _ l _d | tag=="include" || tag=="import" = do
   -- Skipping these documents for now
-  liftIO $ putStrLn $
-    "  - WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine l
+  dbgLn $ "  - WARNING: skipped <" ++ tag ++ "> element" ++ ifAtLine l
   return Skip
-inputElement (QName tagname _ _) _ _ _ _
+
+inputElement (QName tagname _ _) _ _ _ _ _
   | tagname == "key" || tagname == "keyref" = do
-  whenDebugging $ liftIO $ putStrLn $ "  - Dropping <" ++ tagname ++ "> entry "
+  whenDebugging $ dbgLn $ "- Dropping <" ++ tagname ++ "> entry "
   return Skip
-inputElement (QName "sequence" _ _) ats ctnts ifLn ifDoc = do
+
+inputElement (QName "sequence" _ _) ats ctnts _ ifLn ifDoc = do
   ifName <- pullAttrQName "name" ats
-  included <- inputSchemaItems ctnts
-  return $ ComplexTypeScheme (Composing included []) [] ifName ifLn ifDoc
-inputElement (QName "restriction" _ _) ats ctnts ifLn ifDoc = do
+  whenDebugging $ dbgLn $ case ifName of
+                            Nothing -> "- Sequence (unnamed)"
+                            Just n  -> "- Sequence \"" ++ showQName n ++ "\""
+  included <- indenting $ inputSchemaItems ctnts
+  dbgResult "Sequence result" $
+    ComplexTypeScheme (Composing included []) [] ifName ifLn ifDoc
+
+inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
+  whenDebugging $ dbgLn $ "- Restriction, outer name " ++ outer
   let ifDoc' = getAnnotationDocFrom ctnts
   ifName <- pullAttrQName "name" ats
   case pullAttr "base" ats of
     Just base -> do
       baseQName <- decodePrefixedName base
-      return $
-        ComplexTypeScheme (ComplexRestriction baseQName) [] ifName ifLn
-                          (pickOrCombine ifDoc ifDoc')
+      let thisName = case ifName of
+            Just _ -> ifName
+            Nothing -> Just $ QName (outer ++ "Restricted" ++ qName baseQName)
+                                    (qURI baseQName) (qPrefix baseQName)
+      dbgResult "Restriction result" $
+        ComplexTypeScheme (ComplexRestriction baseQName) []
+                          thisName ifLn (pickOrCombine ifDoc ifDoc')
     Nothing -> error "restriction without base"
-inputElement (QName "extension" _ _) ats ctnts ifLn ifDoc = do
+
+inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
+  whenDebugging $ dbgLn $ "- Extension, outer name " ++ outer
   maybeBase <- pullAttrQName "base" ats
   let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
                 id maybeBase
   ifName <- pullAttrQName "name" ats
   (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
-  whenDebugging $ liftIO $ do
-    putStrLn "      - Complex extension"
-    bLabelPrintln "        - base " base
-    bLabelPrintln "        - ext " ext
-    bLabelPrintln "        - newAttrs " newAttrs
-    bLabelPrintln "        - newAttrGroups " newAttrGroups
-  case ext of
+  whenDebugging $ do
+    dbgLn "- Complex extension"
+    dbgLn $ "- outer name " ++ outer
+    dbgBLabel "- base " base
+    dbgBLabel "- ext " ext
+    dbgBLabel "- newAttrs " newAttrs
+    dbgBLabel "- newAttrGroups " newAttrGroups
+  res <- case ext of
     Nothing -> do
       return $
         ComplexTypeScheme (Extension base []) [] ifName ifLn ifDoc
     Just (e,_,_,_,_,_,_,_) -> do
-      ext <- inputSchemaItem e
+      e' <- indenting $ inputSchemaItem (outer ++ "Ext") e
       return $
-        ComplexTypeScheme (Extension base [ext]) [] ifName ifLn ifDoc
+        ComplexTypeScheme (Extension base [e']) [] ifName ifLn ifDoc
+  whenDebugging $ dbgBLabel "  Extension result " res
+  return res
+
 
-inputElement (QName "group" _ _) ats ctnts ifLn ifDoc = do
-  whenDebugging $ liftIO $ putStrLn "  - For <group> schema:"
+inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
+  whenDebugging $ do
+    dbgLn "- For <group> schema:"
+    dbgLn $ "  outer name " ++ outer
   name <- pullAttrQName "name" ats
-  case filter isElem ctnts of
+  indenting $ case filter isElem ctnts of
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
-      ts <- encodeChoiceTypeScheme name attrs' ctnts'
-      return $ GroupScheme name (Just ts) ifLn' ifDoc
-    (Elem (Element (QName "sequence" _ _) _ats ctnts ifLn')):[] -> do
-      seq <- encodeSequenceTypeScheme ctnts []
-      return $ GroupScheme name (Just seq) ifLn ifDoc
-      liftIO $ do
-        putStrLn $ "+--------"
-        putStrLn $ "| Case 1 after (filter isElem ctnts)"
-        putStrLn $ "| group ATTRS " ++ (intercalate "\n    " $ map showAttr ats)
-        putStrLn $ "| sequence ATTRS " ++ (intercalate "\n    " $
+      whenDebugging $ dbgLn "- choice subcase"
+      ts <- indenting $ encodeChoiceTypeScheme name attrs' ctnts'
+      dbgResult "Subcase result" $ GroupScheme name (Just ts) ifLn' ifDoc
+    (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
+      whenDebugging $ dbgLn "- sequence subcase"
+      seqn <- indenting $ encodeSequenceTypeScheme outer ctnts' []
+      whenDebugging $ do
+        dbgLn $ "- Case 1 after (filter isElem ctnts)"
+        dbgLn $ "-- group attrs " ++ (intercalate "\n    " $ map showAttr ats)
+        dbgLn $ "-- sequence attrs " ++ (intercalate "\n    " $
                                            map showAttr _ats)
-        putStrLn $ "| NAME " ++ show (fmap showQName name)
-        putStrLn $ "| CTNTS " ++
+        dbgLn $ "-- name " ++ show (fmap showQName name)
+        dbgLn $ "-- ctnts " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-        putStrLn "+--------"
-      error $ "TODO inputSchemaItem > group with sequence" ++ ifAtLine ifLn'
+        dbgLn $ "-- ctnts' " ++
+          (intercalate "\n    " $ map ppContent $ filter isElem ctnts')
+      dbgResult "Subcase result" $ GroupScheme name (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
+      whenDebugging $ dbgLn "- all subcase"
       -- let ifDoc' = getAnnotationDocFrom contents
-      liftIO $ do
-        putStrLn $ "+-------"
-        putStrLn $
-          "| TODO inputSchemaItem > group with all" ++ ifAtLine ifLn'
-        putStrLn $ "| ATS " ++ (intercalate "\n    " $ map showAttr ats)
-        putStrLn $ "| NAME " ++ show (fmap showQName name)
-        putStrLn $ "| CTNTS " ++
+      boxed $ do
+        dbgLn $
+          "TODO inputElement > group with all" ++ ifAtLine ifLn'
+        dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr ats)
+        dbgLn $ "NAME " ++ show (fmap showQName name)
+        dbgLn $ "CTNTS " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-        putStrLn "+--------"
-      error $ "TODO inputSchemaItem > group with all" ++ ifAtLine ifLn'
+      error $ "TODO inputElement > group with all" ++ ifAtLine ifLn'
     _ -> do
-      liftIO $ putStrLn $ "  - Default is group of nothing"
-      return $ GroupScheme name Nothing ifLn ifDoc
-inputElement (QName tag _ _) ats ctnts ifLn _ifDoc = do
-  -- whenDebugging $ do
-  liftIO $ do
-    putStrLn "+-------"
-    putStrLn $ "| TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
-    putStrLn $ "| TAG " ++ show tag
-    bLabelPrintln "| ATS " ats
-    bLabelPrintln "| CTNTS " $ filter isElem ctnts
-    putStrLn "+--------"
-  error $ "TODO inputSchemaItem > another Element case" ++ ifAtLine ifLn
+      whenDebugging $ dbgLn "- Default subcase is group of nothing"
+      dbgResult "Subcase result" $ GroupScheme name Nothing ifLn ifDoc
 
-encodeSequenceTypeScheme :: [Content] -> [Content] -> XSDQ ComplexTypeScheme
-encodeSequenceTypeScheme subcontents attrSpecs = do
-  included <- inputSchemaItems subcontents
+inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
+  whenDebugging $ dbgLn "- For <choice> scheme:"
+  -- whenDebugging $ do
+  name <- pullAttrQName "name" ats
+  let minOcc = decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats
+      maxOcc = decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats
+  whenDebugging $ do
+    dbgLn $ "- inputElement > choice" ++ ifAtLine ifLn
+    dbgLn $ "-- minOccurs " ++ show minOcc
+    dbgLn $ "-- maxOccurs " ++ show maxOcc
+    dbgBLabel "-- ats " ats
+    dbgBLabel "-- ctnts " $ filter isElem ctnts
+  ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
+  return $ GroupScheme name (Just ts) ifLn ifDoc
+
+inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
+  -- whenDebugging $ do
+  boxed $ do
+    dbgLn $ "TODO inputElement > unmatched case" ++ ifAtLine ifLn
+    dbgLn $ "TAG " ++ show tag
+    dbgBLabel "ATS " ats
+    dbgBLabel "CTNTS " $ filter isElem ctnts
+    dbgLn $ "OUTER " ++ outer
+  error $ "TODO inputElement > unmatched case" ++ ifAtLine ifLn
+
+
+encodeSequenceTypeScheme ::
+  String -> [Content] -> [Content] -> XSDQ ComplexTypeScheme
+encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
+  included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
   atrSpecs <- mapM encodeAttributeScheme attrSpecs
   return $ Composing included atrSpecs
 
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
-encodeChoiceTypeScheme ifNam _attrs allCtnts = do
+encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
   let ctnts = filter isElem allCtnts
   {-
-  whenDebugging $ liftIO $ do
-    putStrLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
-      putStrLn $ "IFNAM " ++ show ifNam
-      putStrLn $ "CTNTS " ++
+  whenDebugging $ do
+    dbgLn $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
+    dbgLn $ "IFNAM " ++ show ifNam
+    dbgLn $ "CTNTS " ++
         (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   -}
-  contentSchemes <- mapM inputSchemaItem ctnts
+  contentSchemes <- indenting $ mapM (inputSchemaItem "X") ctnts
   return $ Choice ifNam contentSchemes
 
-encodeAttributeDataScheme :: Content -> XSDQ DataScheme
-encodeAttributeDataScheme e@(Elem (Element _ _ c l)) = do
-  attSch <- encodeAttributeScheme e
-  let ifDoc = getAnnotationDocFrom c
-  return $ AttributeScheme attSch l ifDoc
-encodeAttributeDataScheme e = do
-  error "Non-element passed to encodeAttributeDataScheme"
+-- encodeAttributeDataScheme :: Content -> XSDQ DataScheme
+-- encodeAttributeDataScheme e@(Elem (Element _ _ c l)) = do
+--   attSch <- encodeAttributeScheme e
+--   let ifDoc = getAnnotationDocFrom c
+--   return $ AttributeScheme attSch l ifDoc
+-- encodeAttributeDataScheme e = do
+--   error "Non-element passed to encodeAttributeDataScheme"
 
 encodeAttributeScheme :: Content -> XSDQ AttributeScheme
-encodeAttributeScheme (Elem (Element q a c l)) = do
-  whenDebugging $ liftIO $ bLabelPrintln "    - Encoding attribute " q
+encodeAttributeScheme (Elem (Element q a c l)) = indenting $ do
+  whenDebugging $ dbgBLabel "- Encoding attribute " q
   let ifDoc = getAnnotationDocFrom c
   res <- encodeAttribute q a c l ifDoc
-  whenDebugging $ liftIO $ bLabelPrintln "        `--> " res
+  whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 encodeAttributeScheme c = do
-  liftIO $ bLabelPrintln "** Nonattribute" c
+  dbgBLabel "** Nonattribute" c
   error $ "Illegal use of encodeAttributeScheme on\n" ++ showContent c
 
 encodeAttribute ::
   QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
-encodeAttribute (QName "attribute" _ _) ats [] _ d = do
+encodeAttribute (QName "attribute" _ _) ats [] _ d = indenting $ do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
@@ -329,15 +395,20 @@ encodeAttribute (QName "attribute" _ _) ats [] _ d = do
                            (case pullAttr "use" ats of
                               Nothing -> "optional"
                               Just s -> s) d
-encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ d = do
+encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
   let attrs = filterTagged "attribute" ctnts
       atGroups = filterTagged "attributeGroup" ctnts
   subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
   return $ AttributeGroup name ref subcontents d
-encodeAttribute (QName c _ _) _ _ _ _ =
-  error $ "Can't use encodeAttribute with <" ++ c ++ ">"
+encodeAttribute (QName n _ _) a c _ _ = do
+  boxed $ do
+    dbgLn n
+    dbgBLabel "ATTRS " a
+    dbgBLabel "CTNTS " $ filter isElem c
+  error $ "Can't use encodeAttribute with <" ++ n ++ ">"
+
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
@@ -352,7 +423,7 @@ instance Blockable PrimaryBundle where
     labelBlock "name " $ block q,
     labelBlock "attrs " $ block a,
     labelBlock "subcontents " $ block $ filter isElem c]
-
+
 
 -- | Separate the innards of a complexType element into:
 --
@@ -398,30 +469,35 @@ separateSimpleTypeContents attrs cts =
    pullContent "restriction" cts,
    pullContent "union" cts,
    pullContent "list" cts)
+
 
 encodeSimpleTypeByRestriction ::
-  Maybe QName -> [Attr] -> Content -> XSDQ DataScheme
+  Maybe QName -> String -> [Attr] -> Content -> XSDQ DataScheme
 encodeSimpleTypeByRestriction -- Note ignoring ats
-    ifName _ (Elem (Element (QName "restriction" _ _) ats' contents ln)) = do
-  let ifDoc = getAnnotationDocFrom contents
+    ifName outer _ (Elem (Element (QName "restriction" _ _) ats' cs ln)) = do
+  whenDebugging $ dbgLn $ "- encode simple by restr, outer name " ++ outer
+  let ifDoc = getAnnotationDocFrom cs
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
-      return $ SimpleTypeScheme ifName (SimpleRestriction baseQName) ln ifDoc
+      let useName = case ifName of
+            Just _ -> ifName
+            Nothing -> Just $ withPrefix (outer ++ "Restr") baseQName
+              -- TODO --- make sure this is in target namespace
+      dbgResult "Encoding result" $
+        SimpleTypeScheme useName (SimpleRestriction baseQName) ln ifDoc
     Nothing -> error "restriction without base"
-encodeSimpleTypeByRestriction ifNam ats s = do
-  liftIO $ do
-    putStrLn "+------"
-    putStrLn "| TODO encodeSimpleTypeByRestriction > additional cases"
-    putStrLn $ "| IFNAM " ++ show ifNam
-    putStrLn $ "| ATS "   ++ (intercalate "\n    " $ map showAttr ats)
+encodeSimpleTypeByRestriction ifNam _ ats s = do
+  boxed $ do
+    dbgLn "TODO encodeSimpleTypeByRestriction > additional cases"
+    dbgLn $ "IFNAM " ++ show ifNam
+    dbgLn $ "ATS "   ++ (intercalate "\n    " $ map showAttr ats)
     case s of
-      (Elem (Element _ _ _ (Just l))) ->
-        putStrLn $ "| source line: " ++ show l
+      Elem (Element _ _ _ (Just l)) -> dbgLn $ "source line: " ++ show l
       _ -> return ()
-    bLabelPrintln "| S " s
-    putStrLn "+--------"
+    dbgBLabel "S " s
   error "TODO encodeSimpleTypeByRestriction > additional cases"
+
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.

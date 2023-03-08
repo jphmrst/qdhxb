@@ -13,6 +13,7 @@ import Age (testAge)
 import Initials (testInitials)
 import SizesNoList (testSizesNoList)
 import SizesAndList (testSizesAndList)
+import SizesAndListInline (testSizesAndListInline)
 import PersonAttr1 (testPersonAttr1)
 import PersonAttr2 (testPersonAttr2)
 import PersonAttr2r (testPersonAttr2r)
@@ -33,6 +34,7 @@ main = do
     testInitials
     testSizesNoList
     testSizesAndList
+    testSizesAndListInline
     testPersonAttr1
     testPersonAttr2
     testPersonAttr2r

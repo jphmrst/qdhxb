@@ -1,0 +1,14 @@
+<!-- From http://www.datypic.com/books/defxmlschema1/chapter11.html -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:simpleType name="SizesType">
+    <xs:list>
+      <xs:simpleType>
+        <xs:restriction base="xs:string">
+          <xs:minLength value="1" />
+        </xs:restriction>
+      </xs:simpleType>
+    </xs:list>
+  </xs:simpleType>
+  <xs:element name="sizes" type="SizesType"/>
+</xs:schema>

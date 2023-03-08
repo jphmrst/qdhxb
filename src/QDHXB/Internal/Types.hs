@@ -3,7 +3,7 @@
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
-  Reference(..),
+  Reference(..), referenceQName,
   AttributeDefn(..),
   Definition(..),
   AttributeUsage(Forbidden, Optional, Required),
@@ -23,6 +23,18 @@ data Reference =
   | AttributeRef
     -- ^ The name of an attribute.
        QName AttributeUsage
+  | TypeRef
+    -- ^ Reference to a type.
+        QName
+        -- ^ Name of the type.
+        (Maybe Int)
+        -- ^ Lower bound of occurences.
+        (Maybe Int)
+        -- ^ Upper bound of occurences.
+        (Maybe Line)
+        -- ^ Source code line.
+        (Maybe String)
+        -- ^ Documentation of the referenced type.
 {-
   | ComplexTypeRef String
   -- ^ The name of a complex type.
@@ -40,6 +52,8 @@ instance Blockable Reference where
          Just n -> " upper bound=" ++ show n
   block (AttributeRef name usage) = stringToBlock $
     "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
+  block (TypeRef name _ _ _ _) = stringToBlock $
+    "TypeRef " ++ showQName name
 instance VerticalBlockList Reference
 
 -- | Definition of an attribute or group type.
@@ -134,3 +148,9 @@ stringToAttributeUsage _ = Optional
 -- | Display a list of `Definition` in more human-readable text.
 pprintDefns' :: String -> [Definition] -> String
 pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map show ds
+
+-- | Extract the QName behind a `Reference`.
+referenceQName :: Reference -> QName
+referenceQName (TypeRef q _ _ _ _) = q
+referenceQName (ElementRef q _ _ _) = q
+referenceQName (AttributeRef q _) = q

@@ -14,6 +14,8 @@ module QDHXB.Internal.XSDQ (
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
   pushNamespaces, popNamespaces, getNamespaces, getDefaultNamespace,
   decodePrefixedName, getURIprefix, getNextCapName,
+  indenting, indentingWith, dbgLn, dbgBLabel, boxed,
+  dbgResult,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -43,12 +45,12 @@ type QNameStore a = [(QName, a)]
 -- the names of XSD entities and their definitions.
 data QdxhbState =
   QdxhbState QDHXBOptionSet (QNameStore QName) (QNameStore Definition)
-             [Maybe String] [Namespaces] [String]
+             [Maybe String] [Namespaces] [String] String
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
 initialQdxhbState optsF =
-  QdxhbState (optsF defaultOptionSet) [] [] [] [] nameBodies
+  QdxhbState (optsF defaultOptionSet) [] [] [] [] nameBodies ""
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -94,8 +96,9 @@ fileNewDefinition (UnionDefn _ _ _ _)   = return ()
 fileNewDefinition (ListDefn _ _ _ _) = return ()
 fileNewDefinition (ElementDefn n t _ _)    = do
   whenDebugging $ do
+    ind <- getIndentation
     liftIO $ putStrLn $ show $
-      (labelBlock "Filing ElementDefn: " $ block n)
+      (labelBlock (ind ++ "Filing ElementDefn: ") $ block n)
        `follow` (labelBlock " :: " $ block t)
   addElementType n t
 
@@ -103,14 +106,14 @@ fileNewDefinition (ElementDefn n t _ _)    = do
 -- in the `XSDQ` state.
 addTypeDefn :: QName -> Definition -> XSDQ ()
 addTypeDefn name defn = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns dfts nss names <- get
-  put (QdxhbState opts elemTypes ((name, defn) : typeDefns) dfts nss names)
+  QdxhbState opts elemTypes typeDefns dfts nss names ind <- get
+  put (QdxhbState opts elemTypes ((name, defn) : typeDefns) dfts nss names ind)
 
 -- | Return the `Definition` of an XSD type from the tracking tables
 -- in the `XSDQ` state.
 getTypeDefn :: QName -> XSDQ (Maybe Definition)
 getTypeDefn name = liftStatetoXSDQ $ do
-  QdxhbState _ _ typeDefns _ _ _ <- get
+  QdxhbState _ _ typeDefns _ _ _ _ <- get
   return $ lookupFirst typeDefns name
 
 -- | Return `True` if the string argument names an XSD type known to
@@ -151,15 +154,15 @@ isComplexType name = do
 -- tracking tables in the `XSDQ` state.
 addElementType :: QName -> QName -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns dfts nss names <- get
-  put (QdxhbState opts ((name, typ) : elemTypes) typeDefns dfts nss names)
+  QdxhbState opts elemTypes typeDefns dfts nss names ind <- get
+  put (QdxhbState opts ((name, typ) : elemTypes) typeDefns dfts nss names ind)
 
 -- | Get the type name associated with an element tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
 -- such element name.
 getElementType :: QName -> XSDQ (Maybe QName)
 getElementType name = liftStatetoXSDQ $ do
-  (QdxhbState _ elemTypes _ _ _ _) <- get
+  (QdxhbState _ elemTypes _ _ _ _ _) <- get
   return $ lookupFirst elemTypes name
 
 -- | Get the type name associated with an element tag from the
@@ -175,7 +178,7 @@ getElementTypeOrFail name = do
 -- |Return the QDHXBOptionSet in effect for this run.
 getOptions :: XSDQ (QDHXBOptionSet)
 getOptions = liftStatetoXSDQ $ do
-  (QdxhbState opts _ _ _ _ _) <- get
+  (QdxhbState opts _ _ _ _ _ _) <- get
   return opts
 
 -- |Return whether @newtype@ should be used in this run.
@@ -200,10 +203,10 @@ ifDebuggingDoc yes no = ifM getDebugging yes no
 pushNamespaces :: [Attr] -> XSDQ ()
 pushNamespaces attrs = do
   liftStatetoXSDQ $ do
-    QdxhbState opts elemTypes typeDefns dfts nss names <- get
+    QdxhbState opts elemTypes typeDefns dfts nss names ind <- get
     let (thisNS, thisDft) = decodeAttrsForNamespaces attrs
     put $ QdxhbState opts elemTypes typeDefns
-                     (thisDft : dfts) (thisNS : nss) names
+                     (thisDft : dfts) (thisNS : nss) names ind
   whenDebugging $ do
     nss <- getNamespaces
     dft <- getDefaultNamespace
@@ -217,22 +220,22 @@ pushNamespaces attrs = do
 -- of a file.
 popNamespaces :: XSDQ ()
 popNamespaces = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns dfts nss names <- get
+  QdxhbState opts elemTypes typeDefns dfts nss names ind <- get
   case nss of
     [] -> return ()
-    (_:nss') -> put $ QdxhbState opts elemTypes typeDefns dfts nss' names
+    (_:nss') -> put $ QdxhbState opts elemTypes typeDefns dfts nss' names ind
 
 -- |Return the stack of `Namespaces` currently known to the `XSDQ`
 -- state.
 getNamespaces :: XSDQ [Namespaces]
 getNamespaces = liftStatetoXSDQ $ do
-  QdxhbState _ _ _ _ nss _ <- get
+  QdxhbState _ _ _ _ nss _ _ <- get
   return nss
 
 -- |Return the current target namespace URI.
 getDefaultNamespace :: XSDQ (Maybe String)
 getDefaultNamespace = liftStatetoXSDQ $ do
-  QdxhbState _ _ _ dfts _ _ <- get
+  QdxhbState _ _ _ dfts _ _ _ <- get
   getFirstActual dfts
     where getFirstActual [] = return Nothing
           getFirstActual (r@(Just _) : _) = return r
@@ -281,8 +284,8 @@ lookupFirst (_:xs) targ = lookupFirst xs targ
 -- uniqueness with respect to the names already in use.
 getNextCapName :: XSDQ String
 getNextCapName = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes typeDefns dfts nss (z:zs) <- get
-  put (QdxhbState opts elemTypes typeDefns dfts nss zs)
+  QdxhbState opts elemTypes typeDefns dfts nss (z:zs) ind <- get
+  put (QdxhbState opts elemTypes typeDefns dfts nss zs ind)
   return $ "Z__" ++ z
 
 nameBodies :: [String]
@@ -290,3 +293,49 @@ nameBodies = basicNamePool ++ (concat $ map (\n -> map (n ++) basicNamePool) bas
 
 basicNamePool :: [String]
 basicNamePool = map (\x -> [x]) ['a'..'z']
+
+-- ------------------------------------------------------------
+
+getIndentation :: XSDQ String
+getIndentation = liftStatetoXSDQ $ do
+  QdxhbState _ _ _ _ _ _ ind <- get
+  return ind
+
+setIndentation :: String -> XSDQ ()
+setIndentation ind = liftStatetoXSDQ $ do
+  QdxhbState opts elemTypes typeDefns dfts nss zs _ <- get
+  put (QdxhbState opts elemTypes typeDefns dfts nss zs ind)
+
+indentingWith :: String -> XSDQ a -> XSDQ a
+indentingWith s m = do
+  ind <- getIndentation
+  setIndentation $ ind ++ s
+  res <- m
+  setIndentation ind
+  return res
+
+indenting :: XSDQ a -> XSDQ a
+indenting = indentingWith "  "
+
+dbgLn :: String -> XSDQ ()
+dbgLn s = do
+  ind <- getIndentation
+  liftIO $ putStrLn $ ind ++ s
+
+dbgBLabel :: Blockable c => String -> c -> XSDQ ()
+dbgBLabel s m = do
+  ind <- getIndentation
+  liftIO $ bLabelPrintln (ind ++ s) m
+
+boxed :: XSDQ a -> XSDQ a
+boxed s = do
+  dbgLn "+--------"
+  res <- indentingWith "| " s
+  dbgLn "+--------"
+  return res
+
+dbgResult :: Blockable a => String -> a -> XSDQ a
+{-# INLINE dbgResult #-}
+dbgResult msg res = do
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
+  return res

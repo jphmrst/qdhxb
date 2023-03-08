@@ -27,13 +27,20 @@ data SimpleTypeScheme =
       [DataScheme] -- ^ Constituent types
   | List -- ^ Space-delimited list of simple types
       (Maybe QName) -- ^ Type of list elements
+      (Maybe DataScheme) -- ^ Constituent type
   deriving Show
 
 instance Blockable SimpleTypeScheme where
   block (Synonym t) = labelBlock "== " $ block t
   block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
   block (Union ds) = labelBlock "Union " $ block ds
-  block (List t) = labelBlock "List " $ block t
+  block (List t Nothing) = labelBlock "List " $ block t
+  block (List Nothing t) = labelBlock "List " $ block t
+  block (List r t) = stackBlocks [
+    stringToBlock "List with both reference and subelement",
+    labelBlock "  reference " $ block r,
+    labelBlock "  element " $ block t
+    ]
 instance VerticalBlockList SimpleTypeScheme
 instance VerticalBlockList (QName, DataScheme)
 instance VerticalBlockablePair QName DataScheme
@@ -105,7 +112,7 @@ instance VerticalBlockList AttributeScheme
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
   Skip
-  | ElementScheme [DataScheme] -- ^ contents
+  | ElementScheme (Maybe DataScheme) -- ^ contents
                   (Maybe QName) -- ^ ifName
                   (Maybe QName) -- ^ ifType
                   (Maybe QName) -- ^ ifRef
@@ -181,11 +188,10 @@ instance Blockable DataScheme where
     `stack2` (indent "  " $ block attrs)
 
   block (SimpleTypeScheme name detail _ln _d) =
-    labelBlock "SimpleTypeScheme " $
-      stackBlocks [
-        block name,
-        labelBlock "scheme " $ block detail
-        ]
+    stackBlocks [
+      labelBlock "SimpleTypeScheme " $ block name,
+      labelBlock "  scheme " $ block detail
+      ]
 
   block (GroupScheme base (Just ts) _ln _d) = Block [
     "Group " ++ show base ++ " with contents",
@@ -200,11 +206,8 @@ labelOf :: DataScheme -> Maybe QName
 labelOf Skip = Nothing
 labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _) = Just name
 labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _) = Just typ
-labelOf (ElementScheme cs _ _ _ _ _ _ _ _) = makeFirst cs
-  where makeFirst [] = Nothing
-        makeFirst (d:ds) = case labelOf d of
-                             Nothing -> makeFirst ds
-                             Just r -> Just r
+labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _) = labelOf sub
+labelOf (ElementScheme _ _ _ _ _ _ _ _ _) = Nothing
 labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _ _) _ _) = j
 labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _ _) _ _) = j
 labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _ _) _ _) = j
@@ -220,7 +223,11 @@ labelOf (SimpleTypeScheme j@(Just _) _ _ _) = j
 labelOf (SimpleTypeScheme _ (Synonym t) _ _) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r) _ _) = Just r
 labelOf (SimpleTypeScheme _ (Union _ds) _ _) = Nothing
-labelOf (SimpleTypeScheme _ (List t) _ _) = fmap (withPrefix "List") t
+labelOf (SimpleTypeScheme _ (List t@(Just _) _) _ _) =
+  fmap (withPrefix "List") t
+labelOf (SimpleTypeScheme _ (List _ (Just t)) _ _) =
+  fmap (withPrefix "List") (labelOf t)
+labelOf (SimpleTypeScheme _ (List _ _) _ _) = Nothing
 labelOf (GroupScheme base _n _l _d) = base
 
 -- | Predicate returning `False` on `Skip` values
