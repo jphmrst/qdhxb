@@ -15,7 +15,7 @@ import SizesNoList.SizesNoList (testSizesNoList)
 import SizesAndList (testSizesAndList)
 import SizesAndListInline (testSizesAndListInline)
 import PersonAttr1.PersonAttr1 (testPersonAttr1)
-import PersonAttr2 (testPersonAttr2)
+import PersonAttr2.PersonAttr2 (testPersonAttr2)
 import PersonAttr2r (testPersonAttr2r)
 
 main :: IO ()
