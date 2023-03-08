@@ -78,14 +78,14 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
              ln ifDoc
 
-inputElement q@(QName "attribute" _ _) a c _ l _d = do
+inputElement q@(QName "attribute" _ _) a c o l _d = do
   let ifDoc = getAnnotationDocFrom c
-  scheme <- encodeAttribute q a c l ifDoc
+  scheme <- encodeAttribute (o ++ "Attr") q a (filter isNonKeyElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
 
-inputElement q@(QName "attributeGroup" _ _) a c _ l _d = do
+inputElement q@(QName "attributeGroup" _ _) a c o l _d = do
   let ifDoc = getAnnotationDocFrom c
-  scheme <- encodeAttribute q a c l ifDoc
+  scheme <- encodeAttribute (o ++ "AtrGrp") q a (filter isNonKeyElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
 
 
@@ -94,7 +94,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
   name <- pullAttrQName "name" ats
   case pr of
     Nothing -> do
-      atrSpecs <- mapM encodeAttributeScheme $ atspecs' ++ atgrspecs'
+      atrSpecs <- mapM (encodeAttributeScheme $ outer ++ "Cplx") $
+                    atspecs' ++ atgrspecs'
       return $ ComplexTypeScheme (Composing [] atrSpecs) [] name l d
     Just (_, tag, _uri, _pfx, qn, ats', subctnts, _) -> case tag of
       "sequence" -> do
@@ -209,6 +210,8 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
             dbgBLabel "X " x
             dbgBLabel "Y " y
           error $ "Disallowed subcase within subcase list" ++ ifAtLine ifLn
+
+
     (ifName, zomRestr, zomUnion, zomList) -> do
       -- whenDebugging
       boxed $ do
@@ -222,7 +225,6 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
         dbgBLabel "ZOMLIST " zomList
       error $ "TODO inputElement > simpleType > another separation case"
         ++ ifAtLine ifLn
-
 
 inputElement (QName "annotation" _ _) _ _ _ _ _ = do
   -- We do nothing with documentation and other annotations; currently
@@ -264,6 +266,7 @@ inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
         ComplexTypeScheme (ComplexRestriction baseQName) []
                           thisName ifLn (pickOrCombine ifDoc ifDoc')
     Nothing -> error "restriction without base"
+
 
 inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgPt $ "Extension, outer name " ++ outer
@@ -289,7 +292,6 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
         ComplexTypeScheme (Extension base [e']) [] ifName ifLn ifDoc
   whenDebugging $ dbgBLabel "  Extension result " res
   return res
-
 
 inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ do
@@ -329,6 +331,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
     _ -> do
       whenDebugging $ dbgPt "Default subcase is group of nothing"
       dbgResult "Subcase result" $ GroupScheme name Nothing ifLn ifDoc
+
 
 inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
   whenDebugging $ dbgPt "For <choice> scheme:"
@@ -354,13 +357,14 @@ inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
     dbgBLabel "CTNTS " $ filter isElem ctnts
     dbgLn $ "OUTER " ++ outer
   error $ "TODO inputElement > unmatched case" ++ ifAtLine ifLn
-
+
 
 encodeSequenceTypeScheme ::
   String -> [Content] -> [Content] -> XSDQ ComplexTypeScheme
 encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
   included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
-  atrSpecs <- mapM encodeAttributeScheme attrSpecs
+  atrSpecs <- indenting $
+    mapM (encodeAttributeScheme $ outer ++ "Seq") attrSpecs
   return $ Composing included atrSpecs
 
 encodeChoiceTypeScheme ::
@@ -376,51 +380,77 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
   -}
   contentSchemes <- indenting $ mapM (inputSchemaItem "X") ctnts
   return $ Choice ifNam contentSchemes
+
 
--- encodeAttributeDataScheme :: Content -> XSDQ DataScheme
--- encodeAttributeDataScheme e@(Elem (Element _ _ c l)) = do
---   attSch <- encodeAttributeScheme e
---   let ifDoc = getAnnotationDocFrom c
---   return $ AttributeScheme attSch l ifDoc
--- encodeAttributeDataScheme e = do
---   error "Non-element passed to encodeAttributeDataScheme"
-
-encodeAttributeScheme :: Content -> XSDQ AttributeScheme
-encodeAttributeScheme (Elem (Element q a c l)) = indenting $ do
+encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
+encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
   whenDebugging $ dbgBLabel "- Encoding attribute " q
   let ifDoc = getAnnotationDocFrom c
-  res <- encodeAttribute q a c l ifDoc
+  res <- encodeAttribute outer q a (filter isNonKeyElem c) l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
-encodeAttributeScheme c = do
+encodeAttributeScheme _o c = do
   dbgBLabel "** Nonattribute" c
   error $ "Illegal use of encodeAttributeScheme on\n" ++ showContent c
 
 encodeAttribute ::
-  QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String
+  String -> QName -> [Attr] -> [Content] -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
-encodeAttribute (QName "attribute" _ _) ats [] _ d = indenting $ do
+encodeAttribute _ (QName "attribute" _ _) ats [] _ d = indenting $ do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
-  return $ SingleAttribute nameQname refQName typeQName
-                           (case pullAttr "use" ats of
-                              Nothing -> "optional"
-                              Just s -> s) d
-encodeAttribute (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
+  return $ SingleAttribute nameQname refQName
+             (case typeQName of
+                Just qn -> NameRef qn
+                Nothing -> Neither)
+             (case pullAttr "use" ats of
+                Nothing -> "optional"
+                Just s -> s) d
+encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
+  typeQName <- pullAttrQName "type" ats
+  case typeQName of
+    Just n -> do
+      error $ "Both named type " ++ showQName n
+        ++ " and nested type spec given to attribute, " ++ showContent st
+    Nothing -> do
+      nameQName <- pullAttrQName "name" ats
+      refQName <- pullAttrQName "ref" ats
+      encodeAttributeWithNestedType outer nameQName refQName st sts
+                                    (case pullAttr "use" ats of
+                                      Nothing -> "optional"
+                                      Just s -> s)
+                                    l d
+encodeAttribute o (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
   let attrs = filterTagged "attribute" ctnts
       atGroups = filterTagged "attributeGroup" ctnts
-  subcontents <- mapM encodeAttributeScheme $ attrs ++ atGroups
+  subcontents <- mapM (encodeAttributeScheme $ o ++ "Group") $
+                   attrs ++ atGroups
   return $ AttributeGroup name ref subcontents d
-encodeAttribute (QName n _ _) a c _ _ = do
+encodeAttribute outer (QName n _ _) a c _ _ = do
   boxed $ do
     dbgLn n
+    dbgLn $ "OUTER " ++ outer
     dbgBLabel "ATTRS " a
     dbgBLabel "CTNTS " $ filter isElem c
   error $ "Can't use encodeAttribute with <" ++ n ++ ">"
-
+
+encodeAttributeWithNestedType ::
+  String -> Maybe QName -> Maybe QName -> Content -> [Content] -> String
+  -> Maybe Line -> Maybe String
+  -> XSDQ AttributeScheme
+encodeAttributeWithNestedType outer ifName ifRef tySpec [] use _ d = do
+  ds <- inputSchemaItem "ZZZZZ" tySpec
+  return $ SingleAttribute ifName ifRef (Nested ds) use d
+encodeAttributeWithNestedType _ _ _ tySpec (s:ss) _ _ _ = do
+  boxed $ do
+    dbgLn "Too many nested types for attribute"
+    dbgBLabel "1st one " tySpec
+    dbgBLabel "2nd one " s
+    dbgBLabel "others " ss
+  error "TODO Too many nested types for attribute"
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
@@ -509,7 +539,7 @@ encodeSimpleTypeByRestriction ifNam _ ats s = do
       _ -> return ()
     dbgBLabel "S " s
   error "TODO encodeSimpleTypeByRestriction > additional cases"
-
+
 
 -- | Decode the `String` representation of an XSD integer as a Haskell
 -- `Int`.  Might fail, so the result is `Maybe`-wrapped.

@@ -7,6 +7,7 @@ module QDHXB.Internal.NestedTypes (
   ComplexTypeScheme(..),
   AttributeScheme(..),
   DataScheme(..),
+  QNameOr(..),
   nonSkip, labelOf
 ) where
 
@@ -45,6 +46,24 @@ instance VerticalBlockList SimpleTypeScheme
 instance VerticalBlockList (QName, DataScheme)
 instance VerticalBlockablePair QName DataScheme
 
+-- |This type is used in places where either a named reference or a
+-- nested specification might be used.
+data QNameOr =
+  NameRef -- ^ Used when a reference by name to a specification
+          -- defined elsewhere is provided.
+  QName -- ^ The given name.
+  | Nested -- ^ Used when a nested specification is provided.
+    DataScheme -- ^ The nested spec.
+  | Neither -- ^ Used when neither a name nor a nested specification
+            -- is given.
+  deriving Show
+
+instance Blockable QNameOr where
+  block (NameRef qn) = block qn
+  block (Nested ds) = block ds
+  block (Neither) = stringToBlock "(neither)"
+
+
 -- | Further details about @complexType@ and @complexContents@ XSD
 -- elements.
 data ComplexTypeScheme =
@@ -75,11 +94,12 @@ instance Blockable ComplexTypeScheme where
     `stack2` indent "  " (block ds)
 instance VerticalBlockList ComplexTypeScheme
 
+
 -- | Details of attributes
 data AttributeScheme =
   SingleAttribute (Maybe QName) -- ^ ifName
                   (Maybe QName) -- ^ ifRef
-                  (Maybe QName) -- ^ ifType
+                  QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
                   (Maybe String) -- ^ idDoc
@@ -108,6 +128,7 @@ instance Blockable AttributeScheme where
     `follow` stringToBlock " "
     `stack2` (indent "  " $ block attrs)
 instance VerticalBlockList AttributeScheme
+
 
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
@@ -145,6 +166,7 @@ data DataScheme =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
 --  block (GroupScheme base typeScheme ifLine ifDoc) =
+
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
@@ -200,6 +222,7 @@ instance Blockable DataScheme where
   block (GroupScheme base Nothing _ln _d) = stringToBlock $
     "Group " ++ show base ++ " with no contents"
 instance VerticalBlockList DataScheme
+
 
 -- | Try to find a name for this `DataScheme`.
 labelOf :: DataScheme -> Maybe QName
@@ -209,7 +232,8 @@ labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _) = Just typ
 labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _) = labelOf sub
 labelOf (ElementScheme _ _ _ _ _ _ _ _ _) = Nothing
 labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _ _) _ _) = j
-labelOf (AttributeScheme (SingleAttribute _ _ j@(Just _) _ _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute _ _ (NameRef qn) _ _) _ _) = Just qn
+labelOf (AttributeScheme (SingleAttribute _ _ (Nested d) _ _) _ _) = labelOf d
 labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _ _) _ _) = j
 labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _ _) _ _) = j
 labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _ _) _ _) = j

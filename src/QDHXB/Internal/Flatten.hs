@@ -40,7 +40,7 @@ flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
     flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 
 flattenSchemaItem' (AttributeScheme
-                    (SingleAttribute (Just nam) Nothing (Just typ) m d')
+                    (SingleAttribute (Just nam) Nothing (NameRef typ) m d')
                     l d) = do
   whenDebugging $ dbgLn "Flattening single attribute"
   let attrDefn =
@@ -244,7 +244,7 @@ musterComplexSequenceComponents steps ats _ = do
 grabName :: AttributeScheme -> QName
 grabName (SingleAttribute (Just n) _ _ _ _) = n
 grabName (SingleAttribute Nothing (Just n) _ _ _) = n
-grabName (SingleAttribute Nothing Nothing (Just t) _ _) = t
+grabName (SingleAttribute Nothing Nothing (NameRef t) _ _) = t
 grabName (AttributeGroup (Just n) _ _ _) = n
 grabName (AttributeGroup Nothing (Just n) _ _) = n
 grabName a = error $ "No useable name in " ++ show a
@@ -289,17 +289,24 @@ flattenAttributeGroupRef ifName ifRef contents _ln _d = do
 
 
 flattenSingleAttributeRef ::
-  Maybe QName -> Maybe QName -> Maybe QName -> String
+  Maybe QName -> Maybe QName -> QNameOr -> String
   -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
-flattenSingleAttributeRef Nothing (Just ref) Nothing useStr _ _ = do
+flattenSingleAttributeRef Nothing (Just ref) Neither useStr _ _ = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   return ([], res)
-flattenSingleAttributeRef (Just nam) Nothing (Just t) m l d = do
+flattenSingleAttributeRef (Just nam) Nothing (NameRef t) m l d = do
   let defn = AttributeDefn nam
                (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
   return ([defn], ref)
+flattenSingleAttributeRef (Just nam) Nothing (Nested t) m l d = do
+  boxed $ do
+    dbgLn "new Nested case"
+    dbgBLabel "NAM " nam
+    dbgBLabel "T " t
+    dbgLn $ "MODE " ++ m
+  error "TODO new Nested case"
 flattenSingleAttributeRef maybeName maybeRef maybeType mode _ _ = do
   boxed $ do
     dbgLn "flattenSingleAttributeRef"
@@ -373,7 +380,7 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-flattenAttribute (SingleAttribute (Just n) Nothing (Just typ) mode d) =
+flattenAttribute (SingleAttribute (Just n) Nothing (NameRef typ) mode d) =
   return [AttributeDefn n
             (SingleAttributeDefn typ $ stringToAttributeUsage mode)
             Nothing d]
