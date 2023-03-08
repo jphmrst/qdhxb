@@ -1,13 +1,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module PersonAttr2r where
+module PersonAttr2r.PersonAttr2r where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/personattr2.xsd"]
-qdhxb' ["test/personattr2r.xsd"]
+-- qdhxb useDebugging ["test/PersonAttr2r/personattr2.xsd"]
+qdhxb' ["test/PersonAttr2r/personattr2r.xsd"]
 
 testPersonAttr2r :: TLT IO ()
 testPersonAttr2r = inGroup "XSD PersonAttr 2r (for omitted attributes)" $ do
