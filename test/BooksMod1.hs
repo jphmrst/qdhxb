@@ -7,8 +7,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["books-mod1.xsd"]
-qdhxb' ["books-mod1.xsd"]
+-- qdhxb useDebugging ["test/books-mod1.xsd"]
+qdhxb' ["test/books-mod1.xsd"]
 
 testBooksMod1 :: TLT IO ()
 testBooksMod1 = inGroup "XSD books 1" $ do
@@ -20,5 +20,5 @@ testBooksMod1 = inGroup "XSD books 1" $ do
         BookForm (Just "bk002") "Poet" "The Poet's First Poem" "Poem"
                  24.95 (read "2005-11-09") "Least poetic poems."
                 ]
-        @== (lift $ loadBooks "books.xml")
+        @== (lift $ loadBooks "test/books.xml")
   return ()
