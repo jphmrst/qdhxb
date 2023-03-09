@@ -1,34 +1,94 @@
 #+TITLE: Inventory of XSD tests
+#+TODO: TODO ADD_TESTS DEACTIVATED | ACTIVE
 
 * Index of tests
-** Age
+** ACTIVE Age
+   :PROPERTIES:
+   :CUSTOM_ID: Age
+   :END:
    Single element containing simple integer, nested as restriction in
    declaration.
    - Haskell: [[file:./Age/Age.hs][Age.hs]]
    - XSD: [[file:./Age/age.xsd][age.xsd]]
    - XML: [[file:./Age/age1.xml][age1.xml]], [[file:./Age/age2.xml][age2.xml]]
-** TODO Books
-*** Books/Books1.hs
-*** Books/BooksMod1.hs
-*** Books/BooksMod2.hs
-** TODO CustomersOrders
-   CustomersOrders/CustomersOrders1.hs
-** TODO Initials/
+** Books
+*** DEACTIVATED Books/Books1.hs
+*** ACTIVE Books/BooksMod1.hs
+    :PROPERTIES:
+    :CUSTOM_ID: BooksMod1
+    :END:
+    Relatively few nested structured.  Uses =sequence=.
+    - Haskell: [[file:./Books/BooksMod1.hs][BooksMod1.hs]]
+    - XSD: [[file:./Books/books-mod1.xsd][books-mod1.xsd]]
+    - XML: [[file:./Books/books.xml][books.xml]]
+*** ACTIVE Books/BooksMod2.hs
+    :PROPERTIES:
+    :CUSTOM_ID: BooksMod2
+    :END:
+    Smaller, relatively few nested structured, removes <annotation>.
+    Uses =sequence=.
+    - Haskell: [[file:./Books/BooksMod2.hs][BooksMod2.hs]]
+    - XSD: [[file:./Books/books-mod2.xsd][books-mod2.xsd]]
+    - XML: [[file:./Books/books.xml][books.xml]]
+** CustomersOrders
+*** DEACTIVATED CustomersOrders1
+    :PROPERTIES:
+    :CUSTOM_ID: CustomersOrders1
+    :END:
+    - Haskell: [[file:./CustomersOrders/CustomersOrders1.hs][CustomersOrders1.hs]]
+** ACTIVE Initials
+   :PROPERTIES:
+   :CUSTOM_ID: Initials
+   :END:
    Initials/Initials.hs
-** TODO PersonAttr1
+** ACTIVE PersonAttr1
+   :PROPERTIES:
+   :CUSTOM_ID: PersonAttr1
+   :END:
    PersonAttr1/PersonAttr1.hs
-** TODO PersonAttr2
-*** PersonAttr2/PersonAttr2.hs
-*** PersonAttr2/PersonAttr2Inline.hs
-*** PersonAttr2r/PersonAttr2r.hs
-** TODO Shiporder
-*** Shiporder/Shiporder0.hs
-*** Shiporder/Shiporder1.hs
-*** Shiporder/Shiporder2.hs
-** TODO SizesAndList
-*** SizesAndList/SizesAndList.hs
-*** SizesAndList/SizesAndListInline.hs
-** TODO SizesNoList
+** PersonAttr2
+*** ACTIVE PersonAttr2/PersonAttr2.hs
+    :PROPERTIES:
+    :CUSTOM_ID: PersonAttr2
+    :END:
+*** ACTIVE PersonAttr2/PersonAttr2Inline.hs
+    :PROPERTIES:
+    :CUSTOM_ID: PersonAttr2Inline
+    :END:
+** PersonAttr2r
+*** ACTIVE PersonAttr2r/PersonAttr2r.hs
+    :PROPERTIES:
+    :CUSTOM_ID: PersonAttr2r
+    :END:
+** Shiporder
+*** ACTIVE Shiporder/Shiporder0.hs
+    :PROPERTIES:
+    :CUSTOM_ID: Shiporder0
+    :END:
+*** ACTIVE Shiporder/Shiporder1.hs
+    :PROPERTIES:
+    :CUSTOM_ID: Shiporder1
+    :END:
+*** ACTIVE Shiporder/Shiporder2.hs
+    :PROPERTIES:
+    :CUSTOM_ID: Shiporder2
+    :END:
+** SizesAndList
+*** ACTIVE SizesAndList/SizesAndList.hs
+    :PROPERTIES:
+    :CUSTOM_ID: SizesAndList
+    :END:
+*** ACTIVE SizesAndList/SizesAndListInline.hs
+    :PROPERTIES:
+    :CUSTOM_ID: SizesAndListInline
+    :END:
+** ACTIVE SizesNoList
+   :PROPERTIES:
+   :CUSTOM_ID: SizesNoList
+   :END:
    SizesNoList/SizesNoList.hs
 
 * Index of features
+** <sequence>
+   - [[#BooksMod1][BooksMod1]]
+   - [[#BooksMod2][BooksMod2]]

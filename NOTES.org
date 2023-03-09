@@ -22,9 +22,7 @@
 ** Cabal/Stack notes
 - In `stack.yaml`, tried setting
   `resolver: lts-12.20`
-* Failing examples
-** TODO Sizes (no list) example
-   - Need to generate the decodeAs[name] function for union types
+* Deactivated examples
 ** TODO Books example
    :PROPERTIES:
    :VISIBILITY: content
@@ -33,6 +31,7 @@
    - Need to do away with relying on the accumulation of type
      definitions --- it's got to be just the existence and alignment of
      names.
+* TODO Add small tests with <extension>
 * TODO Bootstrap the whole xsd.xsd
   :PROPERTIES:
   :VISIBILITY: content
