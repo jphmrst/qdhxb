@@ -72,6 +72,22 @@ flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l d) =
   --            ++ " to be known; rechecked as " ++ show recheck
   dbgResult "Flattened to" $ defs ++ [ tyDefn ]
 
+flattenSchemaItem' (ComplexTypeScheme (ComplexRestriction base) ats (Just nam) l d) = do
+  whenDebugging $ dbgLn "Flattening complex restriction"
+  dbgResult "Flattened to" $ [SimpleSynonymDefn nam base l d]
+
+flattenSchemaItem' (ComplexTypeScheme (Extension base ds) ats (Just nam) l d) = do
+  let baseConstr = withSuffix (qName base) nam
+  (defs, refs) <- indenting $ flattenSchemaRefs ds
+  boxed $ do
+    dbgLn "TODO flattenSchemaItem' complex extension case"
+    dbgBLabel "BASE " base
+    dbgBLabel "DS " ds
+    dbgBLabel "BASECONSTR " baseConstr
+    dbgBLabel "DEFS " defs
+    dbgBLabel "REFS " refs
+  error "TODO flattenSchemaItem' complex extension case"
+
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
   whenDebugging $ dbgLn "Flattening simple synonym"
   let tyDefn = SimpleSynonymDefn nam base ln d

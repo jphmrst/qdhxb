@@ -56,7 +56,8 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
     dbgPt $ "inputElement for element tag"
     dbgLn $ "  outer tag " ++ outer
   included <- indenting $
-    fmap (filter nonSkip) $ inputSchemaItems $ filter isNonKeyElem content
+    fmap (filter nonSkip) $ inputSchemaItems $
+      filter isNonKeyNonNotationElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
@@ -80,12 +81,14 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
 
 inputElement q@(QName "attribute" _ _) a c o l _d = do
   let ifDoc = getAnnotationDocFrom c
-  scheme <- encodeAttribute (o ++ "Attr") q a (filter isNonKeyElem c) l ifDoc
+  scheme <- encodeAttribute (o ++ "Attr") q a
+                            (filter isNonKeyNonNotationElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
 
 inputElement q@(QName "attributeGroup" _ _) a c o l _d = do
   let ifDoc = getAnnotationDocFrom c
-  scheme <- encodeAttribute (o ++ "AtrGrp") q a (filter isNonKeyElem c) l ifDoc
+  scheme <- encodeAttribute (o ++ "AtrGrp") q a
+                            (filter isNonKeyNonNotationElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
 
 
@@ -112,7 +115,7 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         (pr', _, _) <- separateComplexContents subctnts l
         case pr' of
           Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
-            inputElement sqn sats' (filter isNonKeyElem ssubctnts)
+            inputElement sqn sats' (filter isNonKeyNonNotationElem ssubctnts)
                          (outer ++ "Complex") ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
@@ -251,7 +254,8 @@ inputElement (QName "sequence" _ _) ats ctnts _ ifLn ifDoc = do
                             Just n  -> "- Sequence \"" ++ showQName n ++ "\""
   included <- indenting $ inputSchemaItems ctnts
   dbgResult "Sequence result" $
-    ComplexTypeScheme (Composing included []) [] ifName ifLn ifDoc
+    ComplexTypeScheme (Composing (filter nonSkip included) [])
+                      [] ifName ifLn ifDoc
 
 inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgPt $ "Restriction, outer name " ++ outer
@@ -276,6 +280,7 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
   let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
                 id maybeBase
   ifName <- pullAttrQName "name" ats
+  name <- maybe (inDefaultNamespace $ outer ++ "Ext") (return . id) ifName
   (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
   whenDebugging $ do
     dbgPt "Complex extension"
@@ -287,11 +292,11 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
   res <- case ext of
     Nothing -> do
       return $
-        ComplexTypeScheme (Extension base []) [] ifName ifLn ifDoc
+        ComplexTypeScheme (Extension base []) [] (Just name) ifLn ifDoc
     Just (e,_,_,_,_,_,_,_) -> do
       e' <- indenting $ inputSchemaItem (outer ++ "Ext") e
       return $
-        ComplexTypeScheme (Extension base [e']) [] ifName ifLn ifDoc
+        ComplexTypeScheme (Extension base [e']) [] (Just name) ifLn ifDoc
   whenDebugging $ dbgBLabel "  Extension result " res
   return res
 
@@ -348,7 +353,23 @@ inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
     dbgBLabel "-- ats " ats
     dbgBLabel "-- ctnts " $ filter isElem ctnts
   ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
-  return $ GroupScheme name (Just ts) ifLn ifDoc
+  dbgResult "Choice encoding" $ GroupScheme name (Just ts) ifLn ifDoc
+
+inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
+  whenDebugging $ dbgPt "For <any> scheme:"
+  ifName <- pullAttrQName "name" ats
+  name <- maybe (inDefaultNamespace $ outer ++ "Any") return ifName
+  -- whenDebugging $ do
+  boxed $ do
+    dbgLn $ "TODO <any>" ++ ifAtLine ifLn
+    dbgLn $ "NAME " ++ showQName name
+    dbgLn $ "OUTER " ++ outer
+  dbgResult "Encoded as" $ UnprocessedXML (Just name) ifLn ifDoc
+
+inputElement (QName "notation" _ _) _ _ _ _ _ = do
+  whenDebugging $ dbgPt "For <notation> scheme:"
+  -- whenDebugging $ do
+  dbgResult "Encoded as" Skip
 
 inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
   -- whenDebugging $ do
@@ -367,7 +388,7 @@ encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
   included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
   atrSpecs <- indenting $
     mapM (encodeAttributeScheme $ outer ++ "Seq") attrSpecs
-  return $ Composing included atrSpecs
+  return $ Composing (filter nonSkip included) atrSpecs
 
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
@@ -388,7 +409,7 @@ encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
 encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
   whenDebugging $ dbgBLabel "- Encoding attribute " q
   let ifDoc = getAnnotationDocFrom c
-  res <- encodeAttribute outer q a (filter isNonKeyElem c) l ifDoc
+  res <- encodeAttribute outer q a (filter isNonKeyNonNotationElem c) l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 encodeAttributeScheme _o c = do

@@ -3,7 +3,7 @@
 module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
     pullCRef, pullCRefContent, getAnnotationDoc, getAnnotationDocFrom,
-    filterTagged, isElem, isNonKeyElem, isTagged,
+    filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isTagged,
 
     __loadElement, loadElementName,
     withPrefix, withSuffix, withNamePrefix, withNameSuffix)
@@ -101,6 +101,14 @@ isNonKeyElem :: Content -> Bool
 isNonKeyElem (Elem (Element (QName "key" _ _) _ _ _)) = False
 isNonKeyElem (Elem (Element _ _ _ _)) = True
 isNonKeyElem _ = False
+
+-- | Predicate testing whether a piece of XML `Content` is an
+-- `Element` which is not a @<key>@.
+isNonKeyNonNotationElem :: Content -> Bool
+isNonKeyNonNotationElem (Elem (Element (QName "key" _ _) _ _ _)) = False
+isNonKeyNonNotationElem (Elem (Element (QName "notation" _ _) _ _ _)) = False
+isNonKeyNonNotationElem (Elem (Element _ _ _ _)) = True
+isNonKeyNonNotationElem _ = False
 
 -- | Using the given decoder for an XMLLight `Content` structure,
 -- extract a decoded value from an XML file.

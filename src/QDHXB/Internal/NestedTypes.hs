@@ -85,7 +85,7 @@ instance Blockable ComplexTypeScheme where
     (stringToBlock "Composing")
     `stack2` labelBlock "  - subelements " (block ds)
     `stack2` labelBlock "  - attributes " (block as)
-  block (ComplexRestriction r) = Block ["SimpleRestriction " ++ show r]
+  block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
   block (Extension base ds) =
     (stringToBlock $ "Extension " ++ show base)
     `stack2` indent "  " (block ds)
@@ -158,6 +158,9 @@ data DataScheme =
                 (Maybe ComplexTypeScheme) -- ^ contents
                 (Maybe Line) -- ^ ifLine
                 (Maybe String) -- ^ ifDocumentation
+  | UnprocessedXML (Maybe QName) -- ^ name
+                   (Maybe Line) -- ^ ifLine
+                   (Maybe String) -- ^ ifDocumentation
   deriving Show
 
 --  block Skip =
@@ -166,6 +169,7 @@ data DataScheme =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
 --  block (GroupScheme base typeScheme ifLine ifDoc) =
+--  block (UnprocessedXML ifName ifLine ifDoc) =
 
 
 instance Blockable DataScheme where
@@ -221,6 +225,10 @@ instance Blockable DataScheme where
     ]
   block (GroupScheme base Nothing _ln _d) = stringToBlock $
     "Group " ++ show base ++ " with no contents"
+  block (UnprocessedXML ifName _ln _doc) = stringToBlock $
+    "Unprocessed XML" ++ case ifName of
+                           Just n -> " \"" ++ showQName n ++ "\""
+                           Nothing -> ""
 instance VerticalBlockList DataScheme
 
 
@@ -252,6 +260,7 @@ labelOf (SimpleTypeScheme _ (List t@(Just _) _) _ _) =
 labelOf (SimpleTypeScheme _ (List _ (Just t)) _ _) =
   fmap (withPrefix "List") (labelOf t)
 labelOf (SimpleTypeScheme _ (List _ _) _ _) = Nothing
+labelOf (UnprocessedXML n _ _) = n
 labelOf (GroupScheme base _n _l _d) = base
 
 -- | Predicate returning `False` on `Skip` values
