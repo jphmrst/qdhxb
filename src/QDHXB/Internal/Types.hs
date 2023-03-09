@@ -102,6 +102,17 @@ data Definition =
         -- ^ (Constructor name, type name) of each element of the union.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
+  | ExtensionDefn
+    -- ^ Define a type the extension of one type with additional
+    -- contexts/attributes
+        QName
+        -- ^ Name of the extension
+        Reference
+        -- ^ Base type
+        [Reference]
+        -- ^ Additional content
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   | ListDefn
     -- ^ Define a simple type as a list of another simple type.
         QName
@@ -128,6 +139,9 @@ instance Blockable Definition where
   block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
+  block (ExtensionDefn n base exts _ _) = stackBlocks $
+    (labelBlock "ExtensionDefn " $ block base)
+    : map (indent "  " . block) exts
   block (ListDefn n t _ _) = stringToBlock $
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
 instance VerticalBlockList Definition
