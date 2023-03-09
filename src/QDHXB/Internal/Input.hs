@@ -162,13 +162,15 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
                     (case nam of Nothing -> outer ++ "Simple"
                                  Just n -> outer ++ n) ats restr
       dbgResult "Subcase result" res
-    (Just nam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) ->
-      do whenDebugging $ dbgPt "Subcase union"
-         qnam <- decodePrefixedName nam
-         alts <- indenting $ inputSchemaItems' (outer ++ "Union") $
-           filter isElem cs'
-         dbgResult "Subcase result" $
-           SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
+    (ifNam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) -> do
+      let outerUnion = outer ++ "Union"
+          nam = maybe outerUnion id ifNam
+      whenDebugging $ dbgPt "Subcase union"
+      qnam <- decodePrefixedName nam
+      alts <- indenting $
+                inputSchemaItems' outerUnion $ filter isElem cs'
+      dbgResult "Subcase result" $
+        SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
       whenDebugging $ dbgPt "Subcase list"
