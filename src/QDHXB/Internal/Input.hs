@@ -493,6 +493,8 @@ separateComplexContents contents ifLn =
               "attribute" -> separateComplexContents' pr (e:as) ags xs
               "attributeGroup" -> separateComplexContents' pr (e:as) ags xs
               "annotation" -> separateComplexContents' pr as ags xs
+              "anyAttribute" -> separateComplexContents' pr as ags xs
+              -- TODO revisit anyAnnotation later --- key-value pairs?
               "documentation" -> separateComplexContents' pr as ags xs
               _ -> case pr of
                 Nothing -> separateComplexContents'

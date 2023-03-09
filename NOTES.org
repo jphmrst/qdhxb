@@ -61,5 +61,7 @@
   - And examples
 * TODO Go back to key and keyref elements
   - See customersorders.xsd example
+* TODO Revisit anyAttribute
+  Just dropping it for now.
 * DONE Recognize namespaces
 * TODO Check XSD namespaces in [[file:./src/QDHXB/Internal/Input.hs][Input.hs]]'s =encodeSchemaItem= patterns, etc.
