@@ -1,0 +1,34 @@
+#+TITLE: Inventory of XSD tests
+
+* Index of tests
+** Age
+   Single element containing simple integer, nested as restriction in
+   declaration.
+   - Haskell: [[file:./Age/Age.hs][Age.hs]]
+   - XSD: [[file:./Age/age.xsd][age.xsd]]
+   - XML: [[file:./Age/age1.xml][age1.xml]], [[file:./Age/age2.xml][age2.xml]]
+** TODO Books
+*** Books/Books1.hs
+*** Books/BooksMod1.hs
+*** Books/BooksMod2.hs
+** TODO CustomersOrders
+   CustomersOrders/CustomersOrders1.hs
+** TODO Initials/
+   Initials/Initials.hs
+** TODO PersonAttr1
+   PersonAttr1/PersonAttr1.hs
+** TODO PersonAttr2
+*** PersonAttr2/PersonAttr2.hs
+*** PersonAttr2/PersonAttr2Inline.hs
+*** PersonAttr2r/PersonAttr2r.hs
+** TODO Shiporder
+*** Shiporder/Shiporder0.hs
+*** Shiporder/Shiporder1.hs
+*** Shiporder/Shiporder2.hs
+** TODO SizesAndList
+*** SizesAndList/SizesAndList.hs
+*** SizesAndList/SizesAndListInline.hs
+** TODO SizesNoList
+   SizesNoList/SizesNoList.hs
+
+* Index of features
