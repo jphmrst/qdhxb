@@ -13,7 +13,7 @@ module QDHXB.Internal.XSDQ (
   ifKnownType, isSimpleType, isComplexType,
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
   pushNamespaces, popNamespaces,
-  getNamespaces, getDefaultNamespace, inDefaultNamespace,
+  getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
   decodePrefixedName, getURIprefix, getNextCapName,
   indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
   dbgResult,
@@ -246,6 +246,11 @@ inDefaultNamespace :: String -> XSDQ QName
 inDefaultNamespace s = do
   uri <- getDefaultNamespace
   return $ QName s uri Nothing
+
+useNameOrWrap :: Maybe QName -> String -> String -> XSDQ QName
+useNameOrWrap ifName outer dft = case ifName of
+                             Nothing -> inDefaultNamespace $ outer ++ dft
+                             Just qn -> return qn
 
 -- |Given a string which may be namespace-prefixed, reconstruct the
 -- corresponding `QName` according to the current `XSDQ` state.

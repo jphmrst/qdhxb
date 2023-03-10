@@ -247,15 +247,16 @@ inputElement (QName tagname _ _) _ _ _ _ _
   whenDebugging $ dbgPt $ "Dropping <" ++ tagname ++ "> entry "
   return Skip
 
-inputElement (QName "sequence" _ _) ats ctnts _ ifLn ifDoc = do
+inputElement (QName "sequence" _ _) ats ctnts outer ifLn ifDoc = do
   ifName <- pullAttrQName "name" ats
   whenDebugging $ dbgLn $ case ifName of
                             Nothing -> "- Sequence (unnamed)"
                             Just n  -> "- Sequence \"" ++ showQName n ++ "\""
   included <- indenting $ inputSchemaItems ctnts
+  name <- useNameOrWrap ifName outer "Seq"
   dbgResult "Sequence result" $
     ComplexTypeScheme (Composing (filter nonSkip included) [])
-                      [] ifName ifLn ifDoc
+                      [] (Just name) ifLn ifDoc
 
 inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgPt $ "Restriction, outer name " ++ outer
@@ -280,7 +281,7 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
   let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
                 id maybeBase
   ifName <- pullAttrQName "name" ats
-  name <- maybe (inDefaultNamespace $ outer ++ "Ext") (return . id) ifName
+  name <- useNameOrWrap ifName outer "Ext"
   (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
   whenDebugging $ do
     dbgPt "Complex extension"
@@ -358,7 +359,7 @@ inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
 inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <any> scheme:"
   ifName <- pullAttrQName "name" ats
-  name <- maybe (inDefaultNamespace $ outer ++ "Any") return ifName
+  name <- useNameOrWrap ifName outer "Any"
   -- whenDebugging $ do
   boxed $ do
     dbgLn $ "TODO <any>" ++ ifAtLine ifLn

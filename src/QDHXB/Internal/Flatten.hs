@@ -77,16 +77,11 @@ flattenSchemaItem' (ComplexTypeScheme (ComplexRestriction base) ats (Just nam) l
   dbgResult "Flattened to" $ [SimpleSynonymDefn nam base l d]
 
 flattenSchemaItem' (ComplexTypeScheme (Extension base ds) ats (Just nam) l d) = do
-  let baseConstr = withSuffix (qName base) nam
+  whenDebugging $ dbgLn "Flattening complex extension"
   (defs, refs) <- indenting $ flattenSchemaRefs ds
-  boxed $ do
-    dbgLn "TODO flattenSchemaItem' complex extension case"
-    dbgBLabel "BASE " base
-    dbgBLabel "DS " ds
-    dbgBLabel "BASECONSTR " baseConstr
-    dbgBLabel "DEFS " defs
-    dbgBLabel "REFS " refs
-  error "TODO flattenSchemaItem' complex extension case"
+  dbgResult "Flattened to" $ defs ++ [
+    ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
+    ]
 
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
   whenDebugging $ dbgLn "Flattening simple synonym"
@@ -275,8 +270,9 @@ flattenSchemaRef (AttributeScheme (SingleAttribute n r t m d') l d) =
   flattenSingleAttributeRef n r t m l (pickOrCombine d d')
 flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef cs _) l d) =
   flattenAttributeGroupRef ifName ifRef cs l d
-flattenSchemaRef (ComplexTypeScheme _ _ _ _ _) = -- typeDetail _ maybeName
-  error "TODO flattenSchemaRef > ComplexTypeScheme"
+flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine ifDoc) = do
+  defns <- flattenSchemaItem c
+  return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
 flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
   defns <- flattenSchemaItem s
   return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
