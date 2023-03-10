@@ -15,8 +15,10 @@ module QDHXB.Internal.XSDQ (
   pushNamespaces, popNamespaces,
   getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
   decodePrefixedName, getURIprefix, getNextCapName,
+
+  -- * Debugging
   indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
-  dbgResult,
+  dbgResult, dbgResultM,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -354,5 +356,12 @@ boxed s = do
 dbgResult :: Blockable a => String -> a -> XSDQ a
 {-# INLINE dbgResult #-}
 dbgResult msg res = do
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
+  return res
+
+dbgResultM :: Blockable a => String -> XSDQ a -> XSDQ a
+{-# INLINE dbgResultM #-}
+dbgResultM msg resM = do
+  res <- resM
   whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
   return res
