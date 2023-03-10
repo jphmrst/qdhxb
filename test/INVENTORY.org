@@ -2,6 +2,14 @@
 #+TODO: TODO ADD_TESTS DEACTIVATED | ACTIVE
 
 * Index of tests
+** TODO Address
+   :PROPERTIES:
+   :CUSTOM_ID: Age
+   :END:
+   Single extension example.
+   - Haskell: [[file:./Address/Address.hs][Address.hs]]
+   - XSD: [[file:./Address/address.xsd][address.xsd]]
+   - XML: [[file:./Address/address1.xml][address1.xml]]
 ** ACTIVE Age
    :PROPERTIES:
    :CUSTOM_ID: Age
@@ -40,7 +48,7 @@
    :PROPERTIES:
    :CUSTOM_ID: Initials
    :END:
-   Initials/Initials.hs
+    - Haskell: [[file:./Initials/Initials.hs][Initials.hs]]
 ** ACTIVE PersonAttr1
    :PROPERTIES:
    :CUSTOM_ID: PersonAttr1
@@ -89,6 +97,17 @@
    SizesNoList/SizesNoList.hs
 
 * Index of features
+
+** <extension>
+   - [[#Address][Address]]
+
 ** <sequence>
    - [[#BooksMod1][BooksMod1]]
    - [[#BooksMod2][BooksMod2]]
+
+** Shorter XSDs
+   - [[#Age][Age]]
+   - [[#Address][Address]]
+   - [[#Initials][Initials]]
+   - The various PersonAttr
+   - [[#SizesAndListInline][SizesAndListInline]]
