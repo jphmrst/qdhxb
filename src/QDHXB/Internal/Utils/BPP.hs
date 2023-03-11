@@ -150,20 +150,33 @@ instance VerticalBlockList c => Blockable [c] where
 indent :: String -> Block -> Block
 indent ind (Block xs) = Block $ map (ind ++) xs
 
--- | Allow `Content` from the @XMLLight@ library to be pretty-printed.
+-- | Allow `Element` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Element where block = stringToBlock . showElement
+
 -- | Allow `Content` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Content where block = stringToBlock . showContent
--- | Allow `Attr` from the @XMLLight@ library to be pretty-printed.
-instance Blockable Attr    where block = stringToBlock . showAttr
-instance VerticalBlockList Attr
--- | Allow `QName` from the @XMLLight@ library to be pretty-printed.
-instance Blockable QName   where block = stringToBlock . showQName
--- | Allow [`QName`] from the @XMLLight@ library to be pretty-printed.
-instance VerticalBlockList QName
--- | Allow `Dec` from the Template Haskell library to be pretty-printed.
-instance Blockable Dec   where block = stringToBlock . pprint
--- | Allow [`Dec`] from the Template Haskell library to be pretty-printed.
-instance VerticalBlockList Dec
 instance VerticalBlockList Content
 
+-- | Allow `Attr` from the @XMLLight@ library to be pretty-printed.
+instance Blockable Attr where block = stringToBlock . showAttr
+instance VerticalBlockList Attr
+
+-- | Allow `QName` from the @XMLLight@ library to be pretty-printed.
+instance Blockable QName where block = stringToBlock . showQName
+-- | Allow [`QName`] from the @XMLLight@ library to be pretty-printed.
+instance VerticalBlockList QName
+
+-- | Allow `Dec` from the Template Haskell library to be pretty-printed.
+instance Blockable Dec where block = stringToBlock . pprint
+-- | Allow [`Dec`] from the Template Haskell library to be pretty-printed.
+instance VerticalBlockList Dec
+
+-- | Allow `Stmt` from the Template Haskell library to be pretty-printed.
+instance Blockable Stmt where block = stringToBlock . pprint
+-- | Allow [`Stmt`] from the Template Haskell library to be pretty-printed.
+instance VerticalBlockList Stmt
+
+-- | Allow `Exp` from the Template Haskell library to be pretty-printed.
+instance Blockable Exp where block = stringToBlock . pprint
+-- | Allow [`Exp`] from the Template Haskell library to be pretty-printed.
+instance VerticalBlockList Exp

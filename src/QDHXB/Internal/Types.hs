@@ -3,7 +3,7 @@
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
-  Reference(..), referenceQName,
+  Reference(..), referenceQName, referenceBase,
   AttributeDefn(..),
   Definition(..),
   AttributeUsage(Forbidden, Optional, Required),
@@ -56,6 +56,11 @@ instance Blockable Reference where
     "TypeRef " ++ showQName name
 instance VerticalBlockList Reference
 
+referenceBase :: Reference -> QName
+referenceBase (ElementRef base _ _ _) = base
+referenceBase (AttributeRef base _) = base
+referenceBase (TypeRef base _ _ _ _) = base
+
 -- | Definition of an attribute or group type.
 data AttributeDefn =
   SingleAttributeDefn -- ^ Defining a single attribute
@@ -76,7 +81,8 @@ instance Blockable AttributeDefn where
 data Definition =
   ElementDefn
   -- ^ Defining an element to be of a particular type.
-      QName QName
+      QName -- ^ The element tag name
+      QName -- ^ The underlying type
       (Maybe Line) -- ^ ifLine
       (Maybe String) -- ^ Documentation string, if available
   | AttributeDefn
@@ -85,8 +91,25 @@ data Definition =
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | SimpleSynonymDefn
-    -- ^ Defining one type to have the same structure as another.
+    -- ^ Defining one simple type to have the same structure as
+    -- another.
         QName QName
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
+  | ComplexSynonymDefn
+    -- ^ Defining one complex type to have the same structure as
+    -- another.
+        QName -- ^ The new type
+        QName -- ^ The old synonym
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
+  | ElementTypeDecl
+    -- ^ Associating an element tag with an underlying type.  The type
+    -- may be simple or complex, and may not have been discovered when
+    -- this declaration is made, so we defer the determination of
+    -- simple-vs.-complex until .
+        QName -- ^ The element name
+        QName -- ^ The name of the associated type
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | SequenceDefn
@@ -130,17 +153,22 @@ instance Blockable Definition where
     `stack2` (stringToBlock $ case dm of
                  Nothing -> "  no doc"
                  Just d -> "  doc=\"" ++ d ++ "\"")
-  block (AttributeDefn n sp _ln _d) =
+  block (AttributeDefn n sp _ _) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
-  block (SimpleSynonymDefn n t _ _d) = stringToBlock $
+  block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (ComplexSynonymDefn n t _ _) = stringToBlock $
+    "ComplexSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
+  block (ElementTypeDecl e t _ _) = stringToBlock $
+    "ElementTypeDecl " ++ showQName e ++ " :: " ++ showQName t
   block (SequenceDefn n rs _ _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
   block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
   block (ExtensionDefn n base exts _ _) = stackBlocks $
-    (labelBlock "ExtensionDefn " $ block base)
+    (labelBlock "ExtensionDefn " $ block n)
+    : (labelBlock "  base " $ block base)
     : map (indent "  " . block) exts
   block (ListDefn n t _ _) = stringToBlock $
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"

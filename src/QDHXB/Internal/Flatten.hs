@@ -74,7 +74,7 @@ flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l d) =
 
 flattenSchemaItem' (ComplexTypeScheme (ComplexRestriction base) ats (Just nam) l d) = do
   whenDebugging $ dbgLn "Flattening complex restriction"
-  dbgResult "Flattened to" $ [SimpleSynonymDefn nam base l d]
+  dbgResult "Flattened to" $ [ComplexSynonymDefn nam base l d]
 
 flattenSchemaItem' (ComplexTypeScheme (Extension base ds) ats (Just nam) l d) = do
   whenDebugging $ dbgLn "Flattening complex extension"
@@ -178,32 +178,23 @@ flattenAttributeGroupItem name ref contents ln _d = do
 
 
 flattenElementSchemeItem ::
-  Maybe DataScheme -> Maybe QName -> Maybe QName -> Maybe QName
-  -> Maybe Int -> Maybe Int -> Maybe Line -> Maybe String
-  -> XSDQ [Definition]
-flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax ifLine ifDoc = do
-  whenDebugging $ dbgLn "Relaying to flattenElementSchemeItem'"
-  indenting $ flattenElementSchemeItem' contents ifName ifType ifRef
-                                        ifMin ifMax ifLine ifDoc
-
-flattenElementSchemeItem' ::
   Maybe DataScheme -> Maybe QName -> Maybe QName -> (Maybe QName)
   -> (Maybe Int) -> (Maybe Int) -> (Maybe Line) -> Maybe String
   -> XSDQ [Definition]
-flattenElementSchemeItem' Nothing (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
+flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
   whenDebugging $ dbgLn "Flattening element scheme with name/type"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
-flattenElementSchemeItem' (Just Skip) (Just nam) (Just typ) _ _ _ ln ifDoc = do
+flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ _ _ ln ifDoc = do
   whenDebugging $ dbgLn "Flattening element scheme enclosing skip"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
-flattenElementSchemeItem' (Just (SimpleTypeScheme _ ts ln d))
+flattenElementSchemeItem (Just (SimpleTypeScheme _ ts ln d))
                           ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
   whenDebugging $ dbgLn "Flattening element scheme enclosing simple type scheme"
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln d
   let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
-flattenElementSchemeItem' (Just (ComplexTypeScheme ts attrs Nothing l d))
+flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs Nothing l d))
                           ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
   whenDebugging $
     dbgLn "Flattening element scheme enclosing complex type scheme"
@@ -211,16 +202,16 @@ flattenElementSchemeItem' (Just (ComplexTypeScheme ts attrs Nothing l d))
   let elemDefn = ElementDefn nam nam l ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
-flattenElementSchemeItem' content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
+flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   boxed $ do
-    dbgLn "flattenElementSchemeItem'"
+    dbgLn "flattenElementSchemeItem"
     dbgBLabel "CONTENT " content
     dbgBLabel "IFNAME " ifName
     dbgBLabel "IFTYPE " ifType
     dbgBLabel "IFREF " ifRef
     dbgLn $ "IFMIN " ++ show ifMin
     dbgLn $ "IFMAX " ++ show ifMax
-  error "Unmatched case for flattenElementSchemeItem'"
+  error "Unmatched case for flattenElementSchemeItem"
 
 flattenWithNameTypeOnly ::
   QName -> QName -> Maybe Line -> Maybe String -> XSDQ [Definition]
@@ -232,7 +223,7 @@ flattenWithNameTypeOnly nam typ ln ifDoc = do
     "- Checking whether " ++ showQName typ ++ " is simple: " ++ show isSimple
   if isSimple || not isKnown
     then (do whenDebugging $ dbgLn "Subcase for simple-or-unknown"
-             let tyDefn = SimpleSynonymDefn nam typ ln ifDoc
+             let tyDefn = ElementTypeDecl nam typ ln ifDoc
              addTypeDefn nam tyDefn
              let elemDefn = ElementDefn nam nam ln ifDoc
              fileNewDefinition elemDefn

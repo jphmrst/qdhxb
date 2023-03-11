@@ -115,7 +115,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         (pr', _, _) <- separateComplexContents subctnts l
         case pr' of
           Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
-            inputElement sqn sats' (filter isNonKeyNonNotationElem ssubctnts)
+            inputElement sqn (ats ++ sats')
+                         (filter isNonKeyNonNotationElem ssubctnts)
                          (outer ++ "Complex") ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
