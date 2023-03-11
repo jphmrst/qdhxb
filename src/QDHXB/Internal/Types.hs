@@ -56,6 +56,7 @@ instance Blockable Reference where
     "TypeRef " ++ showQName name
 instance VerticalBlockList Reference
 
+-- | Return the `QName` of the entity described in a `Reference`.
 referenceBase :: Reference -> QName
 referenceBase (ElementRef base _ _ _) = base
 referenceBase (AttributeRef base _) = base

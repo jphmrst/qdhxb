@@ -244,15 +244,18 @@ getDefaultNamespace = liftStatetoXSDQ $ do
           getFirstActual (r@(Just _) : _) = return r
           getFirstActual (Nothing : ds) = getFirstActual ds
 
+-- |Where the argument gives the core name string, return a `QName`
+-- based in the default namespace of the computation.
 inDefaultNamespace :: String -> XSDQ QName
 inDefaultNamespace s = do
   uri <- getDefaultNamespace
   return $ QName s uri Nothing
 
+-- |If the first argument does carry a `QName` then return it, else
+-- build a new fully contextually-qualified name.
 useNameOrWrap :: Maybe QName -> String -> String -> XSDQ QName
-useNameOrWrap ifName outer dft = case ifName of
-                             Nothing -> inDefaultNamespace $ outer ++ dft
-                             Just qn -> return qn
+useNameOrWrap ifName outer dft =
+  maybe (inDefaultNamespace $ outer ++ dft) return ifName
 
 -- |Given a string which may be namespace-prefixed, reconstruct the
 -- corresponding `QName` according to the current `XSDQ` state.
@@ -319,6 +322,8 @@ setIndentation ind = liftStatetoXSDQ $ do
   QdxhbState opts elemTypes typeDefns dfts nss zs _ <- get
   put (QdxhbState opts elemTypes typeDefns dfts nss zs ind)
 
+-- |Add the given indentation string to each line of debugging emitted
+-- from the `XSDQ` argument.
 indentingWith :: String -> XSDQ a -> XSDQ a
 indentingWith s m = do
   ind <- getIndentation
@@ -327,25 +332,36 @@ indentingWith s m = do
   setIndentation ind
   return res
 
+-- |Add an extra level of space to each line of debugging emitted from
+-- the `XSDQ` argument.
 indenting :: XSDQ a -> XSDQ a
 indenting = indentingWith "  "
 
+-- |Output the given line in the current level of indentation.
 dbgLn :: String -> XSDQ ()
 dbgLn s = do
   ind <- getIndentation
   liftIO $ putStrLn $ ind ++ s
 
+-- |Output the given line as a bulleted item in the current level of
+-- indentation.
 dbgPt :: String -> XSDQ ()
 dbgPt s = dbgLn $ "- " ++ s
 
+-- |Format and output the given value at the current level of
+-- indentation, with the given leading label.
 dbgBLabel :: Blockable c => String -> c -> XSDQ ()
 dbgBLabel s m = do
   ind <- getIndentation
   liftIO $ bLabelPrintln (ind ++ s) m
 
+-- |Format and output the given value as a bulleted item at the
+-- current level of indentation, with the given leading label.
 dbgBLabelPt :: Blockable c => String -> c -> XSDQ ()
 dbgBLabelPt s = dbgBLabel ("- " ++ s)
 
+-- |Add a three-sided box around the lines of debugging information
+-- emitted by the given `XSDQ` block.
 boxed :: XSDQ a -> XSDQ a
 boxed s = do
   dbgLn "+--------"
@@ -353,12 +369,17 @@ boxed s = do
   dbgLn "+--------"
   return res
 
+-- |Given a result to be returned from a computation, emit debugging
+-- information about it if debugging mode is on.
 dbgResult :: Blockable a => String -> a -> XSDQ a
 {-# INLINE dbgResult #-}
 dbgResult msg res = do
   whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
   return res
 
+-- |Given a monadic computation which will return the result to be
+-- returned from another computation, emit debugging information about
+-- the result if debugging mode is on.
 dbgResultM :: Blockable a => String -> XSDQ a -> XSDQ a
 {-# INLINE dbgResultM #-}
 dbgResultM msg resM = do
