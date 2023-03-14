@@ -2,7 +2,8 @@
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
-    pullCRef, pullCRefContent, getAnnotationDoc, getAnnotationDocFrom,
+    pullCRef, pullCRefContent, pullCRefOf,
+    getAnnotationDoc, getAnnotationDocFrom,
     filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isTagged,
 
     __loadElement, loadElementName,
@@ -61,6 +62,11 @@ pullCRefContent :: String -> Content -> Maybe String
 pullCRefContent cname (Elem (Element (QName n _ _) _ [sub] _)) | cname == n
   = pullCRef sub
 pullCRefContent _ _ = Nothing
+
+-- | Retrieve the named attribute value from a single content element.
+pullCRefOf :: Content -> Maybe String
+pullCRefOf (Elem (Element (QName n _ _) _ [sub] _)) = pullCRef sub
+pullCRefOf _ = Nothing
 
 -- | Retrieve XML contents with the given name.
 pullContent :: String -> [Content] -> ZeroOneMany Content
