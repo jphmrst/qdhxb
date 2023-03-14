@@ -104,6 +104,7 @@ data Definition =
         QName -- ^ The old synonym
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
+{-
   | ElementTypeDecl
     -- ^ Associating an element tag with an underlying type.  The type
     -- may be simple or complex, and may not have been discovered when
@@ -113,6 +114,7 @@ data Definition =
         QName -- ^ The name of the associated type
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
+-}
   | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
         String [Reference]
@@ -160,8 +162,10 @@ instance Blockable Definition where
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $
     "ComplexSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
+{-
   block (ElementTypeDecl e t _ _) = stringToBlock $
     "ElementTypeDecl " ++ showQName e ++ " :: " ++ showQName t
+-}
   block (SequenceDefn n rs _ _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
   block (UnionDefn n ns _ _) = stackBlocks $

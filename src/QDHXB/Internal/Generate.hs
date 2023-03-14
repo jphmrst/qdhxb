@@ -1,6 +1,60 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Generate Haskell code from the flattened internal representation.
+{-| Generate Haskell code from the flattened internal representation.
+Each XSD type, attribute, and element definition is translated into a
+Haskell type declaration plus several functions.
+
+A __complex type__ named /Typ/ is accompanied with these functions:
+
+ - @tryDecodeAs@/Typ/, which takes a `String` and a piece of XML
+   `QDHXB.Expansions.Content`, and returns a computation in
+   `QDHXB.Expansions.HXBExcept` returning a value of the underlying
+   implementation type.
+   This function makes calls to `` and `` to find and extract
+   subcomponent values from the given parsed XML, and assembles
+   them into a value of the implementation type.
+
+ - @decodeAs@/Typ/, which takes a `String` and a piece of XML
+   `QDHXB.Expansions.Content`, and returns a value of the
+   underlying implementation type, throwing an exception if the
+   conversion is not possible.  This function just uses
+   `Control.Monad.runExcept` to access the result (or absence of a
+   result) of a call to @tryDecodeAs@/Typ/ with the same argument.
+
+A __simple type__ named /Typ/ is accompanied with the same two functions
+as a complex type, plus:
+
+ - @tryStringDecodeFor@/Typ/, which takes a `String` and returns
+   a computation in `QDHXB.Expansions.HXBExcept` returning a value
+   of the underlying implementation type.
+
+For simple types, the @tryDecodeAs@/Typ/ then just attempts to decode
+the text between element tags using @tryStringDecodeFor@/Typ/, adding
+attribute values when needed.
+
+An __attribute__ named /Attr/ is accompanied with these functions:
+
+ - @tryDecodeAs@/Attr/, which takes a piece of XML
+   `QDHXB.Expansions.Content`, and returns a computation in
+   `QDHXB.Expansions.HXBExcept` returning a `Maybe`-wrapped value
+   of the underlying implementation type.
+
+ - @decodeAs@/Attr/, which takes a piece of XML
+   `QDHXB.Expansions.Content`, and returns a `Maybe`-wrapped value
+   of the underlying implementation type.
+
+Each __element__ with delimiters @<elem>@ is accompanied with these
+functions, where /Elem/ is the same as @elem@ except capitalizing the
+first letter if it is not already capitalized:
+
+ - @tryDecodeAs@/Elem/ and @decodeAs@/Elem/, as for the functions
+   associated with XML types, and implemented in terms of these
+   functions on the type associated with the element.
+
+ - @load@/Elem/, for retrieving XML-encoded values stored in a file.
+   The result is not now wrapped in an `Except`, but should be.
+
+-}
 module QDHXB.Internal.Generate (
   -- * The representation types
   Reference(ElementRef, AttributeRef  {-, ComplexTypeRef -} ),
@@ -349,6 +403,17 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
 
      : [])
 
+{-
+xsdDeclToHaskell decl@(ElementTypeDecl n t l d) = do
+  isSimple <- isSimpleType t
+  boxed $ do
+    dbgLn "ElementTypeDecl case in xsdDeclToHaskell"
+    dbgBLabel "NAME " n
+    dbgBLabel "TYPE " t
+    dbgBLabel "ISSIMPLE " isSimple
+  error "ElementTypeDecl in xsdDeclToHaskell"
+-}
+
 xsdDeclToHaskell decl = do
   boxed $ do
     dbgLn "Uncaught case in xsdDeclToHaskell"
@@ -490,7 +555,7 @@ xsdRefToSafeHaskellExpr param r@(ElementRef ref occursMin occursMax ln) _ctxt =
     whenDebugging $ dbgLn $
       "Retrieved type " ++ qName typeName ++ " for " ++ showQName ref
     case (occursMin, occursMax) of
-      (_, Just 0) -> dbgResult "Result" $ TupE []
+      (_, Just 0) -> dbgResult "Result (0)" $ TupE []
       (Just 0, Just 1) -> do
         matches <- zomMatch1
           (applyReturn nothingConE)
@@ -500,7 +565,7 @@ xsdRefToSafeHaskellExpr param r@(ElementRef ref occursMin occursMax ln) _ctxt =
                                             (quoteStr $ qName ref))
                                       (VarE paramName)))
           (qthAtMostOnceIn (showQName ref) ln)
-        dbgResult "Result" $ casePrefix matches
+        dbgResult "Result (1)" $ casePrefix matches
       (_, Just 1) -> do
         matches <- zomMatch1
           (qthMustBePresentIn (showQName ref) ln)
@@ -509,8 +574,8 @@ xsdRefToSafeHaskellExpr param r@(ElementRef ref occursMin occursMax ln) _ctxt =
                                       (quoteStr $ qName ref))
                                 (VarE paramName))
           (qthAtMostOnceIn (showQName ref) ln)
-        dbgResult "Result" $ casePrefix matches
-      _ -> dbgResult "Result" $ applyReturn $
+        dbgResult "Result (2)" $ casePrefix matches
+      _ -> dbgResult "Result (3)" $ applyReturn $
              AppE (AppE mapVarE
                         (AppE (decoderAsExpFor $ qName typeName)
                               (quoteStr $ qName ref)))
@@ -519,7 +584,7 @@ xsdRefToSafeHaskellExpr param r@(ElementRef ref occursMin occursMax ln) _ctxt =
 xsdRefToSafeHaskellExpr param r@(AttributeRef ref usage) _ = do
   whenDebugging $ dbgBLabel "Expr for" r
   core <- xsdRefToSafeHaskellExpr' param $ qName ref
-  dbgResultM "Result" $ fmap applyReturn $ unpackAttrDecoderForUsage usage core
+  dbgResultM "Result (A)" $ fmap applyReturn $ unpackAttrDecoderForUsage usage core
   where xsdRefToSafeHaskellExpr' :: Name -> String -> XSDQ Exp
         xsdRefToSafeHaskellExpr' p r =
           return $ AppE (decoderExpFor r) (VarE p)
@@ -529,8 +594,9 @@ xsdRefToSafeHaskellExpr param ref@(TypeRef qn _lower _upper _l _d) ctxt = do
   let xmlName = qName qn
       rootName = firstToUpper xmlName
       tryDecoderName = mkName $ "tryDecodeAs" ++ rootName
-      res = AppE (AppE (VarE tryDecoderName) (VarE param)) ctxt
-  dbgResult "Result" res
+      res = AppE (AppE (VarE tryDecoderName) ctxt) (VarE param)
+            -- TODO The parameter names are backwards here
+  dbgResult "Result (B)" res
 
 {- Nothing unmatched right now
 xsdRefToSafeHaskellExpr param ref ctxt = do

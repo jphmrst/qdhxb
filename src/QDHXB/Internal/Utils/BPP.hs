@@ -1,4 +1,5 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Block Pretty-Printer, a quick-and-dirty pretty printer that uses
 -- a list of `String`s for a multi-line representation.
@@ -35,6 +36,18 @@ stringToBlock s = Block $ lines s
 class Blockable c where
   -- | Given a pretty-printable value, format it as a `Block`.
   block :: c -> Block
+
+-- | Convenience instance: break the string up into lines, and then
+-- stack them.
+instance Blockable [Char] where block = stringToBlock
+-- | Convenience instance via `show`.
+instance Blockable Double where block = stringToBlock . show
+-- | Convenience instance via `show`.
+instance Blockable Float  where block = stringToBlock . show
+-- | Convenience instance via `show`.
+instance Blockable Bool   where block = stringToBlock . show
+-- | Convenience instance via `show`.
+instance Blockable Int    where block = stringToBlock . show
 
 instance Blockable c => Blockable (Maybe c) where
   block (Just x) = block x

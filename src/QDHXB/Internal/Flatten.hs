@@ -217,6 +217,10 @@ flattenWithNameTypeOnly ::
   QName -> QName -> Maybe Line -> Maybe String -> XSDQ [Definition]
 flattenWithNameTypeOnly nam typ ln ifDoc = do
   whenDebugging $ dbgLn "Flattening element scheme with name/type"
+  let elemDefn = ElementDefn nam typ ln ifDoc
+  fileNewDefinition elemDefn
+  dbgResult "Flattened to " [ elemDefn ]
+  {-
   isKnown <- isKnownType typ
   isSimple <- isSimpleType typ
   whenDebugging $ dbgLn $
@@ -232,6 +236,7 @@ flattenWithNameTypeOnly nam typ ln ifDoc = do
             let elemDefn = ElementDefn nam typ ln ifDoc
             fileNewDefinition elemDefn
             dbgResult "Flattened to " [ elemDefn ]
+-}
 
 
 musterComplexSequenceComponents ::

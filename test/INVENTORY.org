@@ -73,7 +73,7 @@
     :PROPERTIES:
     :CUSTOM_ID: Shiporder0
     :END:
-*** ACTIVE Shiporder/Shiporder1.hs
+*** DEACTIVATED Shiporder/Shiporder1.hs
     :PROPERTIES:
     :CUSTOM_ID: Shiporder1
     :END:

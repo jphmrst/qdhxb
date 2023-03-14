@@ -4,19 +4,25 @@
 
 -- | Internal monad for the XSD-to-Haskell rewriting.
 module QDHXB.Internal.XSDQ (
-  -- * XSD loading monad
+  -- * Internal state definition
   QdxhbState, initialQdxhbState,
+  -- * Monad transformer
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ,
+  -- * Information about declarations
   fileNewDefinition,
+  -- ** Elements
   addElementType, getElementType, getElementTypeOrFail,
+  -- ** Types
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
+  -- * Configuration options
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
+  -- * Managing namespaces
   pushNamespaces, popNamespaces,
   getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
   decodePrefixedName, getURIprefix, getNextCapName,
 
-  -- * Debugging
+  -- * Debugging output
   indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
   dbgResult, dbgResultM,
 
