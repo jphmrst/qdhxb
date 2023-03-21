@@ -98,7 +98,7 @@ xsdDeclsToHaskell defns = do
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 
 xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " decl
+  whenDebugging $ dbgBLabel "Generating from (a) " decl
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
   (typeName, decs) <- indenting $
@@ -109,7 +109,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
   dbgResult "Generated" $ TySynD typeName [] haskellType : decs
 
 xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " decl
+  whenDebugging $ dbgBLabel "Generating from (b) " decl
   let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
   (typeName, decs) <- indenting $
@@ -120,7 +120,7 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
   dbgResult "Generated" $ TySynD typeName [] haskellType : decs
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from UnionDefn" decl
+  whenDebugging $ dbgBLabel "Generating from (c) UnionDefn" decl
   let baseName = qName name
 
       makeConstr :: (QName, QName) -> Con
@@ -149,7 +149,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
       : decs
 
 xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " decl
+  whenDebugging $ dbgBLabel "Generating from (d) " decl
   let xmlName = qName name
       baseStr = firstToUpper xmlName
       elemStr = firstToUpper $ qName elemTypeRef
@@ -165,7 +165,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
 
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " decl
+  whenDebugging $ dbgBLabel "Generating from (e) " decl
   let origName = qName nam
       baseName = firstToUpper $ origName
       typBaseName = firstToUpper $ qName typ
@@ -225,7 +225,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " d
+  whenDebugging $ dbgBLabel "Generating from (f) " d
   let xmlName = qName nam
       rootName = firstToUpper xmlName
       baseStr = rootName ++ "AttrType"
@@ -278,7 +278,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
 
 
 xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from " decl
+  whenDebugging $ dbgBLabel "Generating from (g) " decl
   let xmlName = qName nam
       rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName ++ "AttrType"
@@ -340,7 +340,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
       decNam = mkName $ "decodeAs" ++ nameRoot
       tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
   in do
-    whenDebugging $ dbgBLabel "Generating from " decl
+    whenDebugging $ dbgBLabel "Generating from (h) " decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
     let subNames = map (mkName . ("s" ++) . show) [1..]
     safeDecoder <- fmap (DoE Nothing) $ indenting $
@@ -361,7 +361,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
   whenDebugging $ do
-    dbgBLabel "Generating from " decl
+    dbgBLabel "Generating from (i) " decl
     dbgBLabel "DECL " decl
 
   let nameRoot = firstToUpper $ qName qn
