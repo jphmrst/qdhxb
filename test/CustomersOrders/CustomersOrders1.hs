@@ -8,8 +8,8 @@ import qualified QDHXB.Expansions
 
 {- Disabled until we can handle using the same name in different XML scopes. -}
 
--- qdhxb useDebugging ["test/customersorders.xsd"]
--- qdhxb' ["test/customersorders.xsd"]
+-- qdhxb useDebugging ["test/CustomersOrders/customersorders.xsd"]
+-- qdhxb' ["test/CustomersOrders/customersorders.xsd"]
 
 testCustomersOrders1 :: TLT IO ()
 testCustomersOrders1 = inGroup "XSD customers/orders 1" $ do
