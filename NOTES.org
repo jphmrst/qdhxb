@@ -31,6 +31,12 @@
    - Need to do away with relying on the accumulation of type
      definitions --- it's got to be just the existence and alignment of
      names.
+** TODO Address
+   - Type error, expecting a list just getting a singleton
+** TODO Customer orders
+   - Duplicate name
+** TODO Shiporder 1
+   - Bad translation of built-in types
 * TODO Add small tests with <extension>
 * TODO Bootstrap the whole xsd.xsd
   :PROPERTIES:
