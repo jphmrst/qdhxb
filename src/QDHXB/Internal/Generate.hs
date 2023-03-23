@@ -99,7 +99,7 @@ xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 
 xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (a) " decl
-  let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
+  let (haskellType, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
   (typeName, decs) <- indenting $
     getSimpleTypeElements baseName (VarP eName)
@@ -110,7 +110,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
 
 xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (b) " decl
-  let (haskellType, basicDecoder) = xsdTypeNameTranslation $ qName typ
+  let (haskellType, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   let baseName = firstToUpper $ qName nam
   (typeName, decs) <- indenting $
     getComplexTypeElements baseName
@@ -166,6 +166,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (e) " decl
+  let (haskellType, _) = xsdNameToNameTranslation $ qName typ
   let origName = qName nam
       baseName = firstToUpper $ origName
       typBaseName = firstToUpper $ qName typ
@@ -286,7 +287,7 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
       safeDecNam = mkName $ "tryDecode" ++ rootName
 
   puller <- [| pullAttrFrom $(return $ quoteStr $ qName nam) ctxt |]
-  let (haskellTyp, basicDecoder) = xsdTypeNameTranslation $ qName typ
+  let (haskellTyp, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   let decoder = DoE Nothing [
         LetS [ValD (VarP yName) (NormalB puller) []],
         NoBindS $

@@ -2,11 +2,11 @@
 -- | Template Haskell definitions
 module QDHXB.Internal.Utils.TH (
   -- * Possibly-absent integers from XSD text
-  xsdTypeNameTranslation,
+  xsdNameToTypeTranslation, xsdNameToNameTranslation,
 
   -- * XSD types
   intType, stringType, floatType, boolType, doubleType,
-  zonedTimeType, diffTimeType, timeOfDayType, dayType, qnameType,
+  zonedTimeConT, diffTimeType, timeOfDayType, dayType, qnameType,
 
   intBasicDecoder, stringBasicDecoder, floatBasicDecoder,
   boolBasicDecoder, doubleBasicDecoder, zonedTimeBasicDecoder,
@@ -39,8 +39,6 @@ module QDHXB.Internal.Utils.TH (
   justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
   mapVarE,
-  -- ** @Calendar@
-  zonedTimeConT,
   -- ** `IO`
   ioConT,
   -- ** `Functor` and `Contol.Monad.Monad`
@@ -82,56 +80,109 @@ import Text.XML.Light.Types (Line)
 
 -- | Convert the `String` representation of a primitive XSD type to a
 -- Template Haskell `Type`.
-xsdTypeNameTranslation :: String -> (Type, Exp -> Exp)
-xsdTypeNameTranslation ('x':'s':':':str) = xsdTypeNameTranslation str
-xsdTypeNameTranslation "anyType" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "anySimpleType" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "anyAtomicType" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "anyURI" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "boolean" = (boolType, boolBasicDecoder)
-xsdTypeNameTranslation "date" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "dateTime" = (zonedTimeType, zonedTimeBasicDecoder)
-xsdTypeNameTranslation "decimal" = (doubleType, doubleBasicDecoder)
-xsdTypeNameTranslation "double" = (doubleType, doubleBasicDecoder)
-xsdTypeNameTranslation "duration" = (diffTimeType, diffTimeBasicDecoder)
-xsdTypeNameTranslation "float" = (floatType, floatBasicDecoder)
-xsdTypeNameTranslation "hexBinary" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "gDay" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "gMonth" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "gMonthDay" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "gYear" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "gYearMonth" = (dayType, dayBasicDecoder)
-xsdTypeNameTranslation "NOTATION" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "QName" = (qnameType, qnameBasicDecoder)
-xsdTypeNameTranslation "positiveInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "integer" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "long" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "int" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "short" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "byte" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "nonNegativeInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "positiveInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "unsignedInt" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "unsignedShort" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "unsignedByte" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "positiveInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "nonPositiveInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "negativeInteger" = (intType, intBasicDecoder)
-xsdTypeNameTranslation "string" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "normalizedString" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "token" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "language" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "Name" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "NCName" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "ENTITY" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "ID" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "IDREF" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "NMTOKEN" = (stringType, stringBasicDecoder)
-xsdTypeNameTranslation "time" = (timeOfDayType, timeOfDayBasicDecoder)
-xsdTypeNameTranslation "ENTITIES" = (stringListType, stringListBasicDecoder)
-xsdTypeNameTranslation "IDREFS" = (stringListType, stringListBasicDecoder)
-xsdTypeNameTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
-xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
+xsdNameToTypeTranslation :: String -> (Type, Exp -> Exp)
+xsdNameToTypeTranslation ('x':'s':':':str) = xsdNameToTypeTranslation str
+xsdNameToTypeTranslation "anyType" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "anySimpleType" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "anyAtomicType" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "anyURI" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "boolean" = (boolType, boolBasicDecoder)
+xsdNameToTypeTranslation "date" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "dateTime" = (zonedTimeConT, zonedTimeBasicDecoder)
+xsdNameToTypeTranslation "decimal" = (doubleType, doubleBasicDecoder)
+xsdNameToTypeTranslation "double" = (doubleType, doubleBasicDecoder)
+xsdNameToTypeTranslation "duration" = (diffTimeType, diffTimeBasicDecoder)
+xsdNameToTypeTranslation "float" = (floatType, floatBasicDecoder)
+xsdNameToTypeTranslation "hexBinary" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "gDay" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "gMonth" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "gMonthDay" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "gYear" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "gYearMonth" = (dayType, dayBasicDecoder)
+xsdNameToTypeTranslation "NOTATION" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "QName" = (qnameType, qnameBasicDecoder)
+xsdNameToTypeTranslation "positiveInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "integer" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "long" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "int" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "short" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "byte" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "nonNegativeInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "positiveInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "unsignedInt" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "unsignedShort" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "unsignedByte" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "positiveInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "nonPositiveInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "negativeInteger" = (intType, intBasicDecoder)
+xsdNameToTypeTranslation "string" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "normalizedString" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "token" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "language" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "Name" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "NCName" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "ENTITY" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "ID" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "IDREF" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "NMTOKEN" = (stringType, stringBasicDecoder)
+xsdNameToTypeTranslation "time" = (timeOfDayType, timeOfDayBasicDecoder)
+xsdNameToTypeTranslation "ENTITIES" = (stringListType, stringListBasicDecoder)
+xsdNameToTypeTranslation "IDREFS" = (stringListType, stringListBasicDecoder)
+xsdNameToTypeTranslation "MNTOKENS" = (stringListType, stringListBasicDecoder)
+xsdNameToTypeTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
+
+-- | Convert the `String` representation of a primitive XSD type to a
+-- Template Haskell `Type`.
+xsdNameToNameTranslation :: String -> (String, Exp -> Exp)
+xsdNameToNameTranslation ('x':'s':':':str) = xsdNameToNameTranslation str
+xsdNameToNameTranslation "anyType" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "anySimpleType" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "anyAtomicType" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "anyURI" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "boolean" = ("Bool", boolBasicDecoder)
+xsdNameToNameTranslation "date" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "dateTime" = ("ZonedTime", zonedTimeBasicDecoder)
+xsdNameToNameTranslation "decimal" = ("Double", doubleBasicDecoder)
+xsdNameToNameTranslation "double" = ("Double", doubleBasicDecoder)
+xsdNameToNameTranslation "duration" = ("DiffTime", diffTimeBasicDecoder)
+xsdNameToNameTranslation "float" = ("Float", floatBasicDecoder)
+xsdNameToNameTranslation "hexBinary" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "gDay" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "gMonth" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "gMonthDay" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "gYear" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "gYearMonth" = ("Day", dayBasicDecoder)
+xsdNameToNameTranslation "NOTATION" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "QName" = ("QName", qnameBasicDecoder)
+xsdNameToNameTranslation "positiveInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "integer" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "long" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "int" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "short" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "byte" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "nonNegativeInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "positiveInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "unsignedInt" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "unsignedShort" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "unsignedByte" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "positiveInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "nonPositiveInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "negativeInteger" = ("Int", intBasicDecoder)
+xsdNameToNameTranslation "string" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "normalizedString" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "token" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "language" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "Name" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "NCName" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "ENTITY" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "ID" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "IDREF" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "NMTOKEN" = ("String", stringBasicDecoder)
+xsdNameToNameTranslation "time" = ("TimeOfDay", timeOfDayBasicDecoder)
+xsdNameToNameTranslation "ENTITIES" = ("StringList", stringListBasicDecoder)
+xsdNameToNameTranslation "IDREFS" = ("StringList", stringListBasicDecoder)
+xsdNameToNameTranslation "MNTOKENS" = ("StringList", stringListBasicDecoder)
+xsdNameToNameTranslation name = (name, applyReturn)
 
 -- | Convert an expression of type @Maybe a@ to an expression of type
 -- `QDHXB.Errs.HXBExcept` @a@.  The first argument should be a
@@ -139,6 +190,10 @@ xsdTypeNameTranslation name = (ConT $ mkName $ firstToUpper name, applyReturn)
 -- `Exp`ression returns `Nothing`.
 maybeToExceptExp :: Exp -> Exp -> Exp
 maybeToExceptExp s e = caseNothingJust e s $ applyReturn . VarE
+
+-- | TH `Name` for "Int"
+intName :: Name
+intName = mkName "Int"
 
 -- | TH `Int` type representation
 intType :: Type
@@ -149,6 +204,10 @@ intBasicDecoder :: Exp -> Exp
 intBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "Int" Nothing) $
     SigE (AppE readMaybeVarE expr) $ appMaybeType intType
+
+-- | TH `Name` for "String"
+stringName :: Name
+stringName = mkName "String"
 
 -- | TH `String` type representation
 stringType :: Type
@@ -166,9 +225,13 @@ stringListType = AppT ListT stringType
 stringListBasicDecoder :: Exp -> Exp
 stringListBasicDecoder _ = error "TODO"
 
+-- | TH `Name` for "Float"
+floatName :: Name
+floatName = mkName "Float"
+
 -- | TH `Float` type representation
 floatType :: Type
-floatType = ConT (mkName "Float")
+floatType = ConT floatName
 
 -- | TH `Float` converter from `String`.
 floatBasicDecoder :: Exp -> Exp
@@ -176,9 +239,13 @@ floatBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "Float" Nothing) $
     SigE (AppE readMaybeVarE expr) $ appMaybeType floatType
 
+-- | TH `Name` for "Bool"
+boolName :: Name
+boolName = mkName "Bool"
+
 -- | TH `Bool` type representation
 boolType :: Type
-boolType = ConT (mkName "Bool")
+boolType = ConT boolName
 
 -- | TH `Bool` converter from `String`.
 boolBasicDecoder :: Exp -> Exp
@@ -187,8 +254,12 @@ boolBasicDecoder expr =
     SigE (AppE readMaybeVarE expr) $ appMaybeType boolType
 
 -- | TH `Double` type representation
+doubleName :: Name
+doubleName = mkName "Double"
+
+-- | TH `Double` type representation
 doubleType :: Type
-doubleType = ConT (mkName "Double")
+doubleType = ConT doubleName
 
 -- | TH `Double` converter from `String`.
 doubleBasicDecoder :: Exp -> Exp
@@ -196,9 +267,13 @@ doubleBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "Double" Nothing) $
     SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
 
--- | TH `Data.Time.LocalTime.ZonedTime` type representation
-zonedTimeType :: Type
-zonedTimeType = zonedTimeConT
+-- | TH `Name` for `Data.Time.LocalTime.ZonedTime`
+zonedTimeName :: Name
+zonedTimeName = mkName "ZonedTime"
+
+-- | TH `Type` for `Data.Time.LocalTime.ZonedTime`
+zonedTimeConT :: Type
+zonedTimeConT = ConT zonedTimeName
 
 -- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
@@ -207,8 +282,12 @@ zonedTimeBasicDecoder expr =
     SigE (AppE readMaybeVarE expr) $ appMaybeType zonedTimeConT
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
+diffTimeName :: Name
+diffTimeName = mkName "DiffTime"
+
+-- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeType :: Type
-diffTimeType = ConT (mkName "DiffTime")
+diffTimeType = ConT diffTimeName
 
 -- | TH `Data.Time.Clock.DiffTime` converter from `String`.
 diffTimeBasicDecoder :: Exp -> Exp
@@ -217,8 +296,12 @@ diffTimeBasicDecoder expr =
     SigE (AppE readMaybeVarE expr) $ appMaybeType diffTimeType
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
+timeOfDayName :: Name
+timeOfDayName = mkName "TimeOfDay"
+
+-- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
-timeOfDayType = ConT (mkName "TimeOfDay")
+timeOfDayType = ConT timeOfDayName
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` converter from `String`.
 timeOfDayBasicDecoder :: Exp -> Exp
@@ -227,14 +310,22 @@ timeOfDayBasicDecoder expr =
     SigE (AppE readMaybeVarE expr) $ appMaybeType timeOfDayType
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
+dayTypeName :: Name
+dayTypeName = mkName "Day"
+
+-- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayType :: Type
-dayType = ConT (mkName "Day")
+dayType = ConT dayTypeName
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` converter from `String`.
 dayBasicDecoder :: Exp -> Exp
 dayBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "Day" Nothing) $
     SigE (AppE readMaybeVarE expr) $ appMaybeType dayType
+
+-- | TH `Text.XML.Light.Types.QName` type representation
+qnameName :: Name
+qnameName = mkName "QName"
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
@@ -312,20 +403,6 @@ onePat p = ConP oneName [] [p]
 manyPat :: Pat -> Pat
 manyPat p = ConP manyName [] [p]
 
--- | TH `Name` for "Int"
-intName :: Name
-intName = mkName "Int"
-
-{-
--- | TH `Name` for "Float"
-floatName :: Name
-floatName = mkName "Float"
-
--- | TH `Name` for "Bool"
-boolName :: Name
-boolName = mkName "Bool"
--}
-
 -- | TH `Name` for "One"
 oneName :: Name
 oneName = mkName "QDHXB.Expansions.One"
@@ -333,10 +410,6 @@ oneName = mkName "QDHXB.Expansions.One"
 -- | TH `Name` for "Many"
 manyName :: Name
 manyName = mkName "QDHXB.Expansions.Many"
-
--- | TH `Name` for "String"
-stringName :: Name
-stringName = mkName "String"
 
 -- | TH `Name` for the re-export of `Text.XML.Light.Types.Content` in
 -- `QDHXB.Expansions`.
@@ -378,10 +451,6 @@ eqName = mkName "Eq"
 -- | TH `Name` for "Show"
 showName :: Name
 showName = mkName "Show"
-
--- | TH `Name` for `Data.Time.LocalTime.ZonedTime`
-zonedTimeName :: Name
-zonedTimeName = mkName "ZonedTime"
 
 -- | TH `Name` for "map"
 mapName :: Name
@@ -446,10 +515,6 @@ justPat n = ConP justName [] [VarP n]
 -- | TH `Type` for `String`
 stringConT :: Type
 stringConT = ConT stringName
-
--- | TH `Type` for `Data.Time.LocalTime.ZonedTime`
-zonedTimeConT :: Type
-zonedTimeConT = ConT zonedTimeName
 
 -- | TH `Type` for `Text.XML.Light.Types.Content`
 contentConT :: Type

@@ -57,31 +57,8 @@ flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _) l d) = do
   indenting $
     flattenAttributeGroupItem n r cs l d
 
-
-flattenSchemaItem' (ComplexTypeScheme (Composing cts ats0) ats (Just nam) l d) = do
-  whenDebugging $ dbgLn "Flattening complex composition"
-  (defs, refs) <-
-    musterComplexSequenceComponents (filter nonSkip cts)
-      -- TODO DOC possible to add a docstring here?
-      (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
-  let tyDefn = SequenceDefn (qName nam) refs l d
-  addTypeDefn nam tyDefn
-  -- whenDebugging $ do
-  --   recheck <- isKnownType nam
-  --   dbgLn $ "- Have set " ++ qName nam
-  --            ++ " to be known; rechecked as " ++ show recheck
-  dbgResult "Flattened to" $ defs ++ [ tyDefn ]
-
-flattenSchemaItem' (ComplexTypeScheme (ComplexRestriction base) ats (Just nam) l d) = do
-  whenDebugging $ dbgLn "Flattening complex restriction"
-  dbgResult "Flattened to" $ [ComplexSynonymDefn nam base l d]
-
-flattenSchemaItem' (ComplexTypeScheme (Extension base ds) ats (Just nam) l d) = do
-  whenDebugging $ dbgLn "Flattening complex extension"
-  (defs, refs) <- indenting $ flattenSchemaRefs ds
-  dbgResult "Flattened to" $ defs ++ [
-    ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
-    ]
+flattenSchemaItem' (ComplexTypeScheme cts ats ifNam l d) =
+  flattenComplexTypeScheme cts ats ifNam l d
 
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
   whenDebugging $ dbgLn "Flattening simple synonym"
@@ -152,6 +129,14 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   addTypeDefn nam lDef
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
+flattenSchemaItem' (GroupScheme ifName (Just cts) ln _doc) = do
+  boxed $ do
+    dbgLn "TODO flattenSchemaItem' group case"
+    dbgBLabel "NAME " ifName
+    dbgBLabel "CTS " cts
+    dbgLn $ "LN " ++ show ln
+  error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
+
 flattenSchemaItem' s = do
   boxed $ do
     dbgLn "TODO flattenSchemaItem' missed case"
@@ -177,6 +162,45 @@ flattenAttributeGroupItem name ref contents ln _d = do
   error "TODO flattenAttributeGroupItem unmatched"
 
 
+flattenComplexTypeScheme ::
+  ComplexTypeScheme -> [DataScheme] -> Maybe QName -> Maybe Line
+  -> Maybe String
+  -> XSDQ [Definition]
+flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
+  whenDebugging $ dbgLn "Flattening complex composition"
+  (defs, refs) <-
+    musterComplexSequenceComponents (filter nonSkip cts)
+      -- TODO DOC possible to add a docstring here?
+      (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
+  let tyDefn = SequenceDefn (qName nam) refs l d
+  addTypeDefn nam tyDefn
+  -- whenDebugging $ do
+  --   recheck <- isKnownType nam
+  --   dbgLn $ "- Have set " ++ qName nam
+  --            ++ " to be known; rechecked as " ++ show recheck
+  dbgResult "Flattened to" $ defs ++ [ tyDefn ]
+
+flattenComplexTypeScheme (ComplexRestriction base) ats (Just nam) l d = do
+  whenDebugging $ dbgLn "Flattening complex restriction"
+  dbgResult "Flattened to" $ [ComplexSynonymDefn nam base l d]
+
+flattenComplexTypeScheme (Extension base ds) ats (Just nam) l d = do
+  whenDebugging $ dbgLn "Flattening complex extension"
+  (defs, refs) <- indenting $ flattenSchemaRefs ds
+  dbgResult "Flattened to" $ defs ++ [
+    ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
+    ]
+
+flattenComplexTypeScheme cts ats ifName ln _d = do
+  boxed $ do
+    dbgLn "TODO flattenComplexTypeScheme missed case"
+    dbgBLabel "CTS " cts
+    dbgBLabel "ATS " ats
+    dbgBLabel "IFNAME " ifName
+    dbgLn $ "LN " ++ show ln
+  error "TODO flattenAttributeGroupItem unmatched"
+
+
 flattenElementSchemeItem ::
   Maybe DataScheme -> Maybe QName -> Maybe QName -> (Maybe QName)
   -> (Maybe Int) -> (Maybe Int) -> (Maybe Line) -> Maybe String
