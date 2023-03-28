@@ -128,6 +128,15 @@ data Definition =
         -- ^ (Constructor name, type name) of each element of the union.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
+  | ChoiceDefn
+    -- ^ Define a complex type as a tagged union of other types.
+        QName
+        -- ^ Name of the type
+        [(QName, Reference)]
+        -- ^ (Constructor name, type reference) of each element of the
+        -- union.
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   | ExtensionDefn
     -- ^ Define a type the extension of one type with additional
     -- contexts/attributes
@@ -137,6 +146,15 @@ data Definition =
         -- ^ Base type
         [Reference]
         -- ^ Additional content
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
+  | GroupDefn
+    -- ^ Define a type the extension of one type with additional
+    -- contexts/attributes
+        QName
+        -- ^ Name of the group
+        (Maybe Reference)
+        -- ^ Included type
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | ListDefn
@@ -171,12 +189,17 @@ instance Blockable Definition where
   block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns
+  block (ChoiceDefn n ns _ _) = stackBlocks $
+    (stringToBlock $ "ChoiceDefn " ++ showQName n)
+    : map (indent "  " . uncurry horizontalPair) ns
   block (ExtensionDefn n base exts _ _) = stackBlocks $
     (labelBlock "ExtensionDefn " $ block n)
     : (labelBlock "  base " $ block base)
     : map (indent "  " . block) exts
   block (ListDefn n t _ _) = stringToBlock $
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
+  block (GroupDefn n t _ _) =
+    labelBlock ("GroupDefn " ++ showQName n ++ " == ") $ block t
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName [Definition]
 instance VerticalBlockList (QName, [Definition])

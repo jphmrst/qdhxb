@@ -129,13 +129,19 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   addTypeDefn nam lDef
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
-flattenSchemaItem' (GroupScheme ifName (Just cts) ln _doc) = do
+flattenSchemaItem' (GroupScheme ifName@(Just name) (Just cts) ln doc) = do
+  defs <- flattenComplexTypeScheme cts [] ifName ln doc
+  return $ defs ++ [GroupDefn name (Just ref) ln doc]
+  {-
   boxed $ do
     dbgLn "TODO flattenSchemaItem' group case"
-    dbgBLabel "NAME " ifName
+    dbgLn $ "NAME " ++ qName name
+    dbgBLabel "DEFS " defs
+    -- dbgBLabel "REF " ref
     dbgBLabel "CTS " cts
     dbgLn $ "LN " ++ show ln
   error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
+  -}
 
 flattenSchemaItem' s = do
   boxed $ do
@@ -163,8 +169,8 @@ flattenAttributeGroupItem name ref contents ln _d = do
 
 
 flattenComplexTypeScheme ::
-  ComplexTypeScheme -> [DataScheme] -> Maybe QName -> Maybe Line
-  -> Maybe String
+  ComplexTypeScheme -> [DataScheme] -> Maybe QName
+  -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
 flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex composition"
@@ -191,6 +197,26 @@ flattenComplexTypeScheme (Extension base ds) ats (Just nam) l d = do
     ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
     ]
 
+flattenComplexTypeScheme (Choice ifName contents) ats ifOuterName ln doc = do
+  let name =
+        maybe (maybe (QName "???" Nothing Nothing) id ifOuterName) id ifName
+  (defs, refs) <- flattenSchemaRefs contents
+  let labelledRefs = zipWith getLabelledDisjunct refs contents
+  {-
+  boxed $ do
+    dbgLn "TODO flattenComplexTypeScheme Choice case"
+    dbgLn $ "NAME " ++ name
+    dbgBLabel "DEFS " defs
+    dbgBLabel "REFS " refs
+    dbgBLabel "CONTENTS " contents
+    dbgBLabel "ATS " ats
+    dbgBLabel "inner IFNAME " ifName
+    dbgBLabel "outer IFNAME " ifOuterName
+    dbgLn $ "LN " ++ show ln
+  error "TODO flattenComplexTypeScheme Choice case"
+  -}
+  return $ defs ++ [ChoiceDefn name labelledRefs ln doc]
+
 flattenComplexTypeScheme cts ats ifName ln _d = do
   boxed $ do
     dbgLn "TODO flattenComplexTypeScheme missed case"
@@ -198,8 +224,13 @@ flattenComplexTypeScheme cts ats ifName ln _d = do
     dbgBLabel "ATS " ats
     dbgBLabel "IFNAME " ifName
     dbgLn $ "LN " ++ show ln
-  error "TODO flattenAttributeGroupItem unmatched"
+  error "TODO flattenComplexTypeScheme missed case"
 
+getLabelledDisjunct :: Reference -> DataScheme -> (QName, Reference)
+getLabelledDisjunct ref ds = (case labelOf ds of
+                                Nothing -> referenceBase ref
+                                Just n -> n,
+                              ref)
 
 flattenElementSchemeItem ::
   Maybe DataScheme -> Maybe QName -> Maybe QName -> (Maybe QName)
