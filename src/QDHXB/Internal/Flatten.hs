@@ -39,7 +39,7 @@ flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
     flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 
 flattenSchemaItem' (AttributeScheme
-                    (SingleAttribute (Just nam) Nothing (NameRef typ) m d')
+                    (SingleAttribute (WithName nam) (NameRef typ) m d')
                     l d) = do
   whenDebugging $ dbgLn "Flattening single attribute"
   let attrDefn =
@@ -48,14 +48,14 @@ flattenSchemaItem' (AttributeScheme
   fileNewDefinition attrDefn
   dbgResult "Flattened to" [attrDefn]
 
-flattenSchemaItem' (AttributeScheme (SingleAttribute _ (Just _) _ _ _)
+flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _)
                                     _l _d) = do
   return $ error "Reference in attribute"
 
-flattenSchemaItem' (AttributeScheme (AttributeGroup n r cs _) l d) = do
+flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) l d) = do
   whenDebugging $ dbgLn "Relaying to flattenAttributeGroupItem"
   indenting $
-    flattenAttributeGroupItem n r cs l d
+    flattenAttributeGroupItem nr cs l d
 
 flattenSchemaItem' (ComplexTypeScheme cts ats ifNam l d) =
   flattenComplexTypeScheme cts ats ifNam l d
@@ -82,8 +82,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln d) = do
                                    ifMin ifMax l ifDoc) =
         ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
       nameUnnamed q (AttributeScheme
-                     (SingleAttribute Nothing ifRef ifType usage d') ln' d'') =
-        AttributeScheme (SingleAttribute (Just q) ifRef ifType usage d') ln'
+                     (SingleAttribute (WithRef _) ifType usage d') ln' d'') =
+        AttributeScheme (SingleAttribute (WithName q) ifType usage d') ln'
           (pickOrCombine d d'')
       nameUnnamed q (ComplexTypeScheme form attrs Nothing l d') =
         ComplexTypeScheme form attrs (Just q) l d'
@@ -129,9 +129,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   addTypeDefn nam lDef
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
-flattenSchemaItem' (GroupScheme ifName@(Just name) (Just cts) ln doc) = do
-  defs <- flattenComplexTypeScheme cts [] ifName ln doc
-  return $ defs ++ [GroupDefn name (Just ref) ln doc]
+flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
+  defs <- flattenComplexTypeScheme cts [] (Just name) ln doc
   {-
   boxed $ do
     dbgLn "TODO flattenSchemaItem' group case"
@@ -142,6 +141,19 @@ flattenSchemaItem' (GroupScheme ifName@(Just name) (Just cts) ln doc) = do
     dbgLn $ "LN " ++ show ln
   error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
   -}
+  return $ defs ++ [
+    GroupDefn name (Just (TypeRef name Nothing Nothing Nothing Nothing)) ln doc
+    ]
+
+flattenSchemaItem' (GroupScheme (WithRef ref) Nothing ln _doc) = do
+  boxed $ do
+    dbgLn "TODO flattenSchemaItem' group with ref, no contents"
+    dbgLn $ "REF " ++ qName ref
+    dbgLn $ "LN " ++ show ln
+  error $ "TODO flatten group with ref "
+    ++ qName ref
+    ++ ", no contents, at "
+    ++ maybe "(no XSD line num)" show ln
 
 flattenSchemaItem' s = do
   boxed $ do
@@ -150,19 +162,18 @@ flattenSchemaItem' s = do
   error $ show $ labelBlock "TODO another flatten case: " $ block s
 
 flattenAttributeGroupItem ::
-  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line -> Maybe String
+  NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
-flattenAttributeGroupItem (Just n) Nothing cs l d = do
+flattenAttributeGroupItem (WithName n) cs l d = do
   whenDebugging $ dbgLn "Flattening attribute group"
   let names = map grabName cs
   defs <- indenting $ flattenAttributes cs
   let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l d]
   return res
-flattenAttributeGroupItem name ref contents ln _d = do
+flattenAttributeGroupItem nameRef contents ln _d = do
   boxed $ do
     dbgLn "TODO flattenAttributeGroupItem missed case"
-    dbgBLabel "NAME " name
-    dbgBLabel "REF " ref
+    dbgBLabel "NAMEREF " nameRef
     dbgBLabel "CONTENTS " contents
     dbgLn $ "LN " ++ show ln
   error "TODO flattenAttributeGroupItem unmatched"
@@ -198,8 +209,8 @@ flattenComplexTypeScheme (Extension base ds) ats (Just nam) l d = do
     ]
 
 flattenComplexTypeScheme (Choice ifName contents) ats ifOuterName ln doc = do
-  let name =
-        maybe (maybe (QName "???" Nothing Nothing) id ifOuterName) id ifName
+  let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuterName)
+                   id ifName
   (defs, refs) <- flattenSchemaRefs contents
   let labelledRefs = zipWith getLabelledDisjunct refs contents
   {-
@@ -257,6 +268,19 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs Nothing l d))
   let elemDefn = ElementDefn nam nam l ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
+flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
+                          ifName ifType ifRef ifMin ifMax _ifLn _ifDoc = do
+  boxed $ do
+    dbgLn $ "flattenElementSchemeItem"
+    dbgBLabel "TS " ts
+    dbgBLabel "ATTRS " attrs
+    dbgBLabel "N " n
+    dbgBLabel "IFNAME " ifName
+    dbgBLabel "IFTYPE " ifType
+    dbgBLabel "IFREF " ifRef
+    dbgLn $ "IFMIN " ++ show ifMin
+    dbgLn $ "IFMAX " ++ show ifMax
+  error "Unmatched ComplexTypeScheme case for flattenElementSchemeItem"
 flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   boxed $ do
     dbgLn "flattenElementSchemeItem"
@@ -303,11 +327,11 @@ musterComplexSequenceComponents steps ats _ = do
   return (otherDefs ++ atsDefs, atsRefs ++ refs)
 
 grabName :: AttributeScheme -> QName
-grabName (SingleAttribute (Just n) _ _ _ _) = n
-grabName (SingleAttribute Nothing (Just n) _ _ _) = n
-grabName (SingleAttribute Nothing Nothing (NameRef t) _ _) = t
-grabName (AttributeGroup (Just n) _ _ _) = n
-grabName (AttributeGroup Nothing (Just n) _ _) = n
+grabName (SingleAttribute (WithName n) _ _ _) = n
+grabName (SingleAttribute (WithRef n) _ _ _) = n
+grabName (SingleAttribute WithNeither (NameRef t) _ _) = t
+grabName (AttributeGroup (WithName n) _ _) = n
+grabName (AttributeGroup (WithRef n) _ _) = n
 grabName a = error $ "No useable name in " ++ show a
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
@@ -317,16 +341,25 @@ flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
                                 ifLower ifUpper ln ifDoc) =
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
-flattenSchemaRef (AttributeScheme (SingleAttribute n r t m d') l d) =
-  flattenSingleAttributeRef n r t m l (pickOrCombine d d')
-flattenSchemaRef (AttributeScheme (AttributeGroup ifName ifRef cs _) l d) =
-  flattenAttributeGroupRef ifName ifRef cs l d
+flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') l d) =
+  flattenSingleAttributeRef nr t m l (pickOrCombine d d')
+flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) l d) =
+  flattenAttributeGroupRef nameRef cs l d
 flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine ifDoc) = do
   defns <- flattenSchemaItem c
   return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
 flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
   defns <- flattenSchemaItem s
   return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
+flattenSchemaRef (GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
+  {-
+  boxed $ do
+    dbgLn "flattenSchemaRef of GroupScheme"
+    dbgBLabel "REF " ref
+    dbgBLabel "IFCTNTS " ifCtnts
+    dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
+  -}
+  return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
 flattenSchemaRef s = do
   boxed $ do
     dbgLn "flattenSchemaRef"
@@ -334,46 +367,43 @@ flattenSchemaRef s = do
   error $ "TODO flattenSchemaRef > additional case:"
 
 flattenAttributeGroupRef ::
-  Maybe QName -> Maybe QName -> [AttributeScheme] -> Maybe Line -> Maybe String
+  NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
-flattenAttributeGroupRef n@(Just name) Nothing contents l d = do
-  refs <- flattenAttributeGroupItem n Nothing contents l d
+flattenAttributeGroupRef n@(WithName name) contents l d = do
+  refs <- flattenAttributeGroupItem n contents l d
   return (refs, AttributeRef name Required)
-flattenAttributeGroupRef Nothing (Just ref) [] _ln _d = do
+flattenAttributeGroupRef (WithRef ref) [] _ln _d = do
   return ([], AttributeRef ref Required)
-flattenAttributeGroupRef ifName ifRef contents _ln _d = do
+flattenAttributeGroupRef nameRef contents _ln _d = do
   boxed $ do
     dbgLn "flattenAttributeGroupRef"
-    dbgBLabel "IFNAME " ifName
-    dbgBLabel "IFREF " ifRef
+    dbgBLabel "NAMEREF " nameRef
     dbgBLabel "CONTENTS " contents
   error $ "TODO flattenAttributeGroupRef > unmatched"
 
 
 flattenSingleAttributeRef ::
-  Maybe QName -> Maybe QName -> QNameOr -> String
-  -> Maybe Line -> Maybe String
+  NameOrRefOpt -> QNameOr -> String -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
-flattenSingleAttributeRef Nothing (Just ref) Neither useStr _ _ = do
+flattenSingleAttributeRef (WithRef ref) Neither useStr _ _ = do
   let res = AttributeRef ref (stringToAttributeUsage useStr)
   return ([], res)
-flattenSingleAttributeRef (Just nam) Nothing (NameRef t) m l d = do
+flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
   let defn = AttributeDefn nam
                (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
   return ([defn], ref)
-flattenSingleAttributeRef (Just nam) Nothing (Nested t) m l d = do
+flattenSingleAttributeRef (WithName nam) (Nested t) m l d = do
   boxed $ do
     dbgLn "new Nested case"
     dbgBLabel "NAM " nam
     dbgBLabel "T " t
     dbgLn $ "MODE " ++ m
   error "TODO new Nested case"
-flattenSingleAttributeRef maybeName maybeRef maybeType mode _ _ = do
+flattenSingleAttributeRef nameRef maybeType mode _ _ = do
   boxed $ do
     dbgLn "flattenSingleAttributeRef"
-    dbgBLabel "IFNAME " maybeName
-    dbgBLabel "IFREF " maybeRef
+    dbgBLabel "NAMEREF " nameRef
     dbgBLabel "IFTYPE " maybeType
     dbgLn $ "MODE " ++ mode
   error "TODO flattenSingleAttributeRef > unmatched case"
@@ -442,14 +472,14 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-flattenAttribute (SingleAttribute (Just n) Nothing (NameRef typ) mode d) = do
+flattenAttribute (SingleAttribute (WithName n) (NameRef typ) mode d) = do
   whenDebugging $ dbgPt "Flattening single attribute with type reference"
   dbgResult "Flattened to" $ [
     AttributeDefn n
       (SingleAttributeDefn typ $ stringToAttributeUsage mode)
       Nothing d
     ]
-flattenAttribute (SingleAttribute (Just n) Nothing (Nested ds) mode d) = do
+flattenAttribute (SingleAttribute (WithName n) (Nested ds) mode d) = do
   whenDebugging $ dbgPt "Flattening single attribute with nested type"
   (defs, ref) <- flattenSchemaRef ds
   boxed $ do
@@ -487,7 +517,7 @@ flattenAttribute (SingleAttribute (Just n) Nothing (Nested ds) mode d) = do
     ref ->
       error $ "Nested type " ++ show ref
               ++ " for attribute " ++ showQName n ++ " not allowed"
-flattenAttribute (AttributeGroup (Just n) Nothing schemes d) = do
+flattenAttribute (AttributeGroup (WithName n) schemes d) = do
   let names = map grabName schemes
   sub <- fmap concat $ mapM flattenAttribute schemes
   return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]

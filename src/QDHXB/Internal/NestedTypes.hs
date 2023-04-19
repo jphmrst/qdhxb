@@ -3,6 +3,7 @@
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
 module QDHXB.Internal.NestedTypes (
+  NameOrRefOpt(..), nameOrRefOpt,
   SimpleTypeScheme(..),
   ComplexTypeScheme(..),
   AttributeScheme(..),
@@ -11,10 +12,31 @@ module QDHXB.Internal.NestedTypes (
   nonSkip, labelOf
 ) where
 
-import Text.XML.Light.Types (QName, Line)
+import Text.XML.Light.Types (QName, Line, qName)
 import Text.XML.Light.Output
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.XMLLight (withPrefix)
+
+-- | A sort of variation of `Maybe` with two `Just` forms, for schema
+-- which allow either a @name@ or a @ref@ attribute, but not both, and
+-- possibly neither.
+data NameOrRefOpt =
+  WithName QName  -- ^ Case for having a @name@ but no @ref@
+  | WithRef QName -- ^ Case for having a @ref@  but no @name@
+  | WithNeither   -- ^ Case for neither
+  deriving Show
+
+instance Blockable NameOrRefOpt where
+  block (WithName n) = labelBlock "name=" $ block n
+  block (WithRef r)  = labelBlock "ref="  $ block r
+  block (WithNeither) = stringToBlock "(neither)"
+
+nameOrRefOpt :: Maybe QName -> Maybe QName -> NameOrRefOpt
+nameOrRefOpt (Just n) (Just r) =
+  error "Cannot give both name and ref attributes"
+nameOrRefOpt (Just n) Nothing = WithName n
+nameOrRefOpt Nothing (Just r) = WithRef r
+nameOrRefOpt Nothing Nothing = WithNeither
 
 -- | Further details about @simpleType@ and @simpleContents@ XSD
 -- elements.
@@ -97,34 +119,28 @@ instance VerticalBlockList ComplexTypeScheme
 
 -- | Details of attributes
 data AttributeScheme =
-  SingleAttribute (Maybe QName) -- ^ ifName
-                  (Maybe QName) -- ^ ifRef
+  SingleAttribute NameOrRefOpt -- ^ Name or reference, or neither
                   QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
                   (Maybe String) -- ^ idDoc
-  | AttributeGroup (Maybe QName) -- ^ ifName
-                   (Maybe QName) -- ^ ifRef
+  | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
                    (Maybe String) -- ^ idDoc
   deriving Show
 
 instance Blockable AttributeScheme where
-  block (SingleAttribute ifName ifRef ifType mode _d) =
-    stringToBlock "single attr name="
-    `follow` block ifName
-    `follow` stringToBlock " ref="
-    `follow` block ifRef
+  block (SingleAttribute nameOrRef ifType mode _d) =
+    stringToBlock "single attr "
+    `follow` block nameOrRef
     `stack2` stringToBlock "  type="
     `follow` block ifType
     `follow` stringToBlock " mode="
     `follow` stringToBlock mode
-  block (AttributeGroup ifName ifRef attrs _d) =
-    stringToBlock "group name="
-    `follow` block ifName
-    `follow` stringToBlock " ref="
-    `follow` block ifRef
+  block (AttributeGroup nameRef attrs _d) =
+    stringToBlock "group "
+    `follow` block nameRef
     `follow` stringToBlock " "
     `stack2` (indent "  " $ block attrs)
 instance VerticalBlockList AttributeScheme
@@ -154,7 +170,7 @@ data DataScheme =
                      SimpleTypeScheme -- ^ Details
                      (Maybe Line) -- ^ ifLine
                      (Maybe String) -- ^ ifDocumentation
-  | GroupScheme (Maybe QName) -- ^ name
+  | GroupScheme NameOrRefOpt -- ^ name or reference, or possibly neither
                 (Maybe ComplexTypeScheme) -- ^ contents
                 (Maybe Line) -- ^ ifLine
                 (Maybe String) -- ^ ifDocumentation
@@ -168,7 +184,7 @@ data DataScheme =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
---  block (GroupScheme base typeScheme ifLine ifDoc) =
+--  block (GroupScheme base ref typeScheme ifLine ifDoc) =
 --  block (UnprocessedXML ifName ifLine ifDoc) =
 
 
@@ -219,12 +235,16 @@ instance Blockable DataScheme where
       labelBlock "  scheme " $ block detail
       ]
 
-  block (GroupScheme base (Just ts) _ln _d) = Block [
-    "Group " ++ show base ++ " with contents",
-    "  " ++ show ts
+  block (GroupScheme (WithName nam) ts _ln _d) = Block [
+    "Group "
+      ++ showQName nam
+      ++ " with contents",
+      "  " ++ show ts
     ]
-  block (GroupScheme base Nothing _ln _d) = stringToBlock $
-    "Group " ++ show base ++ " with no contents"
+  block (GroupScheme (WithRef ref) _ _ln _d) = stringToBlock $
+    "Group reference " ++ qName ref
+  block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
+    "Group unnamed no-ref " ++ show ts
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
     "Unprocessed XML" ++ case ifName of
                            Just n -> " \"" ++ showQName n ++ "\""
@@ -239,12 +259,12 @@ labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _) = Just name
 labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _) = Just typ
 labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _) = labelOf sub
 labelOf (ElementScheme _ _ _ _ _ _ _ _ _) = Nothing
-labelOf (AttributeScheme (SingleAttribute j@(Just _) _ _ _ _) _ _) = j
-labelOf (AttributeScheme (SingleAttribute _ _ (NameRef qn) _ _) _ _) = Just qn
-labelOf (AttributeScheme (SingleAttribute _ _ (Nested d) _ _) _ _) = labelOf d
-labelOf (AttributeScheme (SingleAttribute _ j@(Just _) _ _ _) _ _) = j
-labelOf (AttributeScheme (AttributeGroup j@(Just _) _ _ _) _ _) = j
-labelOf (AttributeScheme (AttributeGroup _ j@(Just _) _ _) _ _) = j
+labelOf (AttributeScheme (SingleAttribute (WithName n) _ _ _) _ _) = Just n
+labelOf (AttributeScheme (SingleAttribute _ (NameRef qn) _ _) _ _) = Just qn
+labelOf (AttributeScheme (SingleAttribute _ (Nested d) _ _) _ _) = labelOf d
+labelOf (AttributeScheme (SingleAttribute (WithRef r) _ _ _) _ _) = Just r
+labelOf (AttributeScheme (AttributeGroup (WithName n) _ _) _ _) = Just n
+labelOf (AttributeScheme (AttributeGroup (WithRef r) _ _) _ _) = Just r
 labelOf (AttributeScheme _ _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _) _ _) = j
 labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _ _) = Nothing
@@ -261,7 +281,9 @@ labelOf (SimpleTypeScheme _ (List _ (Just t)) _ _) =
   fmap (withPrefix "List") (labelOf t)
 labelOf (SimpleTypeScheme _ (List _ _) _ _) = Nothing
 labelOf (UnprocessedXML n _ _) = n
-labelOf (GroupScheme base _n _l _d) = base
+labelOf (GroupScheme (WithName n) _n _l _d) = Just n
+labelOf (GroupScheme (WithRef n) _n _l _d) = Just n
+labelOf (GroupScheme WithNeither _n _l _d) = Nothing
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool

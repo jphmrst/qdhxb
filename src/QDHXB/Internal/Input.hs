@@ -303,15 +303,23 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
   return res
 
 inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
-  whenDebugging $ do
-    dbgPt "For <group> schema:"
-    dbgLn $ "  outer name " ++ outer
   name <- pullAttrQName "name" ats
-  indenting $ case filter isElem ctnts of
+  ref <- pullAttrQName "ref" ats
+  let filtered = filter isFocusElem ctnts
+  whenDebugging $ do
+    dbgLn $ "inputElement case group" ++ ifAtLine ifLn
+    dbgPt $ "For <group> schema"
+      ++ maybe "(no line num)" (\x -> " at " ++ show x) ifLn
+      ++ ":"
+    dbgLn $ "  outer name " ++ outer
+    dbgLn $ "  name from attributes " ++ maybe "(none)" qName name
+    dbgLn $ "  filtered content " ++ show (map showContent filtered)
+  indenting $ case filtered of
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
       whenDebugging $ dbgPt "choice subcase"
       ts <- indenting $ encodeChoiceTypeScheme name attrs' ctnts'
-      dbgResult "Subcase result" $ GroupScheme name (Just ts) ifLn' ifDoc
+      dbgResult "Subcase result" $
+        GroupScheme (nameOrRefOpt name ref) (Just ts) ifLn' ifDoc
     (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
       whenDebugging $ dbgPt "sequence subcase"
       seqn <- indenting $ encodeSequenceTypeScheme outer ctnts' []
@@ -325,7 +333,8 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
         dbgLn $ "-- ctnts' " ++
           (intercalate "\n    " $ map ppContent $ filter isElem ctnts')
-      dbgResult "Subcase result" $ GroupScheme name (Just seqn) ifLn ifDoc
+      dbgResult "Subcase result" $
+        GroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
       whenDebugging $ dbgPt "all subcase"
       -- let ifDoc' = getAnnotationDocFrom contents
@@ -339,13 +348,15 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
       error $ "TODO inputElement > group with all" ++ ifAtLine ifLn'
     _ -> do
       whenDebugging $ dbgPt "Default subcase is group of nothing"
-      dbgResult "Subcase result" $ GroupScheme name Nothing ifLn ifDoc
+      dbgResult "Subcase result" $
+        GroupScheme (nameOrRefOpt name ref) Nothing ifLn ifDoc
 
 
 inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
   whenDebugging $ dbgPt "For <choice> scheme:"
   -- whenDebugging $ do
   name <- pullAttrQName "name" ats
+  ref <- pullAttrQName "ref" ats
   let minOcc = decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats
       maxOcc = decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats
   whenDebugging $ do
@@ -355,7 +366,8 @@ inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
     dbgBLabel "-- ats " ats
     dbgBLabel "-- ctnts " $ filter isElem ctnts
   ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
-  dbgResult "Choice encoding" $ GroupScheme name (Just ts) ifLn ifDoc
+  dbgResult "Choice encoding" $
+    GroupScheme (nameOrRefOpt name ref) (Just ts) ifLn ifDoc
 
 inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <any> scheme:"
@@ -395,6 +407,7 @@ encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
 encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
+  dbgLn $ "encodeChoiceTypeScheme"
   let ctnts = filter isElem allCtnts
   {-
   whenDebugging $ do
@@ -425,7 +438,7 @@ encodeAttribute _ (QName "attribute" _ _) ats [] _ d = indenting $ do
   typeQName <- pullAttrQName "type" ats
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
-  return $ SingleAttribute nameQname refQName
+  return $ SingleAttribute (nameOrRefOpt nameQname refQName)
              (case typeQName of
                 Just qn -> NameRef qn
                 Nothing -> Neither)
@@ -441,7 +454,8 @@ encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
     Nothing -> do
       nameQName <- pullAttrQName "name" ats
       refQName <- pullAttrQName "ref" ats
-      encodeAttributeWithNestedType outer nameQName refQName st sts
+      encodeAttributeWithNestedType outer (nameOrRefOpt nameQName refQName)
+                                    st sts
                                     (case pullAttr "use" ats of
                                       Nothing -> "optional"
                                       Just s -> s)
@@ -453,7 +467,7 @@ encodeAttribute o (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
       atGroups = filterTagged "attributeGroup" ctnts
   subcontents <- mapM (encodeAttributeScheme $ o ++ "Group") $
                    attrs ++ atGroups
-  return $ AttributeGroup name ref subcontents d
+  return $ AttributeGroup (nameOrRefOpt name ref) subcontents d
 encodeAttribute outer (QName n _ _) a c _ _ = do
   boxed $ do
     dbgLn n
@@ -463,24 +477,19 @@ encodeAttribute outer (QName n _ _) a c _ _ = do
   error $ "Can't use encodeAttribute with <" ++ n ++ ">"
 
 encodeAttributeWithNestedType ::
-  String -> Maybe QName -> Maybe QName -> Content -> [Content] -> String
+  String -> NameOrRefOpt -> Content -> [Content] -> String
   -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
-encodeAttributeWithNestedType outer ifName ifRef tySpec [] use _ d = do
+encodeAttributeWithNestedType outer nameOrRef tySpec [] use _ d = do
   ds <- inputSchemaItem outer tySpec
-  return $ SingleAttribute ifName ifRef (Nested ds) use d
-encodeAttributeWithNestedType _ _ _ tySpec (s:ss) _ _ _ = do
+  return $ SingleAttribute nameOrRef (Nested ds) use d
+encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
   boxed $ do
     dbgLn "Too many nested types for attribute"
     dbgBLabel "1st one " tySpec
     dbgBLabel "2nd one " s
     dbgBLabel "others " ss
   error "TODO Too many nested types for attribute"
-
-ifAtLine :: Maybe Line -> String
-ifAtLine ifLine = case ifLine of
-                    Nothing -> ""
-                    Just line -> " at XSD line " ++ show line
 
 type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
                             [Attr], [Content], Maybe Line)
@@ -583,3 +592,8 @@ decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
 
 pullAttrQName :: String -> [Attr] -> XSDQ (Maybe QName)
 pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
+
+ifAtLine :: Maybe Line -> String
+ifAtLine ifLine = case ifLine of
+                    Nothing -> ""
+                    Just line -> " at XSD line " ++ show line
