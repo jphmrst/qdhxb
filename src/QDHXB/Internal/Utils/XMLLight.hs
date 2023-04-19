@@ -4,7 +4,8 @@ module QDHXB.Internal.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
     pullCRef, pullCRefContent, pullCRefOf,
     getAnnotationDoc, getAnnotationDocFrom,
-    filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isTagged,
+    filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isFocusElem,
+    isTagged,
 
     __loadElement, loadElementName,
     withPrefix, withSuffix, withNamePrefix, withNameSuffix)
@@ -65,7 +66,7 @@ pullCRefContent _ _ = Nothing
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefOf :: Content -> Maybe String
-pullCRefOf (Elem (Element (QName n _ _) _ [sub] _)) = pullCRef sub
+pullCRefOf (Elem (Element (QName _ _ _) _ [sub] _)) = pullCRef sub
 pullCRefOf _ = Nothing
 
 -- | Retrieve XML contents with the given name.
@@ -115,6 +116,15 @@ isNonKeyNonNotationElem (Elem (Element (QName "key" _ _) _ _ _)) = False
 isNonKeyNonNotationElem (Elem (Element (QName "notation" _ _) _ _ _)) = False
 isNonKeyNonNotationElem (Elem (Element _ _ _ _)) = True
 isNonKeyNonNotationElem _ = False
+
+-- | Predicate testing whether a piece of XML `Content` is an
+-- `Element` which is not a @<key>@.
+isFocusElem :: Content -> Bool
+isFocusElem (Elem (Element (QName "key" _ _) _ _ _)) = False
+isFocusElem (Elem (Element (QName "notation" _ _) _ _ _)) = False
+isFocusElem (Elem (Element (QName "annotation" _ _) _ _ _)) = False
+isFocusElem (Elem (Element _ _ _ _)) = True
+isFocusElem _ = False
 
 -- | Using the given decoder for an XMLLight `Content` structure,
 -- extract a decoded value from an XML file.
