@@ -101,9 +101,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln d) = do
                           return freshQName
         let name = withSuffix (firstToUpper $ qName nameSuffix) nam
         let d' = nameUnnamed name ds
-        let typeName = case labelOf d' of
-                         Just n -> n
-                         Nothing -> error "Should not find anonymous decl"
+        let typeName = maybe (error "Should not find anonymous decl") id $
+                         labelOf d'
         defns <- flattenSchemaItem d'
         return ((name, typeName), defns)
   labelledAlts <- mapM pullLabel alts
@@ -240,9 +239,7 @@ flattenComplexTypeScheme cts ats ifName ln _d = do
   error "TODO flattenComplexTypeScheme missed case"
 
 getLabelledDisjunct :: Reference -> DataScheme -> (QName, Reference)
-getLabelledDisjunct ref ds = (case labelOf ds of
-                                Nothing -> referenceBase ref
-                                Just n -> n,
+getLabelledDisjunct ref ds = (maybe (referenceBase ref) id $ labelOf ds,
                               ref)
 
 flattenElementSchemeItem ::

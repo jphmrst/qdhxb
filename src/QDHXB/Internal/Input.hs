@@ -163,8 +163,7 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
       whenDebugging $ dbgPt "Subcase restr"
       qnam <- mapM decodePrefixedName nam
       res <- indenting $ encodeSimpleTypeByRestriction qnam
-                    (case nam of Nothing -> outer ++ "Simple"
-                                 Just n -> outer ++ n) ats restr
+                           (maybe (outer ++ "Simple") (outer ++) nam) ats restr
       dbgResult "Subcase result" res
     (ifNam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) -> do
       let outerUnion = outer ++ "Union"
@@ -250,9 +249,9 @@ inputElement (QName tagname _ _) _ _ _ _ _
 
 inputElement (QName "sequence" _ _) ats ctnts outer ifLn ifDoc = do
   ifName <- pullAttrQName "name" ats
-  whenDebugging $ dbgLn $ case ifName of
-                            Nothing -> "- Sequence (unnamed)"
-                            Just n  -> "- Sequence \"" ++ showQName n ++ "\""
+  whenDebugging $ dbgLn $
+    maybe "- Sequence (unnamed)" (\n -> "- Sequence \"" ++ showQName n ++ "\"")
+          ifName
   included <- indenting $ inputSchemaItems ctnts
   name <- useNameOrWrap ifName outer "Seq"
   dbgResult "Sequence result" $
@@ -438,12 +437,9 @@ encodeAttribute _ (QName "attribute" _ _) ats [] _ d = indenting $ do
   refQName <- pullAttrQName "ref" ats
   nameQname <- pullAttrQName "name" ats
   return $ SingleAttribute (nameOrRefOpt nameQname refQName)
-             (case typeQName of
-                Just qn -> NameRef qn
-                Nothing -> Neither)
-             (case pullAttr "use" ats of
-                Nothing -> "optional"
-                Just s -> s) d
+             (maybe Neither NameRef typeQName)
+             (maybe "optional" id $ pullAttr "use" ats)
+             d
 encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
   typeQName <- pullAttrQName "type" ats
   case typeQName of
@@ -456,9 +452,7 @@ encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
       encodeAttributeWithNestedType (outer ++ "Attr")
                                     (nameOrRefOpt nameQName refQName)
                                     st sts
-                                    (case pullAttr "use" ats of
-                                      Nothing -> "optional"
-                                      Just s -> s)
+                                    (maybe "optional" id $ pullAttr "use" ats)
                                     l d
 encodeAttribute o (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
   name <- pullAttrQName "name" ats
@@ -558,10 +552,9 @@ encodeSimpleTypeByRestriction -- Note ignoring ats
   case pullAttr "base" ats' of
     Just base -> do
       baseQName <- decodePrefixedName base
-      let useName = case ifName of
-            Just _ -> ifName
-            Nothing -> Just $ withPrefix (outer ++ "Restr") baseQName
-              -- TODO --- make sure this is in target namespace
+      let useName = maybe (Just $ withPrefix (outer ++ "Restr") baseQName)
+                          (const ifName) ifName
+                    -- TODO --- make sure this is in target namespace
       dbgResult "Encoding result" $
         SimpleTypeScheme useName (SimpleRestriction baseQName) ln ifDoc
     Nothing -> error "restriction without base"
@@ -587,16 +580,13 @@ decodeIntOrUnbound s = (readMaybe s) :: Maybe Int
 -- as a Haskell `Int`, where there may be no `String` in the first
 -- place.
 decodeMaybeIntOrUnbound1 :: Maybe String -> Maybe Int
-decodeMaybeIntOrUnbound1 Nothing = Just 1
-decodeMaybeIntOrUnbound1 (Just s) = decodeIntOrUnbound s
+decodeMaybeIntOrUnbound1 = maybe (Just 1) decodeIntOrUnbound
 
 pullAttrQName :: String -> [Attr] -> XSDQ (Maybe QName)
 pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
 
 ifAtLine :: Maybe Line -> String
-ifAtLine ifLine = case ifLine of
-                    Nothing -> ""
-                    Just line -> " at XSD line " ++ show line
+ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
 
 -- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
 -- values and a default `String` name.  The first argument corresponds

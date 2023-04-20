@@ -197,29 +197,17 @@ instance Blockable DataScheme where
   block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine ifDoc) =
     stackBlocks [
       stringToBlock ("ElementScheme name="
-                           ++ (case ifName of
-                                 Nothing -> "undef"
-                                 Just s  -> "\"" ++ showQName s ++ "\"")
-                           ++ " type="
-                           ++ (case ifType of
-                                 Nothing -> "undef"
-                                 Just s  -> "\"" ++ showQName s ++ "\"")),
+                       ++ maybe "undef" quoteShowQName ifName
+                       ++ " type="
+                       ++ maybe "undef" quoteShowQName ifType),
       indent "  " $ stringToBlock ("ref="
-                           ++ (case ifRef of
-                                 Nothing -> "undef"
-                                 Just s  -> "\"" ++ showQName s ++ "\"")
+                           ++ maybe "undef" quoteShowQName ifRef
                            ++ " id="
-                           ++ (case ifId of
-                                 Nothing -> "undef"
-                                 Just s  -> "\"" ++ s ++ "\"")
+                           ++ maybe "undef" quoteString ifId
                            ++ " min="
-                           ++ (case ifMin of
-                                 Nothing -> "undef"
-                                 Just s  -> show s)
+                           ++ maybe "undef" show ifMin
                            ++ " max="
-                           ++ (case ifMax of
-                                 Nothing -> "undef"
-                                 Just s  -> show s)),
+                           ++ maybe "undef" show ifMax),
         indent "  " $ block ctnts,
         case ifDoc of
           Nothing -> indent "  " $ stringToBlock "no doc"
@@ -247,10 +235,13 @@ instance Blockable DataScheme where
   block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
     "Group unnamed no-ref " ++ show ts
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
-    "Unprocessed XML" ++ case ifName of
-                           Just n -> " \"" ++ showQName n ++ "\""
-                           Nothing -> ""
+    "Unprocessed XML" ++ maybe "" quoteShowQName ifName
 instance VerticalBlockList DataScheme
+
+quoteShowQName :: QName -> String
+quoteShowQName s = "\"" ++ showQName s ++ "\""
+quoteString :: String -> String
+quoteString s = "\"" ++ s ++ "\""
 
 
 -- | Try to find a name for this `DataScheme`.

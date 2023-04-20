@@ -44,12 +44,8 @@ data Reference =
 instance Blockable Reference where
   block (ElementRef name ifLower ifUpper _) = stringToBlock $
     "ElementRef " ++ showQName name
-    ++ case ifLower of
-         Nothing -> " no lower bound"
-         Just n -> " lower bound=" ++ show n
-    ++ case ifUpper of
-         Nothing -> " no upper bound"
-         Just n -> " upper bound=" ++ show n
+    ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
+    ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
   block (AttributeRef name usage) = stringToBlock $
     "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
   block (TypeRef name _ _ _ _) = stringToBlock $
@@ -171,9 +167,8 @@ instance Blockable Definition where
   block (ElementDefn n t _ dm) =
     (stringToBlock $
      "ElementDefn " ++ showQName n ++ " :: " ++ showQName t)
-    `stack2` (stringToBlock $ case dm of
-                 Nothing -> "  no doc"
-                 Just d -> "  doc=\"" ++ d ++ "\"")
+    `stack2` (stringToBlock $
+                maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
   block (AttributeDefn n sp _ _) =
     labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
