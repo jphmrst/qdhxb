@@ -16,6 +16,8 @@ import PersonAttr1.PersonAttr1 (testPersonAttr1)
 import PersonAttr2.PersonAttr2 (testPersonAttr2)
 import PersonAttr2.PersonAttr2Inline (testPersonAttr2Inline)
 import PersonAttr2r.PersonAttr2r (testPersonAttr2r)
+import GroupBasic.GroupBasic0 (testGB0)
+import GroupBasic.GroupBasic1 (testGB1)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -41,3 +43,5 @@ main = do
     testPersonAttr2
     testPersonAttr2Inline
     testPersonAttr2r
+    testGB0
+    -- testGB1
