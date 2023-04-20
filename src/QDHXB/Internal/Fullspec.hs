@@ -7,7 +7,7 @@ import QDHXB.Internal.API
 import QDHXB.Options
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["src/QDHXB/xsd.xsd"]
+-- qdhxb useDebugging ["src/QDHXB/xsd.xsd"]
 -- qdhxb' ["src/QDHXB/xsd.xsd"]
 
 -- |Placeholder, until the full XSD specification can actually be

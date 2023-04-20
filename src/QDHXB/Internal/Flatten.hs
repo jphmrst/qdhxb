@@ -260,14 +260,17 @@ flattenElementSchemeItem (Just (SimpleTypeScheme _ ts ln d))
   let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
-flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs Nothing l d))
-                          ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs ifCTSName l d))
+                          ifElementName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+  let typeName = maybe nam id ifCTSName
+  let ifTypeName = maybe ifElementName Just ifCTSName
   whenDebugging $
     dbgLn "Flattening element scheme enclosing complex type scheme"
-  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifName l d
-  let elemDefn = ElementDefn nam nam l ifDoc
+  flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifTypeName l d
+  let elemDefn = ElementDefn nam typeName l ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened to " $ flatTS ++ [elemDefn]
+  {-
 flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
                           ifName ifType ifRef ifMin ifMax _ifLn _ifDoc = do
   boxed $ do
@@ -281,6 +284,7 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
     dbgLn $ "IFMIN " ++ show ifMin
     dbgLn $ "IFMAX " ++ show ifMax
   error "Unmatched ComplexTypeScheme case for flattenElementSchemeItem"
+-}
 flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   boxed $ do
     dbgLn "flattenElementSchemeItem"
