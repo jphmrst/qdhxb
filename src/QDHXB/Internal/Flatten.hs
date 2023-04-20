@@ -130,7 +130,8 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
 flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
-  defs <- flattenComplexTypeScheme cts [] (Just name) ln doc
+  let typeSchemeName = withSuffix "Group" name
+  defs <- flattenComplexTypeScheme cts [] (Just typeSchemeName) ln doc
   {-
   boxed $ do
     dbgLn "TODO flattenSchemaItem' group case"
@@ -142,7 +143,8 @@ flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
   error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
   -}
   return $ defs ++ [
-    GroupDefn name (Just (TypeRef name Nothing Nothing Nothing Nothing)) ln doc
+    GroupDefn name
+              (TypeRef typeSchemeName Nothing Nothing Nothing Nothing) ln doc
     ]
 
 flattenSchemaItem' (GroupScheme (WithRef ref) Nothing ln _doc) = do
@@ -356,14 +358,17 @@ flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
   defns <- flattenSchemaItem s
   return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
 flattenSchemaRef (GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
-  {-
+  return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
+flattenSchemaRef (GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
+  defns <- flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
+  return (defns, TypeRef name Nothing Nothing ifLn ifDoc)
+flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn ifDoc) = do
   boxed $ do
     dbgLn "flattenSchemaRef of GroupScheme"
-    dbgBLabel "REF " ref
-    dbgBLabel "IFCTNTS " ifCtnts
+    dbgBLabel "CTS " cts
     dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
-  -}
-  return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
+  error $ "TODO flattenSchemaRef > GroupScheme with neither name nor reference"
+  -- return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
 flattenSchemaRef s = do
   boxed $ do
     dbgLn "flattenSchemaRef"

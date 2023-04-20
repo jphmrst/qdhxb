@@ -364,7 +364,6 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
   whenDebugging $ do
     dbgBLabel "Generating from (i) " decl
     dbgBLabel "DECL " decl
-
   let nameRoot = firstToUpper $ qName qn
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
@@ -404,6 +403,46 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
 
      : [])
 
+xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
+  whenDebugging $ do
+    dbgBLabel "Generating from (j) " decl
+  let groupRoot = firstToUpper $ qName qn
+      groupName = mkName groupRoot
+      tryDecodeGroup = mkName $ "tryDecodeAs" ++ groupRoot
+      decodeGroup = mkName $ "decodeAs" ++ groupRoot
+  let typeRoot = firstToUpper $ qName tqn
+      typeName = mkName typeRoot
+      tryDecodeType = mkName $ "tryDecodeAs" ++ typeRoot
+      decodeType = mkName $ "decodeAs" ++ typeRoot
+  dbgResult "Generated" [
+    -- Type declaration
+    TySynD groupName [] (ConT typeName),
+
+    -- Safe decoder
+    {- SigD tryDecNam (fn2Type stringConT contentConT
+                               (qHXBExcT (ConT $ mkName nameRoot))), -}
+    FunD tryDecodeGroup [Clause [] (NormalB $ VarE tryDecodeType) []],
+
+    -- Decoder
+    {- SigD decNam (fn2Type stringConT contentConT (ConT $ mkName nameRoot)), -}
+    FunD decodeGroup [Clause [] (NormalB $ VarE decodeType) []]
+
+     {-
+    -- TODO Encoder
+     : SigD encNam encType
+     : FunD encNam [Clause [] (NormalB $ AppE errorVarE
+                                              (quoteStr "TODO")) []]
+     -}
+
+    ]
+  -- error "xsdDeclToHaskell > GroupDefn case"
+
+xsdDeclToHaskell decl = do
+  boxed $ do
+    dbgLn "Uncaught case in xsdDeclToHaskell"
+    dbgBLabel "DECL " decl
+  error "Uncaught case in xsdDeclToHaskell"
+
 {-
 xsdDeclToHaskell decl@(ElementTypeDecl n t l d) = do
   isSimple <- isSimpleType t
@@ -414,12 +453,6 @@ xsdDeclToHaskell decl@(ElementTypeDecl n t l d) = do
     dbgBLabel "ISSIMPLE " isSimple
   error "ElementTypeDecl in xsdDeclToHaskell"
 -}
-
-xsdDeclToHaskell decl = do
-  boxed $ do
-    dbgLn "Uncaught case in xsdDeclToHaskell"
-    dbgBLabel "DECL " decl
-  error "Uncaught case in xsdDeclToHaskell"
 
 
 -- | Generates the common boilerplate for Haskell code generated from

@@ -235,12 +235,9 @@ instance Blockable DataScheme where
       labelBlock "  scheme " $ block detail
       ]
 
-  block (GroupScheme (WithName nam) ts _ln _d) = Block [
-    "Group "
-      ++ showQName nam
-      ++ " with contents",
-      "  " ++ show ts
-    ]
+  block (GroupScheme (WithName nam) ts _ln _d) =
+    stringToBlock ("Group " ++ showQName nam ++ " with contents")
+    `stack2` (labelBlock "  " $ block ts)
   block (GroupScheme (WithRef ref) _ _ln _d) = stringToBlock $
     "Group reference " ++ qName ref
   block (GroupScheme WithNeither ts _ln _d) = stringToBlock $

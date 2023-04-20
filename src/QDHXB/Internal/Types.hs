@@ -153,7 +153,7 @@ data Definition =
     -- contexts/attributes
         QName
         -- ^ Name of the group
-        (Maybe Reference)
+        Reference
         -- ^ Included type
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available

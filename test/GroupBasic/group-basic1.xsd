@@ -1,0 +1,18 @@
+
+<!-- Derived from portions of the XSD spec,
+     https://www.w3.org/TR/xmlschema11-1/#normative-schemaSchema
+     -->
+<?xml version='1.0'?>
+<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:groupbasic0"
+            xmlns:gb="urn:groupbasic0">
+  <xs:group name="nums">
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="numa" type="xs:nonNegativeInteger"/>
+        <xs:element name="numz" type="xs:nonNegativeInteger"/>
+      </xs:choice>
+      <xs:element name="namestr" type="xs:string"/>
+    </xs:sequence>
+  </xs:group>
+</xs:schema>

@@ -44,4 +44,4 @@ main = do
     testPersonAttr2Inline
     testPersonAttr2r
     testGB0
-    -- testGB1
+    testGB1

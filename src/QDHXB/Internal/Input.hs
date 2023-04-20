@@ -67,7 +67,7 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
            [] -> return Nothing
            [x] -> return $ Just x
            _ -> do
-             boxed $ do
+             whenDebugging $ boxed $ do
                dbgLn $ "More than one subelement to <element>" ++ ifAtLine ln
                dbgBLabel "ATS " ats
                dbgBLabel "CONTENT " content
@@ -305,6 +305,7 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
 inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
+  let subOuter = outer ++ "Group"
   let filtered = filter isFocusElem ctnts
   whenDebugging $ do
     dbgLn $ "inputElement case group" ++ ifAtLine ifLn
@@ -313,7 +314,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
       ++ ":"
     dbgLn $ "  outer name " ++ outer
     dbgLn $ "  name from attributes " ++ maybe "(none)" qName name
-    dbgLn $ "  filtered content " ++ show (map showContent filtered)
+    -- dbgLn $ "  filtered content " ++ show (map showContent filtered)
   indenting $ case filtered of
     (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
       whenDebugging $ dbgPt "choice subcase"
@@ -321,18 +322,14 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
       dbgResult "Subcase result" $
         GroupScheme (nameOrRefOpt name ref) (Just ts) ifLn' ifDoc
     (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
-      whenDebugging $ dbgPt "sequence subcase"
-      seqn <- indenting $ encodeSequenceTypeScheme outer ctnts' []
       whenDebugging $ do
-        dbgPt $ "Case 1 after (filter isElem ctnts)"
-        dbgLn $ "-- group attrs " ++ (intercalate "\n    " $ map showAttr ats)
-        dbgLn $ "-- sequence attrs " ++ (intercalate "\n    " $
-                                           map showAttr _ats)
-        dbgLn $ "-- name " ++ show (fmap showQName name)
-        dbgLn $ "-- ctnts " ++
-          (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-        dbgLn $ "-- ctnts' " ++
-          (intercalate "\n    " $ map ppContent $ filter isElem ctnts')
+        dbgPt "sequence subcase after (filter isElem ctnts)"
+        indenting $ do
+          dbgBLabel "- group attrs " ats
+          dbgBLabel "- name " name
+          dbgBLabel "- ctnts " $ filter isElem ctnts
+          dbgBLabel "- ctnts' " $ filter isElem ctnts'
+      seqn <- indenting $ encodeSequenceTypeScheme subOuter ctnts' []
       dbgResult "Subcase result" $
         GroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
@@ -352,11 +349,12 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
         GroupScheme (nameOrRefOpt name ref) Nothing ifLn ifDoc
 
 
-inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
+inputElement (QName "choice" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <choice> scheme:"
   -- whenDebugging $ do
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
+  nameRef <- nameOrRefOptDft name ref $ outer ++ "Choice"
   let minOcc = decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats
       maxOcc = decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats
   whenDebugging $ do
@@ -366,8 +364,7 @@ inputElement (QName "choice" _ _) ats ctnts _ ifLn ifDoc = do
     dbgBLabel "-- ats " ats
     dbgBLabel "-- ctnts " $ filter isElem ctnts
   ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
-  dbgResult "Choice encoding" $
-    GroupScheme (nameOrRefOpt name ref) (Just ts) ifLn ifDoc
+  dbgResult "Choice encoding" $ GroupScheme nameRef (Just ts) ifLn ifDoc
 
 inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <any> scheme:"
@@ -399,6 +396,7 @@ inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
 encodeSequenceTypeScheme ::
   String -> [Content] -> [Content] -> XSDQ ComplexTypeScheme
 encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
+  dbgLn $ "encodeSequenceTypeScheme outer=\"" ++ outer ++ "\""
   included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
   atrSpecs <- indenting $
     mapM (encodeAttributeScheme $ outer ++ "Seq") attrSpecs
@@ -424,7 +422,8 @@ encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
 encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
   whenDebugging $ dbgBLabel "- Encoding attribute " q
   let ifDoc = getAnnotationDocFrom c
-  res <- encodeAttribute outer q a (filter isNonKeyNonNotationElem c) l ifDoc
+  res <- encodeAttribute (outer ++ "Elem") q a
+                         (filter isNonKeyNonNotationElem c) l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 encodeAttributeScheme _o c = do
@@ -454,7 +453,8 @@ encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
     Nothing -> do
       nameQName <- pullAttrQName "name" ats
       refQName <- pullAttrQName "ref" ats
-      encodeAttributeWithNestedType outer (nameOrRefOpt nameQName refQName)
+      encodeAttributeWithNestedType (outer ++ "Attr")
+                                    (nameOrRefOpt nameQName refQName)
                                     st sts
                                     (case pullAttr "use" ats of
                                       Nothing -> "optional"
@@ -597,3 +597,10 @@ ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = case ifLine of
                     Nothing -> ""
                     Just line -> " at XSD line " ++ show line
+
+nameOrRefOptDft :: Maybe QName -> Maybe QName -> String -> XSDQ NameOrRefOpt
+nameOrRefOptDft (Just n) (Just r) _ =
+  error "Cannot give both name and ref attributes"
+nameOrRefOptDft (Just n) Nothing _ = return $ WithName n
+nameOrRefOptDft Nothing (Just r) _ = return $ WithRef r
+nameOrRefOptDft Nothing Nothing s = fmap WithName $ inDefaultNamespace s
