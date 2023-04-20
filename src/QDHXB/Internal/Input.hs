@@ -598,6 +598,11 @@ ifAtLine ifLine = case ifLine of
                     Nothing -> ""
                     Just line -> " at XSD line " ++ show line
 
+-- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
+-- values and a default `String` name.  The first argument corresponds
+-- to a possible @name@ attribute; the second argument, to a possible
+-- @ref@ attribute; the third, to a default name derived from the
+-- context of the defining element in the source XSD.
 nameOrRefOptDft :: Maybe QName -> Maybe QName -> String -> XSDQ NameOrRefOpt
 nameOrRefOptDft (Just n) (Just r) _ =
   error "Cannot give both name and ref attributes"

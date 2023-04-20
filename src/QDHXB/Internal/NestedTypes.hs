@@ -31,6 +31,10 @@ instance Blockable NameOrRefOpt where
   block (WithRef r)  = labelBlock "ref="  $ block r
   block (WithNeither) = stringToBlock "(neither)"
 
+-- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
+-- values.  The first argument corresponds to a possible @name@
+-- attribute, and the second argument corresponds to a possible @ref@
+-- attribute.
 nameOrRefOpt :: Maybe QName -> Maybe QName -> NameOrRefOpt
 nameOrRefOpt (Just n) (Just r) =
   error "Cannot give both name and ref attributes"
