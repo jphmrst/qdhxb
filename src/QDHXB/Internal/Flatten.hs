@@ -180,15 +180,15 @@ flattenAttributeGroupItem nameRef contents ln _d = do
 
 
 flattenComplexTypeScheme ::
-  ComplexTypeScheme -> [DataScheme] -> Maybe QName
+  ComplexTypeScheme -> [AttributeScheme] -> Maybe QName
   -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
 flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex composition"
   (defs, refs) <-
-    musterComplexSequenceComponents (filter nonSkip cts)
+    musterComplexSequenceComponents (filter nonSkip cts) (ats0 ++ ats) nam
       -- TODO DOC possible to add a docstring here?
-      (map (\x -> AttributeScheme x Nothing Nothing) ats0 ++ ats) nam
+
   let tyDefn = SequenceDefn (qName nam) refs l d
   addTypeDefn nam tyDefn
   -- whenDebugging $ do
@@ -213,20 +213,19 @@ flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents
   let labelledRefs = zipWith getLabelledDisjunct refs contents
-  {-
-  boxed $ do
-    dbgLn "TODO flattenComplexTypeScheme Choice case"
-    dbgLn $ "NAME " ++ name
-    dbgBLabel "DEFS " defs
-    dbgBLabel "REFS " refs
-    dbgBLabel "CONTENTS " contents
-    dbgBLabel "ATS " ats
-    dbgBLabel "inner IFNAME " ifName
-    dbgBLabel "outer IFNAME " ifOuterName
-    dbgLn $ "LN " ++ show ln
-  error "TODO flattenComplexTypeScheme Choice case"
-  -}
   return $ defs ++ [ChoiceDefn name labelledRefs ln doc]
+
+flattenComplexTypeScheme (Group nameRef ctnts ifMin ifMax) ats ifName ln _ = do
+  boxed $ do
+    dbgLn "TODO flattenComplexTypeScheme Group case"
+    dbgBLabel "NAMEREF " nameRef
+    dbgBLabel "CTNTS " ctnts
+    dbgBLabel "IFMIN " ifMin
+    dbgBLabel "IFMAX " ifMax
+    dbgBLabel "ATS " ats
+    dbgBLabel "IFNAME " ifName
+    dbgLn $ "LN " ++ show ln
+  error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme cts ats ifName ln _ = do
   boxed $ do
@@ -321,11 +320,12 @@ flattenWithNameTypeOnly nam typ ln ifDoc = do
 
 
 musterComplexSequenceComponents ::
-  [DataScheme] ->  [DataScheme] -> QName -> XSDQ ([Definition], [Reference])
+  [DataScheme] ->  [AttributeScheme] -> QName
+  -> XSDQ ([Definition], [Reference])
 musterComplexSequenceComponents steps ats _ = do
   whenDebugging $ dbgLn "musterComplexSequenceComponents"
   (otherDefs, refs) <- flattenSchemaRefs steps
-  (atsDefs, atsRefs) <- flattenSchemaRefs ats
+  (atsDefs, atsRefs) <- flattenSchemaAttributeRefs ats
   return (otherDefs ++ atsDefs, atsRefs ++ refs)
 
 grabName :: AttributeScheme -> QName
@@ -335,6 +335,18 @@ grabName (SingleAttribute WithNeither (NameRef t) _ _) = t
 grabName (AttributeGroup (WithName n) _ _) = n
 grabName (AttributeGroup (WithRef n) _ _) = n
 grabName a = error $ "No useable name in " ++ show a
+
+flattenSchemaAttributeRefs ::
+  [AttributeScheme] -> XSDQ ([Definition], [Reference])
+flattenSchemaAttributeRefs =
+  fmap (applyFst concat) . fmap unzip . mapM flattenSchemaAttributeRef
+
+flattenSchemaAttributeRef ::
+  AttributeScheme -> XSDQ ([Definition], Reference)
+flattenSchemaAttributeRef (SingleAttribute nr t m d) =
+  flattenSingleAttributeRef nr t m Nothing d
+flattenSchemaAttributeRef (AttributeGroup nameRef cs d) =
+  flattenAttributeGroupRef nameRef cs Nothing d
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef

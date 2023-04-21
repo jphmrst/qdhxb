@@ -104,6 +104,10 @@ data ComplexTypeScheme =
     [DataScheme] -- ^ Additional elements
   | Choice (Maybe QName) -- ^ name
            [DataScheme]  -- ^ contents
+  | Group NameOrRefOpt -- ^ name or reference (or neither)
+          [DataScheme]  -- ^ contents
+          (Maybe Int) -- ^ ifMin
+          (Maybe Int) -- ^ ifMax
   deriving Show
 
 instance Blockable ComplexTypeScheme where
@@ -118,6 +122,9 @@ instance Blockable ComplexTypeScheme where
   block (Choice base ds) =
     (stringToBlock $ "Choice " ++ show base)
     `stack2` indent "  " (block ds)
+  block (Group nr contents _ifMin _ifMax) =
+    (labelBlock "Group " $ block nr)
+    `stack2` (indent "  " $ stackBlocks $ map block contents)
 instance VerticalBlockList ComplexTypeScheme
 
 
@@ -127,7 +134,7 @@ data AttributeScheme =
                   QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
-                  (Maybe String) -- ^ idDoc
+                  (Maybe String) -- ^ ifDoc
   | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
@@ -166,7 +173,8 @@ data DataScheme =
                     (Maybe Line) -- ^ ifLine
                     (Maybe String) -- ^ ifDocumentation
   | ComplexTypeScheme ComplexTypeScheme -- ^ typeDetail
-                      [DataScheme] -- ^ addlAttrs
+                      [AttributeScheme] -- ^ addlAttrs
+                      -- TODO --- Go back and populate this field
                       (Maybe QName) -- ^ ifName
                       (Maybe Line) -- ^ ifLine
                       (Maybe String) -- ^ ifDocumentation
@@ -259,10 +267,12 @@ labelOf (AttributeScheme (AttributeGroup (WithName n) _ _) _ _) = Just n
 labelOf (AttributeScheme (AttributeGroup (WithRef r) _ _) _ _) = Just r
 labelOf (AttributeScheme _ _ _) = Nothing
 labelOf (ComplexTypeScheme _ _ j@(Just _) _ _) = j
-labelOf (ComplexTypeScheme (Composing _ds _as) _attrs _ _ _) = Nothing
-labelOf (ComplexTypeScheme (ComplexRestriction r) _attrs _ _ _) = Just r
-labelOf (ComplexTypeScheme (Extension base _ds) _attrs _ _ _) = Just base
-labelOf (ComplexTypeScheme (Choice base _ds) _attrs _ _ _) = base
+labelOf (ComplexTypeScheme (Composing _ds _as) _ _ _ _) = Nothing
+labelOf (ComplexTypeScheme (ComplexRestriction r) _ _ _ _) = Just r
+labelOf (ComplexTypeScheme (Extension base _ds) _ _ _ _) = Just base
+labelOf (ComplexTypeScheme (Choice base _ds) _ _ _ _) = base
+labelOf (ComplexTypeScheme (Group (WithName n) _ _ _) _ _ _ _) = Just n
+labelOf (ComplexTypeScheme (Group _ _ _ _) _ _ _ _) = Nothing
 labelOf (SimpleTypeScheme j@(Just _) _ _ _) = j
 labelOf (SimpleTypeScheme _ (Synonym t) _ _) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r) _ _) = Just r

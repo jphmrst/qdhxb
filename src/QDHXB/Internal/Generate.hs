@@ -372,22 +372,22 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
     assembleTryStatements (base:refs) subNames ctxtName (ConE typNam) []
   hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
 
-  dbgResult "Generated" $ (
+  dbgResult "Generated" $ [
     -- Type declaration
     DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
-          [DerivClause Nothing [eqConT, showConT]]
+          [DerivClause Nothing [eqConT, showConT]],
 
     -- Safe decoder
-     : SigD tryDecNam
+    SigD tryDecNam
             (fn2Type stringConT contentConT
-                     (qHXBExcT (ConT $ mkName nameRoot)))
-     : FunD tryDecNam [Clause [WildP, ctxtVarP]
-                              (NormalB safeDecoder) []]
+                     (qHXBExcT (ConT $ mkName nameRoot))),
+    FunD tryDecNam [Clause [WildP, ctxtVarP]
+                              (NormalB safeDecoder) []],
 
     -- Decoder
-    : SigD decNam
-            (fn2Type stringConT contentConT (ConT $ mkName nameRoot))
-     : FunD decNam [Clause [VarP xName, ctxtVarP]
+    SigD decNam
+            (fn2Type stringConT contentConT (ConT $ mkName nameRoot)),
+    FunD decNam [Clause [VarP xName, ctxtVarP]
                            (NormalB $ resultOrThrow $
                              app2Exp (VarE tryDecNam)
                                      (VarE xName)
@@ -400,7 +400,7 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
                                               (quoteStr "TODO")) []]
      -}
 
-     : [])
+     ]
 
 xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
   whenDebugging $ do

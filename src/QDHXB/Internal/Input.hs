@@ -120,20 +120,40 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
                          (outer ++ "Complex") ssline Nothing
           Nothing -> error $
             "Complex content must have primary subcontents" ++ ifAtLine l
-        -- error "inputElement > complexType > case \"complexContent\""
+      "group" -> do
+        groupName <- pullAttrQName "name" ats'
+        groupRef <- pullAttrQName "ref" ats'
+        groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group")
+        attrSpecs <- mapM (encodeAttributeScheme outer) atspecs'
         {-
-        -- <complexContent>
-        (Zero, One ctnt, Zero, attrSpecs, _) -> do
-          whenDebugging $ dbgLn "(case 2) data scheme only"
-          res <- encodeComplexTypeScheme ats [] ctnt attrSpecs ifLn d
-          whenDebugging $ dbgBLabel "  Case result " res
-          return (Just res, [])
+        boxed $ do
+          dbgLn     "inputElement > complexType > case \"group\""
+          dbgBLabel "ATS " ats
+          dbgBLabel "CTNTS " $ filter isElem ctnts
+          dbgLn $   "OUTER " ++ show outer
+          dbgLn $   "L " ++ show l
+          dbgLn $   "D " ++ show d
+          dbgLn     "-------"
+          dbgBLabel "ATSPECS' " atspecs'
+          dbgBLabel "ATGRSPECS' " atgrspecs'
+          dbgBLabel "NAME " name
+          dbgLn     "-------"
+          dbgBLabel "QN " qn
+          dbgBLabel "ATS' " ats'
+          dbgBLabel "SUBCTNTS " $ filter isElem subctnts
+          dbgBLabel "GROUPNAME " groupName
+          dbgBLabel "GROUPREF " groupRef
         -}
+        contained <- inputSchemaItems' (outer ++ "Group") ctnts
+        dbgResult "inputElement result" $
+          ComplexTypeScheme (Group groupNameOrRef contained Nothing Nothing)
+                            attrSpecs name l d
 
       "simpleContent" -> do
         whenDebugging $ dbgLn
           "      inputElement > complexType > case \"simpleContent\""
         error "inputElement > complexType > case \"simpleContent\""
+
       _ -> boxed $ do
               dbgLn      "inputElement > complexType > another tag case"
               dbgBLabel "ATS " ats

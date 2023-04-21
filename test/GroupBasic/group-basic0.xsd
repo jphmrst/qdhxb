@@ -12,4 +12,9 @@
       <xs:element name="namestr" type="xs:string"/>
     </xs:sequence>
   </xs:group>
+  <xs:complexType name="comboType">
+    <xs:group ref="nums"/>
+    <xs:attribute name="status" type="xs:string"/>
+  </xs:complexType>
+  <xs:element name="combo" type="comboType"/>
 </xs:schema>
