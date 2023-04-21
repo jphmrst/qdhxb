@@ -105,7 +105,7 @@ data ComplexTypeScheme =
   | Choice (Maybe QName) -- ^ name
            [DataScheme]  -- ^ contents
   | Group NameOrRefOpt -- ^ name or reference (or neither)
-          [DataScheme]  -- ^ contents
+          DataScheme  -- ^ contents
           (Maybe Int) -- ^ ifMin
           (Maybe Int) -- ^ ifMax
   deriving Show
@@ -124,7 +124,7 @@ instance Blockable ComplexTypeScheme where
     `stack2` indent "  " (block ds)
   block (Group nr contents _ifMin _ifMax) =
     (labelBlock "Group " $ block nr)
-    `stack2` (indent "  " $ stackBlocks $ map block contents)
+    `stack2` (indent "  " $ block contents)
 instance VerticalBlockList ComplexTypeScheme
 
 

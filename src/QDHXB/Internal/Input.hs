@@ -118,8 +118,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
             inputElement sqn (ats ++ sats')
                          (filter isNonKeyNonNotationElem ssubctnts)
                          (outer ++ "Complex") ssline Nothing
-          Nothing -> error $
-            "Complex content must have primary subcontents" ++ ifAtLine l
+          Nothing -> error
+            ("Complex content must have primary subcontents" ++ ifAtLine l)
       "group" -> do
         groupName <- pullAttrQName "name" ats'
         groupRef <- pullAttrQName "ref" ats'
@@ -143,9 +143,12 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
           dbgBLabel "GROUPNAME " groupName
           dbgBLabel "GROUPREF " groupRef
         contained <- inputSchemaItems' (outer ++ "Group") subctnts
+        let content = case filter nonSkip contained of
+                        [] -> Skip
+                        [x] -> x
+                        _ -> error "Multiple contents in <group> not allowed"
         dbgResult "inputElement result" $
-          ComplexTypeScheme (Group groupNameOrRef (filter nonSkip contained)
-                             Nothing Nothing)
+          ComplexTypeScheme (Group groupNameOrRef content Nothing Nothing)
                             attrSpecs name l d
 
       "simpleContent" -> do
