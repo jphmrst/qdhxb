@@ -594,7 +594,7 @@ ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
 -- @ref@ attribute; the third, to a default name derived from the
 -- context of the defining element in the source XSD.
 nameOrRefOptDft :: Maybe QName -> Maybe QName -> String -> XSDQ NameOrRefOpt
-nameOrRefOptDft (Just n) (Just r) _ =
+nameOrRefOptDft (Just _) (Just _) _ =
   error "Cannot give both name and ref attributes"
 nameOrRefOptDft (Just n) Nothing _ = return $ WithName n
 nameOrRefOptDft Nothing (Just r) _ = return $ WithRef r

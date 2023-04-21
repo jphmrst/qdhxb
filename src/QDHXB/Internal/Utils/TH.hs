@@ -329,7 +329,7 @@ qnameName = mkName "QName"
 
 -- | TH `Text.XML.Light.Types.QName` type representation
 qnameType :: Type
-qnameType = ConT (mkName "QName")
+qnameType = ConT qnameName
 
 -- | TH `Text.XML.Light.Types.QName` converter from `String`.
 qnameBasicDecoder :: Exp -> Exp

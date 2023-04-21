@@ -110,6 +110,10 @@ fileNewDefinition (ElementDefn n t _ _)    = do
       (labelBlock (ind ++ "Filing ElementDefn: ") $ block n)
        `follow` (labelBlock " :: " $ block t)
   addElementType n t
+fileNewDefinition (ComplexSynonymDefn _ _ _ _) = return ()
+fileNewDefinition (ChoiceDefn _ _ _ _) = return ()
+fileNewDefinition (ExtensionDefn _ _ _ _ _) = return ()
+fileNewDefinition (GroupDefn _ _ _ _) = return ()
 
 -- | Register the `Definition` of an XSD type with the tracking tables
 -- in the `XSDQ` state.

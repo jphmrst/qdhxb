@@ -3,7 +3,6 @@
 module QDHXB.Internal.Flatten (flattenSchemaItems) where
 
 -- import System.Directory
-import Control.Monad.IO.Class
 import Text.XML.Light.Types
 import Text.XML.Light.Output
 import QDHXB.Internal.Generate
@@ -198,18 +197,18 @@ flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
   --            ++ " to be known; rechecked as " ++ show recheck
   dbgResult "Flattened to" $ defs ++ [ tyDefn ]
 
-flattenComplexTypeScheme (ComplexRestriction base) ats (Just nam) l d = do
+flattenComplexTypeScheme (ComplexRestriction base) _ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex restriction"
   dbgResult "Flattened to" $ [ComplexSynonymDefn nam base l d]
 
-flattenComplexTypeScheme (Extension base ds) ats (Just nam) l d = do
+flattenComplexTypeScheme (Extension base ds) _ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex extension"
   (defs, refs) <- indenting $ flattenSchemaRefs ds
   dbgResult "Flattened to" $ defs ++ [
     ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
     ]
 
-flattenComplexTypeScheme (Choice ifName contents) ats ifOuterName ln doc = do
+flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
   let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuterName)
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents
@@ -229,7 +228,7 @@ flattenComplexTypeScheme (Choice ifName contents) ats ifOuterName ln doc = do
   -}
   return $ defs ++ [ChoiceDefn name labelledRefs ln doc]
 
-flattenComplexTypeScheme cts ats ifName ln _d = do
+flattenComplexTypeScheme cts ats ifName ln _ = do
   boxed $ do
     dbgLn "TODO flattenComplexTypeScheme missed case"
     dbgBLabel "CTS " cts
@@ -359,7 +358,7 @@ flattenSchemaRef (GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
 flattenSchemaRef (GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   defns <- flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   return (defns, TypeRef name Nothing Nothing ifLn ifDoc)
-flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn ifDoc) = do
+flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "flattenSchemaRef of GroupScheme"
     dbgBLabel "CTS " cts
@@ -399,7 +398,7 @@ flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
                (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
   return ([defn], ref)
-flattenSingleAttributeRef (WithName nam) (Nested t) m l d = do
+flattenSingleAttributeRef (WithName nam) (Nested t) m _ _ = do
   boxed $ do
     dbgLn "new Nested case"
     dbgBLabel "NAM " nam
@@ -499,28 +498,28 @@ flattenAttribute (SingleAttribute (WithName n) (Nested ds) mode d) = do
     dbgBLabel "DEFS" defs
     dbgBLabel "REF" ref
   case ref of
-    TypeRef qn (Just 1) (Just 1) ln doc -> do
+    TypeRef qn (Just 1) (Just 1) _ _ -> do
       dbgResult "Flattened to" $ defs ++ [
         AttributeDefn n
           (SingleAttributeDefn qn $ stringToAttributeUsage mode)
           Nothing d
         ]
-    TypeRef qn Nothing Nothing ln doc -> do
+    TypeRef qn Nothing Nothing _ _ -> do
       dbgResult "Flattened to" $ defs ++ [
         AttributeDefn n
           (SingleAttributeDefn qn $ stringToAttributeUsage mode)
           Nothing d
         ]
-    TypeRef qn mn (Just 1) ln _ ->
+    TypeRef qn mn (Just 1) _ _ ->
       error $ "minOccurs " ++ show mn ++ " for attribute type "
               ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
-    TypeRef qn mn Nothing ln _ ->
+    TypeRef qn mn Nothing _ _ ->
       error $ "minOccurs " ++ show mn ++ " for attribute type "
               ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
-    TypeRef qn _ mx ln _ ->
+    TypeRef qn _ mx _ _ ->
       error $ "maxOccurs " ++ show mx ++ " for attribute type "
               ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
-    ref ->
+    _ ->
       error $ "Nested type " ++ show ref
               ++ " for attribute " ++ showQName n ++ " not allowed"
 flattenAttribute (AttributeGroup (WithName n) schemes d) = do

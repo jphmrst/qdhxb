@@ -69,14 +69,13 @@ module QDHXB.Internal.Generate (
 where
 
 import Control.Monad.Except
-import Control.Monad.Extra (whenJust)
+-- import Control.Monad.Extra (whenJust)
 -- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
-import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Types
@@ -166,7 +165,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
 
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (e) " decl
-  let (haskellType, _) = xsdNameToNameTranslation $ qName typ
+  -- let (haskellType, _) = xsdNameToNameTranslation $ qName typ
   let origName = qName nam
       baseName = firstToUpper $ origName
       typBaseName = firstToUpper $ qName typ
@@ -338,12 +337,12 @@ xsdDeclToHaskell decl@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifDoc) =
 xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
   let nameRoot = firstToUpper namStr
       typNam = mkName nameRoot
-      decNam = mkName $ "decodeAs" ++ nameRoot
-      tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
+      -- decNam = mkName $ "decodeAs" ++ nameRoot
+      -- tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
   in do
     whenDebugging $ dbgBLabel "Generating from (h) " decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
-    let subNames = map (mkName . ("s" ++) . show) [1..]
+    let subNames = map (mkName . ("s" ++) . (show :: Int -> String)) [1..]
     safeDecoder <- fmap (DoE Nothing) $ indenting $
       assembleTryStatements refs subNames ctxtName (ConE typNam) []
 
@@ -360,7 +359,7 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
       : decs
 
 
-xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
+xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
   whenDebugging $ do
     dbgBLabel "Generating from (i) " decl
     dbgBLabel "DECL " decl
@@ -368,7 +367,7 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs l d) = do
       typNam = mkName nameRoot
       decNam = mkName $ "decodeAs" ++ nameRoot
       tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
-      subNames = map (mkName . ("s" ++) . show) [1..]
+      subNames = map (mkName . ("s" ++) . (show :: Int -> String)) [1..]
   safeDecoder <- fmap (DoE Nothing) $ indenting $
     assembleTryStatements (base:refs) subNames ctxtName (ConE typNam) []
   hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
@@ -512,7 +511,7 @@ getSimpleTypeElements baseNameStr pat1 body l ifDoc = do
 getComplexTypeElements ::
   String -> Exp -> Maybe Line -> Maybe String
   -> XSDQ (Name, [Dec])
-getComplexTypeElements baseNameStr safeDecoder l ifDoc = do
+getComplexTypeElements baseNameStr safeDecoder _ ifDoc = do
   let typeName = mkName baseNameStr
       typeType = ConT typeName
       safeDecAsNam = mkName $ "tryDecodeAs" ++ baseNameStr
@@ -620,8 +619,8 @@ xsdRefToSafeHaskellExpr param r@(AttributeRef ref usage) _ = do
   core <- xsdRefToSafeHaskellExpr' param $ qName ref
   dbgResultM "Result (A)" $ fmap applyReturn $ unpackAttrDecoderForUsage usage core
   where xsdRefToSafeHaskellExpr' :: Name -> String -> XSDQ Exp
-        xsdRefToSafeHaskellExpr' p r =
-          return $ AppE (decoderExpFor r) (VarE p)
+        xsdRefToSafeHaskellExpr' p rf =
+          return $ AppE (decoderExpFor rf) (VarE p)
 
 xsdRefToSafeHaskellExpr param ref@(TypeRef qn _lower _upper _l _d) ctxt = do
   whenDebugging $ dbgBLabel "Expr for" ref

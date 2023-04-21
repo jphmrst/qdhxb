@@ -36,7 +36,7 @@ instance Blockable NameOrRefOpt where
 -- attribute, and the second argument corresponds to a possible @ref@
 -- attribute.
 nameOrRefOpt :: Maybe QName -> Maybe QName -> NameOrRefOpt
-nameOrRefOpt (Just n) (Just r) =
+nameOrRefOpt (Just _) (Just _) =
   error "Cannot give both name and ref attributes"
 nameOrRefOpt (Just n) Nothing = WithName n
 nameOrRefOpt Nothing (Just r) = WithRef r
