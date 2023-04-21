@@ -218,10 +218,11 @@ flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
 flattenComplexTypeScheme (Group nameRef ctnts ifMin ifMax) ats ifName ln _ = do
   boxed $ do
     dbgLn "TODO flattenComplexTypeScheme Group case"
-    dbgBLabel "NAMEREF " nameRef
-    dbgBLabel "CTNTS " ctnts
-    dbgBLabel "IFMIN " ifMin
-    dbgBLabel "IFMAX " ifMax
+    dbgLn "Group:"
+    dbgBLabel ". NAMEREF " nameRef
+    dbgBLabel ". CTNTS " $ ctnts
+    dbgBLabel ". IFMIN " ifMin
+    dbgBLabel ". IFMAX " ifMax
     dbgBLabel "ATS " ats
     dbgBLabel "IFNAME " ifName
     dbgLn $ "LN " ++ show ln

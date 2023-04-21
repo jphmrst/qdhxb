@@ -125,7 +125,6 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         groupRef <- pullAttrQName "ref" ats'
         groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group")
         attrSpecs <- mapM (encodeAttributeScheme outer) atspecs'
-        {-
         boxed $ do
           dbgLn     "inputElement > complexType > case \"group\""
           dbgBLabel "ATS " ats
@@ -143,10 +142,10 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
           dbgBLabel "SUBCTNTS " $ filter isElem subctnts
           dbgBLabel "GROUPNAME " groupName
           dbgBLabel "GROUPREF " groupRef
-        -}
-        contained <- inputSchemaItems' (outer ++ "Group") ctnts
+        contained <- inputSchemaItems' (outer ++ "Group") subctnts
         dbgResult "inputElement result" $
-          ComplexTypeScheme (Group groupNameOrRef contained Nothing Nothing)
+          ComplexTypeScheme (Group groupNameOrRef (filter nonSkip contained)
+                             Nothing Nothing)
                             attrSpecs name l d
 
       "simpleContent" -> do
