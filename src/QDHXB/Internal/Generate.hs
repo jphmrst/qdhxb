@@ -413,17 +413,18 @@ xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
       typeName = mkName typeRoot
       tryDecodeType = mkName $ "tryDecodeAs" ++ typeRoot
       decodeType = mkName $ "decodeAs" ++ typeRoot
+
   dbgResult "Generated" [
     -- Type declaration
     TySynD groupName [] (ConT typeName),
 
     -- Safe decoder
-    {- SigD tryDecNam (fn2Type stringConT contentConT
-                               (qHXBExcT (ConT $ mkName nameRoot))), -}
+    SigD tryDecodeGroup (fn2Type stringConT contentConT
+                                 (qHXBExcT (ConT groupName))),
     FunD tryDecodeGroup [Clause [] (NormalB $ VarE tryDecodeType) []],
 
     -- Decoder
-    {- SigD decNam (fn2Type stringConT contentConT (ConT $ mkName nameRoot)), -}
+    SigD decodeGroup (fn2Type stringConT contentConT (ConT groupName)),
     FunD decodeGroup [Clause [] (NormalB $ VarE decodeType) []]
 
      {-

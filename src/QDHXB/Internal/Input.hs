@@ -125,31 +125,22 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         groupRef <- pullAttrQName "ref" ats'
         groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group")
         attrSpecs <- mapM (encodeAttributeScheme outer) atspecs'
-        boxed $ do
-          dbgLn     "inputElement > complexType > case \"group\""
-          dbgBLabel "ATS " ats
-          dbgBLabel "CTNTS " $ filter isElem ctnts
-          dbgLn $   "OUTER " ++ show outer
-          dbgLn $   "L " ++ show l
-          dbgLn $   "D " ++ show d
-          dbgLn     "-------"
-          dbgBLabel "ATSPECS' " atspecs'
-          dbgBLabel "ATGRSPECS' " atgrspecs'
-          dbgBLabel "NAME " name
-          dbgLn     "-------"
-          dbgBLabel "QN " qn
-          dbgBLabel "ATS' " ats'
-          dbgBLabel "SUBCTNTS " $ filter isElem subctnts
-          dbgBLabel "GROUPNAME " groupName
-          dbgBLabel "GROUPREF " groupRef
         contained <- inputSchemaItems' (outer ++ "Group") subctnts
         let content = case filter nonSkip contained of
-                        [] -> Skip
-                        [x] -> x
+                        [] -> Nothing
+                        [x] -> Just x
                         _ -> error "Multiple contents in <group> not allowed"
         dbgResult "inputElement result" $
-          ComplexTypeScheme (Group groupNameOrRef content Nothing Nothing)
+          ComplexTypeScheme (finishGroup groupNameOrRef content
+                                         Nothing Nothing)
                             attrSpecs name l d
+          where finishGroup r@(WithRef _) c@Nothing mn mx = Group r c mn mx
+                finishGroup r@(WithRef _) (Just Skip) mn mx =
+                  Group r Nothing mn mx
+                finishGroup (WithRef r) _ _ _ = error $
+                  "Group complexType with ref " ++ show r
+                  ++ " should have no contents"
+                finishGroup n c mn mx = Group n c mn mx
 
       "simpleContent" -> do
         whenDebugging $ dbgLn
@@ -341,7 +332,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
       whenDebugging $ dbgPt "choice subcase"
       ts <- indenting $ encodeChoiceTypeScheme name attrs' ctnts'
       dbgResult "Subcase result" $
-        GroupScheme (nameOrRefOpt name ref) (Just ts) ifLn' ifDoc
+        finishGroupScheme (nameOrRefOpt name ref) (Just ts) ifLn' ifDoc
     (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
       whenDebugging $ do
         dbgPt "sequence subcase after (filter isElem ctnts)"
@@ -352,7 +343,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
           dbgBLabel "- ctnts' " $ filter isElem ctnts'
       seqn <- indenting $ encodeSequenceTypeScheme subOuter ctnts' []
       dbgResult "Subcase result" $
-        GroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
+        finishGroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
       whenDebugging $ dbgPt "all subcase"
       -- let ifDoc' = getAnnotationDocFrom contents
@@ -367,7 +358,17 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
     _ -> do
       whenDebugging $ dbgPt "Default subcase is group of nothing"
       dbgResult "Subcase result" $
-        GroupScheme (nameOrRefOpt name ref) Nothing ifLn ifDoc
+        finishGroupScheme (nameOrRefOpt name ref) Nothing ifLn ifDoc
+
+  where finishGroupScheme r@(WithRef _) n@Nothing l d = GroupScheme r n l d
+        finishGroupScheme (WithRef r) _ _ _ = error $
+          "Group with ref " ++ show r ++ " should not contain subforms"
+        finishGroupScheme n@(WithName _) c@(Just _) l d = GroupScheme n c l d
+        finishGroupScheme (WithName n) Nothing _ _ = error $
+          "Group with name " ++ show n ++ " should contain subforms"
+        finishGroupScheme n@WithNeither c@(Just _) l d = GroupScheme n c l d
+        finishGroupScheme WithNeither Nothing _ _ = error $
+          "Unnamed/unreferenced group should contain subforms"
 
 
 inputElement (QName "choice" _ _) ats ctnts outer ifLn ifDoc = do

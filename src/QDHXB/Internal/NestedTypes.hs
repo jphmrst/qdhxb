@@ -105,7 +105,7 @@ data ComplexTypeScheme =
   | Choice (Maybe QName) -- ^ name
            [DataScheme]  -- ^ contents
   | Group NameOrRefOpt -- ^ name or reference (or neither)
-          DataScheme  -- ^ contents
+          (Maybe DataScheme)  -- ^ contents
           (Maybe Int) -- ^ ifMin
           (Maybe Int) -- ^ ifMax
   deriving Show

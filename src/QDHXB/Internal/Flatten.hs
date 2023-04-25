@@ -18,7 +18,7 @@ import QDHXB.Internal.XSDQ
 -- |Rewrite internally-represented XSD definitions, flattening any
 -- nested definitions.
 flattenSchemaItems :: [DataScheme] -> XSDQ [Definition]
-flattenSchemaItems = fmap concat . mapM flattenSchemaItem
+flattenSchemaItems = fmap concat . mapM flattenSchemaItem . filter nonSkip
 
 flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
@@ -128,6 +128,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
 flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
+  whenDebugging $ dbgLn "Flattening group scheme with name and present content"
   let typeSchemeName = withSuffix "Group" name
   defs <- flattenComplexTypeScheme cts [] (Just typeSchemeName) ln doc
   {-
@@ -146,6 +147,7 @@ flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
     ]
 
 flattenSchemaItem' (GroupScheme (WithRef ref) Nothing ln _doc) = do
+  whenDebugging $ dbgLn "Flattening group scheme with reference and no content"
   boxed $ do
     dbgLn "TODO flattenSchemaItem' group with ref, no contents"
     dbgLn $ "REF " ++ qName ref
@@ -156,6 +158,7 @@ flattenSchemaItem' (GroupScheme (WithRef ref) Nothing ln _doc) = do
     ++ maybe "(no XSD line num)" show ln
 
 flattenSchemaItem' s = do
+  whenDebugging $ dbgLn "flattenSchemaItem' missed case"
   boxed $ do
     dbgLn "TODO flattenSchemaItem' missed case"
     dbgBLabel "ARG " s
@@ -213,19 +216,45 @@ flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents
   let labelledRefs = zipWith getLabelledDisjunct refs contents
-  return $ defs ++ [ChoiceDefn name labelledRefs ln doc]
+  dbgResult "Flattened to" $
+    defs ++ [ChoiceDefn name labelledRefs ln doc]
 
-flattenComplexTypeScheme (Group nameRef ctnts ifMin ifMax) ats ifName ln _ = do
-  boxed $ do
+flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
+                         ats ifName l d = do
+  (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
+  whenDebugging $ boxed $ do
     dbgLn "TODO flattenComplexTypeScheme Group case"
     dbgLn "Group:"
-    dbgBLabel ". NAMEREF " nameRef
-    dbgBLabel ". CTNTS " $ ctnts
+    dbgBLabel ". WithName N " n
+    dbgBLabel ". CTNT " $ ctnt
     dbgBLabel ". IFMIN " ifMin
     dbgBLabel ". IFMAX " ifMax
     dbgBLabel "ATS " ats
     dbgBLabel "IFNAME " ifName
-    dbgLn $ "LN " ++ show ln
+    dbgLn $ "L " ++ show l
+    dbgBLabel "FLATCTNT " $ flatCtnt
+  dbgResult "Flattened to" $ flatCtnt ++ [GroupDefn n ctntRef l d]
+  error "TODO flattenComplexTypeScheme Group case"
+
+flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
+                         _ats (Just name) l d = do
+  whenDebugging $ dbgLn "flattenComplexTypeScheme Group by reference"
+  dbgResult "Flattened to" [GroupDefn name (TypeRef r ifMin ifMax l d) l d]
+
+flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
+                         ats (Just name) l d = do
+  (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
+  boxed $ do
+    dbgLn "TODO flattenComplexTypeScheme Group case"
+    dbgLn "Group:"
+    dbgBLabel ". CTNT " $ ctnt
+    dbgBLabel ". IFMIN " ifMin
+    dbgBLabel ". IFMAX " ifMax
+    dbgBLabel "ATS " ats
+    dbgBLabel "NAME " name
+    dbgLn $ "L " ++ show l
+    dbgBLabel "FLATCTNT " $ flatCtnt
+  dbgResult "Flattened to" $ flatCtnt ++ [GroupDefn name ctntRef l d]
   error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme cts ats ifName ln _ = do
