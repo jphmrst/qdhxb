@@ -342,6 +342,9 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
   in do
     whenDebugging $ dbgBLabel "Generating from (h) " decl
     hrefOut <- mapM xsdRefToBangTypeQ refs
+    whenDebugging $ indenting $ do
+      dbgLn $ "REFS " ++ (foldr (++) " " $ map show refs)
+      dbgLn $ "HREFOUT " ++ (foldr (++) " " $ map show hrefOut)
     let subNames = map (mkName . ("s" ++) . (show :: Int -> String)) [1..]
     safeDecoder <- fmap (DoE Nothing) $ indenting $
       assembleTryStatements refs subNames ctxtName (ConE typNam) []
@@ -352,11 +355,11 @@ xsdDeclToHaskell decl@(SequenceDefn namStr refs ln ifDoc) =
     pushDeclHaddock ifDoc typeName $
       "Representation of the @\\<" ++ namStr ++ ">@ attribute"
 
-    dbgResult "Generated" $
-      -- Type declaration
-      DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
-            [DerivClause Nothing [eqConT, showConT]]
-      : decs
+    -- Type declaration
+    let typeDef = DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
+                    [DerivClause Nothing [eqConT, showConT]]
+
+    dbgResult "Generated" $ typeDef : decs
 
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do

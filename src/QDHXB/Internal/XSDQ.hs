@@ -91,7 +91,11 @@ runXSDQ optsF (XSDQ m) = evalStateT m $ initialQdxhbState optsF
 -- absent) lower and upper bounds of an XSD type constraint.
 containForBounds :: Maybe Int -> Maybe Int -> XSDQ Type -> XSDQ Type
 containForBounds (Just 0) (Just 0) _ = [t|()|]
+containForBounds (Just 0) Nothing t = [t|Maybe $t|]
 containForBounds (Just 0) (Just 1) t = [t|Maybe $t|]
+containForBounds Nothing Nothing t = t
+containForBounds Nothing (Just 1) t = t
+containForBounds (Just 1) Nothing t = t
 containForBounds (Just 1) (Just 1) t = t
 containForBounds _ _ t = [t|[$t]|]
 

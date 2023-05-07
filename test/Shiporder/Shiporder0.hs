@@ -29,3 +29,4 @@ testShiporder0 = inGroup "XSD shiporder0" $ do
              Item "Hide your heart" Nothing 1 9.9
            ])
          @==- p
+

@@ -23,7 +23,7 @@ flattenSchemaItems = fmap concat . mapM flattenSchemaItem . filter nonSkip
 flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
-  whenDebugging $ dbgBLabel "> Flattening " s
+  whenDebugging $ dbgBLabel "Flattening from " s
   results <- indenting $ flattenSchemaItem' s
   whenDebugging $ dbgBLabel "  Result: " results
   return results
@@ -237,9 +237,21 @@ flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
   error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
-                         _ats (Just name) l d = do
+                         ats (Just name) l d = do
+  (defs, refs) <- indenting $ musterAttributesForComplexSequence [] [
+    TypeRef r ifMin ifMax l d
+    ] ats
+  let tyDefn = SequenceDefn (qName name) refs l d
+  addTypeDefn name tyDefn
+  dbgResult "Flattened to" $ defs ++ [tyDefn]
+
+  {-
+  -- First version --- but (1) this is the defn of a complex type
+  -- which includes a group defn, not the defn of a group, and (2)
+  -- ignores attributes.
   whenDebugging $ dbgLn "flattenComplexTypeScheme Group by reference"
   dbgResult "Flattened to" [GroupDefn name (TypeRef r ifMin ifMax l d) l d]
+  -}
 
 flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
                          ats (Just name) l d = do
@@ -353,10 +365,26 @@ musterComplexSequenceComponents ::
   [DataScheme] ->  [AttributeScheme] -> QName
   -> XSDQ ([Definition], [Reference])
 musterComplexSequenceComponents steps ats _ = do
-  whenDebugging $ dbgLn "musterComplexSequenceComponents"
+  whenDebugging $ do
+    dbgLn "musterComplexSequenceComponents"
+    indenting $ do
+      dbgBLabel "STEPS " steps
+      dbgBLabel "ATS " ats
   (otherDefs, refs) <- flattenSchemaRefs steps
+  musterAttributesForComplexSequence otherDefs refs ats
+
+musterAttributesForComplexSequence ::
+  [Definition] -> [Reference] ->  [AttributeScheme]
+  -> XSDQ ([Definition], [Reference])
+musterAttributesForComplexSequence defs refs ats = do
+  whenDebugging $ do
+    dbgLn "musterAttributesForComplexSequence"
+    indenting $ do
+      dbgBLabel "DEFS " defs
+      dbgBLabel "REFS " refs
+      dbgBLabel "ATS " ats
   (atsDefs, atsRefs) <- flattenSchemaAttributeRefs ats
-  return (otherDefs ++ atsDefs, atsRefs ++ refs)
+  return (defs ++ atsDefs, atsRefs ++ refs)
 
 grabName :: AttributeScheme -> QName
 grabName (SingleAttribute (WithName n) _ _ _) = n
@@ -464,7 +492,7 @@ flattenElementSchemeRef ::
 flattenElementSchemeRef Nothing Nothing Nothing (Just r) lower upper ln _ifDoc = do
   let result = ElementRef r lower upper ln
   whenDebugging $ do
-    dbgLn $ "> Flattening element schema with reference only"
+    dbgLn $ "Flattening element schema with reference only"
     dbgBLabel "  to " result
   return ([], result)
 flattenElementSchemeRef Nothing (Just n)
@@ -477,7 +505,7 @@ flattenElementSchemeRef Nothing (Just n)
                           ref = ElementRef n lo up ln
                       fileNewDefinition defn
                       whenDebugging $ do
-                        dbgLn "> Flattening schema with type"
+                        dbgLn "Flattening schema with type"
                         -- dbgBLabel "       " e
                         dbgBLabel "    to " defn
                         dbgBLabel "       " ref
