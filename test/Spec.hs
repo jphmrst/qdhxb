@@ -18,6 +18,7 @@ import PersonAttr2.PersonAttr2Inline (testPersonAttr2Inline)
 import PersonAttr2r.PersonAttr2r (testPersonAttr2r)
 import GroupBasic.GroupBasic0 (testGB0)
 import GroupBasic.GroupBasic1 (testGB1)
+import ChoiceBasic.ChoiceBasic0 (testCB0)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -45,3 +46,4 @@ main = do
     testPersonAttr2r
     testGB0
     testGB1
+    testCB0

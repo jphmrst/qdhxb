@@ -1,0 +1,16 @@
+
+<!-- Derived from portions of the XSD spec,
+     https://www.w3.org/TR/xmlschema11-1/#normative-schemaSchema
+     -->
+<?xml version='1.0'?>
+<xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:groupbasic0"
+            xmlns:gb="urn:groupbasic0">
+  <xs:complexType name="choiceType">
+    <xs:choice>
+      <xs:element name="numa" type="xs:nonNegativeInteger"/>
+      <xs:element name="numz" type="xs:nonNegativeInteger"/>
+    </xs:choice>
+  </xs:complexType>
+  <xs:element name="ch" type="choiceType"/>
+</xs:schema>

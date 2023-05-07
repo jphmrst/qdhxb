@@ -101,14 +101,19 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
                     atspecs' ++ atgrspecs'
       return $ ComplexTypeScheme (Composing [] atrSpecs) [] name l d
     Just (_, tag, _uri, _pfx, qn, ats', subctnts, _) -> case tag of
+
       "sequence" -> do
         ct <- encodeSequenceTypeScheme (outer ++ "Complex") subctnts
                                        (atspecs'++atgrspecs')
         return $ ComplexTypeScheme ct [] name l d
+
       "choice" -> do
-        whenDebugging $
-          dbgLn "inputElement > complexType > case \"choice\""
-        error "inputElement > complexType > case \"choice\""
+        whenDebugging $ dbgLn "inputElement > complexType > case \"choice\""
+        choiceName <- pullAttrQName "name" ats'
+        cts <- indenting $ encodeChoiceTypeScheme choiceName ats' subctnts
+        let res = ComplexTypeScheme cts [] name l d
+        dbgResult "Result is " res
+
       "complexContent" -> do
         whenDebugging $ dbgLn
           "      inputElement > complexType > case \"complexContent\""
@@ -120,6 +125,7 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
                          (outer ++ "Complex") ssline Nothing
           Nothing -> error
             ("Complex content must have primary subcontents" ++ ifAtLine l)
+
       "group" -> do
         groupName <- pullAttrQName "name" ats'
         groupRef <- pullAttrQName "ref" ats'
@@ -141,6 +147,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
                   "Group complexType with ref " ++ show r
                   ++ " should have no contents"
                 finishGroup n c mn mx = Group n c mn mx
+
+
 
       "simpleContent" -> do
         whenDebugging $ dbgLn
@@ -172,12 +180,14 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
     dbgPt "Input element is simpletype"
     dbgLn $ "  Outer name " ++ outer
   indenting $ case separateSimpleTypeContents ats ctnts' of
+
     (nam, One restr, Zero, Zero) -> do
       whenDebugging $ dbgPt "Subcase restr"
       qnam <- mapM decodePrefixedName nam
       res <- indenting $ encodeSimpleTypeByRestriction qnam
                            (maybe (outer ++ "Simple") (outer ++) nam) ats restr
       dbgResult "Subcase result" res
+
     (ifNam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) -> do
       let outerUnion = outer ++ "Union"
           nam = maybe outerUnion id ifNam
@@ -187,14 +197,17 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
                 inputSchemaItems' outerUnion $ filter isElem cs'
       dbgResult "Subcase result" $
         SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
+
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
       whenDebugging $ dbgPt "Subcase list"
       itemTypeAttr <- pullAttrQName "itemType" ats'
       let simpleWithin = pullContent "simpleType" ctnts''
       indenting $ case (itemTypeAttr, simpleWithin) of
+
         (Nothing, Zero) -> error $
           "Simple type list without itemType attribute" ++ ifAtLine ifLn
+
         (Nothing, One node) -> do
           whenDebugging $ dbgPt "Subcase with included element type"
           tds <- indenting $ inputSchemaItem (outer ++ "List") node
@@ -210,6 +223,7 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
           dbgResult "Subcase result" $
             SimpleTypeScheme (Just thisName) (List Nothing (Just tds))
                              ifLn ifDoc
+
         (Just itemType, Zero) -> do
           whenDebugging $ dbgPt "Subcase with element type reference"
           qnam <- case ifNam of
@@ -229,6 +243,7 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
             dbgBLabel "Y " y
           error $ "Disallowed subcase within subcase list" ++ ifAtLine ifLn
 
+
 
     (ifName, zomRestr, zomUnion, zomList) -> do
       -- whenDebugging
@@ -313,6 +328,7 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
         ComplexTypeScheme (Extension base [e']) [] (Just name) ifLn ifDoc
   whenDebugging $ dbgBLabel "  Extension result " res
   return res
+
 
 inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
   name <- pullAttrQName "name" ats
@@ -507,6 +523,7 @@ encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
     dbgBLabel "2nd one " s
     dbgBLabel "others " ss
   error "TODO Too many nested types for attribute"
+
 
 type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
                             [Attr], [Content], Maybe Line)
@@ -516,7 +533,6 @@ instance Blockable PrimaryBundle where
     labelBlock "name " $ block q,
     labelBlock "attrs " $ block a,
     labelBlock "subcontents " $ block $ filter isElem c]
-
 
 -- | Separate the innards of a complexType element into:
 --
