@@ -440,6 +440,13 @@ xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
     ]
   -- error "xsdDeclToHaskell > GroupDefn case"
 
+xsdDeclToHaskell (ChoiceDefn name fields ifLine _) = do
+  boxed $ do
+    dbgLn $ "TODO ChoiceDefn" ++ maybe "" ((" at line " ++) . show) ifLine
+    dbgBLabel "NAME " name
+    dbgBLabel "FIELDS " fields
+  error "TODO ChoiceDefn"
+
 xsdDeclToHaskell decl = do
   boxed $ do
     dbgLn "Uncaught case in xsdDeclToHaskell"

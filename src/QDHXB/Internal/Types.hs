@@ -198,6 +198,8 @@ instance Blockable Definition where
   block (GroupDefn n t _ _) =
     labelBlock ("GroupDefn " ++ showQName n ++ " == ") $ block t
 instance VerticalBlockList Definition
+instance VerticalBlockablePair QName Reference
+instance VerticalBlockList (QName, Reference)
 instance VerticalBlockablePair QName [Definition]
 instance VerticalBlockList (QName, [Definition])
 
