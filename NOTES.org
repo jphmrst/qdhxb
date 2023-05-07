@@ -37,6 +37,7 @@
    - Duplicate name
 ** TODO Shiporder 1
    - Bad translation of built-in types
+* TODO Use non-default minOccurs/maxOccurs attributes of <group>
 * TODO Add small tests with <extension>
 * TODO Bootstrap the whole xsd.xsd
   :PROPERTIES:

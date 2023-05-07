@@ -48,8 +48,10 @@ instance Blockable Reference where
     ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
   block (AttributeRef name usage) = stringToBlock $
     "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
-  block (TypeRef name _ _ _ _) = stringToBlock $
+  block (TypeRef name ifLower ifUpper _ _) = stringToBlock $
     "TypeRef " ++ showQName name
+    ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
+    ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
 instance VerticalBlockList Reference
 
 -- | Return the `QName` of the entity described in a `Reference`.

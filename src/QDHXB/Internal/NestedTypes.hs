@@ -122,8 +122,10 @@ instance Blockable ComplexTypeScheme where
   block (Choice base ds) =
     (stringToBlock $ "Choice " ++ show base)
     `stack2` indent "  " (block ds)
-  block (Group nr contents _ifMin _ifMax) =
+  block (Group nr contents ifMin ifMax) =
     (labelBlock "Group " $ block nr)
+    `stack2` (labelBlock "  min=" $ block ifMin)
+    `stack2` (labelBlock "  max=" $ block ifMax)
     `stack2` (indent "  " $ block contents)
 instance VerticalBlockList ComplexTypeScheme
 

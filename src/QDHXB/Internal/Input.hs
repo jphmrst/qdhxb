@@ -130,6 +130,15 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
         groupName <- pullAttrQName "name" ats'
         groupRef <- pullAttrQName "ref" ats'
         groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group")
+        givenMin <- pullAttrQName "minOccurs" ats'
+        givenMax <- pullAttrQName "maxOccurs" ats'
+        let useMin = case givenMin of
+              Nothing -> Just 1
+              Just n -> Just $ read $ qName n
+        let useMax = case givenMax of
+              Nothing -> Just 1
+              Just n | qName n == "unbounded" -> Nothing
+              Just n -> Just $ read $ qName n
         attrSpecs <- mapM (encodeAttributeScheme outer) atspecs'
         contained <- inputSchemaItems' (outer ++ "Group") subctnts
         let content = case filter nonSkip contained of
@@ -137,8 +146,7 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
                         [x] -> Just x
                         _ -> error "Multiple contents in <group> not allowed"
         dbgResult "inputElement result" $
-          ComplexTypeScheme (finishGroup groupNameOrRef content
-                                         Nothing Nothing)
+          ComplexTypeScheme (finishGroup groupNameOrRef content useMin useMax)
                             attrSpecs name l d
           where finishGroup r@(WithRef _) c@Nothing mn mx = Group r c mn mx
                 finishGroup r@(WithRef _) (Just Skip) mn mx =
