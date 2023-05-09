@@ -7,11 +7,12 @@ module QDHXB.Internal.Utils.TH (
   -- * XSD types
   intType, stringType, floatType, boolType, doubleType,
   zonedTimeConT, diffTimeType, timeOfDayType, dayType, qnameType,
+  timeOfDayType, stringListType,
 
   intBasicDecoder, stringBasicDecoder, floatBasicDecoder,
   boolBasicDecoder, doubleBasicDecoder, zonedTimeBasicDecoder,
   diffTimeBasicDecoder, timeOfDayBasicDecoder, dayBasicDecoder,
-  qnameBasicDecoder,
+  qnameBasicDecoder, stringListBasicDecoder,
 
   -- * Building expressions related to the exceptions in `QDHXB.Errs`
   qHXBExcT,
@@ -51,7 +52,7 @@ module QDHXB.Internal.Utils.TH (
   throwVarE, applyThrowStmt, applyThrowStrStmt,
   applyThrowExp, applyThrowStrExp,
   -- *** With `Control.Monad.Except.catchError`
-  catchErrorVarE, applyCatchErrorExp,
+  catchErrorVarE, applyCatchErrorExp, replaceOnError,
   -- *** Monadic statements
   throwsExc, returnExp, applyReturn,
   -- ** Miscellaneous expression builders
@@ -269,7 +270,7 @@ doubleBasicDecoder expr =
 
 -- | TH `Name` for `Data.Time.LocalTime.ZonedTime`
 zonedTimeName :: Name
-zonedTimeName = mkName "ZonedTime"
+zonedTimeName = mkName "QDHXB.Expansions.ZonedTime"
 
 -- | TH `Type` for `Data.Time.LocalTime.ZonedTime`
 zonedTimeConT :: Type
@@ -283,7 +284,7 @@ zonedTimeBasicDecoder expr =
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeName :: Name
-diffTimeName = mkName "DiffTime"
+diffTimeName = mkName "QDHXB.Expansions.DiffTime"
 
 -- | TH `Data.Time.Clock.DiffTime` type representation
 diffTimeType :: Type
@@ -297,7 +298,7 @@ diffTimeBasicDecoder expr =
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayName :: Name
-timeOfDayName = mkName "TimeOfDay"
+timeOfDayName = mkName "QDHXB.Expansions.TimeOfDay"
 
 -- | TH `Data.Time.LocalTime.TimeOfDay` type representation
 timeOfDayType :: Type
@@ -311,7 +312,7 @@ timeOfDayBasicDecoder expr =
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayTypeName :: Name
-dayTypeName = mkName "Day"
+dayTypeName = mkName "QDHXB.Expansions.Day"
 
 -- | TH `Data.Time.Calendar.OrdinalDate.Day` type representation
 dayType :: Type
@@ -630,6 +631,12 @@ infixl `applyCatchErrorExp`
 applyCatchErrorExp :: Exp -> Exp -> Exp
 -- applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
 applyCatchErrorExp e1 e2 = InfixE (Just e1) catchErrorVarE (Just e2)
+
+-- | Given two expressions of type `Except a`, run the first first and
+-- return its result, but if it fails run the other instead.
+infixl `replaceOnError`
+replaceOnError :: Exp -> Exp -> Exp
+replaceOnError e1 e2 = app2Exp catchErrorVarE e1 (LamE [WildP] e2)
 
 -- | TH `Name` for "Left"
 leftName :: Name
