@@ -18,6 +18,8 @@ module QDHXB.Options (
   )
 where
 
+import QDHXB.Internal.Utils.BPP
+
 -- | The assortment of values to which options may be set.
 data QDHXBOptionSet = QDHXBOptionSet {
   -- ^ Option settings, corresponding to `optUseNewType`,
@@ -33,6 +35,13 @@ data QDHXBOptionSet = QDHXBOptionSet {
                            -- unless the basic `optDebugging` option
                            -- is alos set; is `False` by default.
   }
+
+instance Blockable QDHXBOptionSet where
+  block (QDHXBOptionSet optUseNewType optDebugging optDebuggingDoc) =
+    stringToBlock "Options: "
+    `stack2` (stringToBlock $ "- useNewType " ++ show optUseNewType)
+    `stack2` (stringToBlock $ "- debugging " ++ show optDebugging)
+    `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show optDebuggingDoc)
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
