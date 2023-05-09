@@ -171,7 +171,9 @@ flattenAttributeGroupItem (WithName n) cs l d = do
   whenDebugging $ dbgLn "Flattening attribute group"
   let names = map grabName cs
   defs <- indenting $ flattenAttributes cs
-  let res = defs ++ [AttributeDefn n (AttributeGroupDefn names) l d]
+  let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
+  fileNewDefinition attrDefn
+  let res = defs ++ [attrDefn]
   return res
 flattenAttributeGroupItem nameRef contents ln _d = do
   boxed $ do
@@ -467,6 +469,7 @@ flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
   let defn = AttributeDefn nam
                (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
+  fileNewDefinition defn
   return ([defn], ref)
 flattenSingleAttributeRef (WithName nam) (Nested t) m _ _ = do
   boxed $ do
@@ -549,11 +552,11 @@ flattenAttributes = fmap concat . mapM flattenAttribute
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
 flattenAttribute (SingleAttribute (WithName n) (NameRef typ) mode d) = do
   whenDebugging $ dbgPt "Flattening single attribute with type reference"
-  dbgResult "Flattened to" $ [
-    AttributeDefn n
-      (SingleAttributeDefn typ $ stringToAttributeUsage mode)
-      Nothing d
-    ]
+  let defn = AttributeDefn n (SingleAttributeDefn typ $
+                                stringToAttributeUsage mode)
+                           Nothing d
+  fileNewDefinition defn
+  dbgResult "Flattened to" $ [defn]
 flattenAttribute (SingleAttribute (WithName n) (Nested ds) mode d) = do
   whenDebugging $ dbgPt "Flattening single attribute with nested type"
   (defs, ref) <- flattenSchemaRef ds
@@ -569,17 +572,17 @@ flattenAttribute (SingleAttribute (WithName n) (Nested ds) mode d) = do
     dbgBLabel "REF" ref
   case ref of
     TypeRef qn (Just 1) (Just 1) _ _ -> do
-      dbgResult "Flattened to" $ defs ++ [
-        AttributeDefn n
-          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-          Nothing d
-        ]
+      let defn = AttributeDefn n
+                   (SingleAttributeDefn qn $ stringToAttributeUsage mode)
+                   Nothing d
+      fileNewDefinition defn
+      dbgResult "Flattened to" $ defs ++ [defn]
     TypeRef qn Nothing Nothing _ _ -> do
-      dbgResult "Flattened to" $ defs ++ [
-        AttributeDefn n
-          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-          Nothing d
-        ]
+      let defn = AttributeDefn n
+                   (SingleAttributeDefn qn $ stringToAttributeUsage mode)
+                   Nothing d
+      fileNewDefinition defn
+      dbgResult "Flattened to" $ defs ++ [defn]
     TypeRef qn mn (Just 1) _ _ ->
       error $ "minOccurs " ++ show mn ++ " for attribute type "
               ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
@@ -594,8 +597,10 @@ flattenAttribute (SingleAttribute (WithName n) (Nested ds) mode d) = do
               ++ " for attribute " ++ showQName n ++ " not allowed"
 flattenAttribute (AttributeGroup (WithName n) schemes d) = do
   let names = map grabName schemes
+      defn = AttributeDefn n (AttributeGroupDefn names) Nothing d
+  fileNewDefinition defn
   sub <- fmap concat $ mapM flattenAttribute schemes
-  return $ sub ++ [AttributeDefn n (AttributeGroupDefn names) Nothing d]
+  return $ sub ++ [defn]
 flattenAttribute a = do
   boxed $ do
     dbgLn "flattenAttribute "
