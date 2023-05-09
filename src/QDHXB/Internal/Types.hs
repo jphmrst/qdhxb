@@ -13,6 +13,7 @@ module QDHXB.Internal.Types (
 import Data.List (intercalate)
 import Text.XML.Light.Types
 import Text.XML.Light.Output (showQName)
+import Language.Haskell.TH (Exp, Type)
 import QDHXB.Internal.Utils.BPP
 
 -- | A reference to an XSD element.
@@ -163,7 +164,13 @@ data Definition =
         -- ^ Name of the element type
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
-  deriving Show
+  | BuiltinDefn -- ^ Built-in names added to the environment during
+                -- configuration
+      QName -- ^ Type being defined
+      String -- ^ String name of the corresponding Haskell type
+      Type -- ^ Corresponding Haskell type
+      (Exp -> Exp) -- ^ Expression builder for decoding the `String`
+                   -- representation of the value in the XSD file.
 
 instance Blockable Definition where
   block (ElementDefn n t _ dm) =
@@ -177,10 +184,6 @@ instance Blockable Definition where
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $
     "ComplexSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
-{-
-  block (ElementTypeDecl e t _ _) = stringToBlock $
-    "ElementTypeDecl " ++ showQName e ++ " :: " ++ showQName t
--}
   block (SequenceDefn n rs _ _) = stackBlocks $
     (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
   block (UnionDefn n ns _ _) = stackBlocks $
@@ -197,6 +200,8 @@ instance Blockable Definition where
     "ListDefn " ++ showQName n ++ " :: [" ++ showQName t ++ "]"
   block (GroupDefn n t _ _) =
     labelBlock ("GroupDefn " ++ showQName n ++ " == ") $ block t
+  block (BuiltinDefn qn n _ _) =
+    stringToBlock $ "BuiltinDefn " ++ qName qn ++ " for " ++ n
 instance VerticalBlockList Definition
 instance VerticalBlockablePair QName Reference
 instance VerticalBlockList (QName, Reference)
@@ -216,7 +221,7 @@ stringToAttributeUsage _ = Optional
 
 -- | Display a list of `Definition` in more human-readable text.
 pprintDefns' :: String -> [Definition] -> String
-pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map show ds
+pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map bpp ds
 
 -- | Extract the QName behind a `Reference`.
 referenceQName :: Reference -> QName
