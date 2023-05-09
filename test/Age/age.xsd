@@ -5,7 +5,7 @@
             xmlns:bks="urn:age">
   <xs:element name="age">
     <xs:simpleType>
-      <xs:restriction base="xs:integer">
+      <xs:restriction base="xsd:integer">
         <xs:minInclusive value="0"/>
         <xs:maxInclusive value="100"/>
       </xs:restriction>

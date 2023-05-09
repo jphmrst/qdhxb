@@ -5,7 +5,7 @@
             xmlns:bks="urn:initials">
   <xs:element name="initials">
     <xs:simpleType>
-      <xs:restriction base="xs:string">
+      <xs:restriction base="xsd:string">
         <xs:pattern value="[a-zA-Z][a-zA-Z][a-zA-Z]"/>
       </xs:restriction>
     </xs:simpleType>
