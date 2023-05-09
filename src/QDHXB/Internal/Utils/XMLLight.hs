@@ -56,13 +56,12 @@ getAnnotationDocFrom cs = case zomToList $ pullContent "annotation" cs of
   [] -> Nothing
   ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
     [] -> Nothing
-    doc:_ -> fmap chomp $ pullCRefContent "documentation" doc
+    doc:_ -> fmap chomp $ pullCRefContent doc
 
 -- | Retrieve the named attribute value from a single content element.
-pullCRefContent :: String -> Content -> Maybe String
-pullCRefContent cname (Elem (Element (QName n _ _) _ [sub] _)) | cname == n
-  = pullCRef sub
-pullCRefContent _ _ = Nothing
+pullCRefContent :: Content -> Maybe String
+pullCRefContent (Elem (Element (QName n _ _) _ [sub] _)) = pullCRef sub
+pullCRefContent _ = Nothing
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefOf :: Content -> Maybe String
