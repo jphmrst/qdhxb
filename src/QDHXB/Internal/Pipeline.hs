@@ -30,19 +30,21 @@ elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
   whenDebugging $ do
     liftIO $ putStrLn "======================================== INPUT"
   schemaReps <- inputSchemaItems forms
-  whenDebugging $ do
-    liftIO $ putStrLn "----------------------------------------"
-    liftIO $ bLabelPrintln "Final: " schemaReps
-    liftIO $ putStrLn "======================================== FLATTEN"
+  whenDebugging $ liftIO $ do
+    putStrLn "----------------------------------------"
+    bLabelPrintln "Final: " schemaReps
+    putStrLn "======================================== FLATTEN"
   ir <- flattenSchemaItems schemaReps
   whenDebugging $ do
     liftIO $ putStrLn "----------------------------------------"
     liftIO $ bLabelPrintln "Final: " ir
     liftIO $ putStrLn "======================================== GENERATE"
-  decls <- xsdDeclsToHaskell ir
-  whenDebugging $ do
+    debugXSDQ
     liftIO $ putStrLn "----------------------------------------"
-    liftIO $ bLabelPrintln "Final: " decls
-    liftIO $ putStrLn "======================================== end"
+  decls <- xsdDeclsToHaskell ir
+  whenDebugging $ liftIO $ do
+    putStrLn "----------------------------------------"
+    bLabelPrintln "Final: " decls
+    putStrLn "======================================== end"
   return decls
 elementToDecs _ = error "Unexpected form in elementToDecs"
