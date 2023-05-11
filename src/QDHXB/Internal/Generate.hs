@@ -104,16 +104,8 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
   -- let decoder = basicDecoder $ VarE eName
   haskellType <- getTypeHaskellType typ
   decoder <- getSafeDecoder typ
-  {-
-  let baseName = firstToUpper $ qName nam
-  (typeName, decs) <- indenting $
-    getSimpleTypeElements baseName (VarP eName) (decoder $ VarE eName) ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @" ++ qName nam ++ "@ simple type"
-  dbgResult "Generated" $ TySynD typeName [] haskellType : decs
-  -}
   dbgResultM "Generated" $
-    newAssemble nam (\tn -> TySynD tn [] haskellType) decoder ifDoc
+    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
 xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (b) " decl
@@ -185,15 +177,15 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
       loadNam = mkName $ "load" ++ baseName
   decodedType <- getTypeHaskellType typ
   tryDecoder <- getSafeDecoder typ
+  decoderName <- getTypeDecoderAsName typ
   whenDebugging $ dbgBLabel "- tryDecoder " $ tryDecoder ctxtVarE
-  {-
-  tryDecoder <- [| $(return $ VarE $ mkName $ "tryDecodeAs" ++ typBaseName)
-                      $(return $ quoteStr $ qName nam)
-                        ctxt |]
-    -}
+  -- tryDecoder <- [| $(return $ VarE $ mkName $ "tryDecodeAs" ++ typBaseName)
+  --                     $(return $ quoteStr $ qName nam)
+  --                       ctxt |]
 
   let res = (
 
+        {-
         -- Safe decoder
         SigD tryDecNam
                 (fn1Type contentConT (qHXBExcT decodedType))
@@ -206,12 +198,16 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
                               (NormalB $ resultOrThrow $
                                 AppE (VarE tryDecNam)
                                      ctxtVarE) []]
+        -}
 
         -- Reader
-        : SigD loadNam (fn1Type stringConT
+        SigD loadNam (fn1Type stringConT
                                 (AppT ioConT decodedType))
-        : FunD loadNam [Clause [] (NormalB $ AppE (VarE $ loadElementName)
-                                                  (VarE decNam)) []]
+        : FunD loadNam [Clause [VarP yName]
+                        (NormalB $
+                           app2Exp (VarE $ loadElementName)
+                                   (VarE decoderName) -- (LamE [VarP xName] $ tryDecoder xVarE)
+                                   (VarE yName)) []]
 
         {-
         -- Encoder
@@ -226,6 +222,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
 
         : [])
 
+  {-
   pushDeclHaddock ifDoc decNam
     ("Load a @\\<" ++ origName ++ ">@ element from the given file")
   pushDeclHaddock ifDoc tryDecNam
@@ -233,10 +230,12 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
       ++ typBaseName
       ++ "` value from parsed XML content, throwing a `QDHXB.Errs.HXBErr` in "
       ++ "the `Control.Monad.Except` monad if loading or parsing fails")
+  -}
   pushDeclHaddock ifDoc loadNam
     ("Load a @\\<" ++ origName ++ ">@ element from the given file")
 
   dbgResult "Generated" res
+
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
@@ -600,7 +599,8 @@ makeChoiceConstructor name (typeName, ref) = do
       error "Not expected: makeChoiceConstructor for AttributeRef"
 
 
-newAssemble :: QName -> (Name -> Dec) -> (Exp -> Exp) -> Maybe String -> XSDQ [Dec]
+newAssemble ::
+  QName -> Maybe (Name -> Dec) -> (Exp -> Exp) -> Maybe String -> XSDQ [Dec]
 newAssemble base tyDec safeDec ifDoc = do
   let baseNameStr = firstToUpper $ qName base
       typeName = mkName baseNameStr
@@ -610,8 +610,6 @@ newAssemble base tyDec safeDec ifDoc = do
       tryDecType = fn1Type contentConT (qHXBExcT typeType)
       decType = fn1Type contentConT typeType
 
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @" ++ baseNameStr ++ "@ type"
   pushDeclHaddock ifDoc safeDecAsNam $
     "Attempt to decode an element represented as `"
     ++ baseNameStr ++ "`, throwing a `QDHXB.Errs.HXBErr` in "
@@ -620,16 +618,23 @@ newAssemble base tyDec safeDec ifDoc = do
     "Decode an element of simple type represented as `" ++ baseNameStr
     ++ "`, or fail with a top-level `error`"
 
-  return [tyDec typeName,
-          SigD safeDecAsNam tryDecType,
+  let baseList = [
+        SigD safeDecAsNam tryDecType,
           FunD safeDecAsNam [Clause [VarP ctxtName]
-                               (NormalB $ safeDec ctxtVarE) []],
+                              (NormalB $ safeDec ctxtVarE) []],
           SigD decAsNam decType,
           FunD decAsNam [Clause [ctxtVarP]
-                           (NormalB $ resultOrThrow $
-                              AppE (VarE safeDecAsNam) ctxtVarE)
-                         []]
-         ]
+                          (NormalB $ resultOrThrow $
+                            AppE (VarE safeDecAsNam) ctxtVarE)
+                          []]
+        ]
+
+  case tyDec of
+    Nothing -> return baseList
+    Just tf -> do
+      pushDeclHaddock ifDoc typeName $
+        "Representation of the @" ++ baseNameStr ++ "@ type"
+      return $ tf typeName : baseList
 
 
 -- | Generates the common boilerplate for Haskell code generated from
