@@ -17,7 +17,7 @@ module QDHXB.Internal.XSDQ (
   -- ** Types
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
-  getTypeHaskellName, getTypeHaskellType, getTypeSafeDecoder,
+  getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
   -- *** XSD primitive types
   installXsdPrimitives,
@@ -54,7 +54,7 @@ import QDHXB.Internal.Utils.TH (
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType,
-    firstToUpper)
+    firstToUpper, throwsError)
 import QDHXB.Internal.Types
 import QDHXB.Options
 
@@ -97,7 +97,13 @@ instance Blockable QdxhbState where
                 else (labelBlock "- Type defs: " $
                         foldr1 stack2
                           (map (\(qn,defn) ->
-                                  labelBlock (bpp qn ++ " -> ") $ block defn)
+                                  (labelBlock (bpp qn ++ " -> ") $ block defn)
+                                  `stack2`
+                                  ((stringToBlock "  decoder ")
+                                   -- `follow`
+                                   -- (stringToBlock $ pprint $
+                                   --   stringDecoderOf qn defn $ VarE $ mkName "CTNT")
+                                  ))
                              typeDefns)))
     `stack2` (stringToBlock $ "- Indentation \"" ++ ind ++ "\"")
 
@@ -152,24 +158,24 @@ containForBounds _ _ t = [t|[$t]|]
 -- | Register a `Definition` with the tracking tables in the `XSDQ`
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
-fileNewDefinition (SimpleSynonymDefn _ _ _ _) = return ()
+fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition (AttributeDefn qn (SingleAttributeDefn ty _) _ _)  = do
   addAttributeType qn ty
 fileNewDefinition (AttributeDefn _ _ _ _)  = return () -- TODO for group?
-fileNewDefinition (SequenceDefn _ _ _ _)   = return ()
-fileNewDefinition (UnionDefn _ _ _ _)   = return ()
-fileNewDefinition (ListDefn _ _ _ _) = return ()
-fileNewDefinition (ElementDefn n t _ _)    = do
+fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
+fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
+fileNewDefinition d@(ListDefn qn _ _ _) = addTypeDefn qn d
+fileNewDefinition (ElementDefn n t _ _)  = do
   whenDebugging $ do
     ind <- getIndentation
     liftIO $ putStrLn $ show $
       (labelBlock (ind ++ "Filing ElementDefn: ") $ block n)
        `follow` (labelBlock " :: " $ block t)
   addElementType n t
-fileNewDefinition (ComplexSynonymDefn _ _ _ _) = return ()
-fileNewDefinition (ChoiceDefn _ _ _ _) = return ()
-fileNewDefinition (ExtensionDefn _ _ _ _ _) = return ()
-fileNewDefinition (GroupDefn _ _ _ _) = return ()
+fileNewDefinition d@(ComplexSynonymDefn qn _ _ _) = addTypeDefn qn d
+fileNewDefinition d@(ChoiceDefn qn _ _ _) = addTypeDefn qn d
+fileNewDefinition d@(ExtensionDefn qn _ _ _ _) = addTypeDefn qn d
+fileNewDefinition d@(GroupDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(BuiltinDefn qn _ _ _) = do
   whenDebugging $ do
     ind <- getIndentation
@@ -369,19 +375,6 @@ getTypeSafeDecoderAsName =
 getTypeDecoderAsName :: QName -> XSDQ Name
 getTypeDecoderAsName =
   return . mkName . ("decodeAs" ++) . firstToUpper . qName
-
-getTypeSafeDecoder :: QName -> XSDQ (Exp -> Exp)
-getTypeSafeDecoder qn = do
-  ifDefn <- getTypeDefn qn
-  case ifDefn of
-    Nothing -> liftExcepttoXSDQ $ throwError $ "No type " ++ bpp qn ++ " found"
-    Just defn ->
-      return (\param ->
-                case defn of
-                  BuiltinDefn _ _ _ efn -> efn param
-                  _ -> AppE (VarE $ mkName $
-                               "tryDecodeAs" ++ (firstToUpper $ qName qn))
-                            param)
 
 -- | Return `True` if the string argument names an XSD type known to
 -- the tracking tables in the `XSDQ` state.

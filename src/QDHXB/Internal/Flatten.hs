@@ -62,7 +62,7 @@ flattenSchemaItem' (ComplexTypeScheme cts ats ifNam l d) =
 flattenSchemaItem' (SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
   whenDebugging $ dbgLn "Flattening simple synonym"
   let tyDefn = SimpleSynonymDefn nam base ln d
-  addTypeDefn nam tyDefn
+  fileNewDefinition tyDefn
   dbgResult "Flattened to" [tyDefn]
 -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
 -- types here
@@ -108,7 +108,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam) (Union alts) ln d) = do
   let (names, defnss) = unzip labelledAlts
       defns = concat defnss
   let uDef = UnionDefn nam names ln d
-  addTypeDefn nam uDef
+  fileNewDefinition uDef
   dbgResult "Flattened to" $ defns ++ [uDef]
 
 
@@ -116,7 +116,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
                                      (List (Just elemTyp) Nothing) ln d) = do
   whenDebugging $ dbgLn "Flattening simple list with referenced element type"
   let lDef = ListDefn nam elemTyp ln d
-  addTypeDefn nam lDef
+  fileNewDefinition lDef
   dbgResult "Flattened to" [lDef]
 
 flattenSchemaItem' (SimpleTypeScheme (Just nam)
@@ -124,7 +124,7 @@ flattenSchemaItem' (SimpleTypeScheme (Just nam)
   whenDebugging $ dbgLn "Flattening simple list with inline element"
   (subdefs, subref) <- flattenSchemaRef inlineTyp
   let lDef = ListDefn nam (referenceQName subref) ln d
-  addTypeDefn nam lDef
+  fileNewDefinition lDef
   dbgResult "Flattened to" $ subdefs ++ [lDef]
 
 flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
@@ -141,10 +141,10 @@ flattenSchemaItem' (GroupScheme (WithName name) (Just cts) ln doc) = do
     dbgLn $ "LN " ++ show ln
   error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
   -}
-  return $ defs ++ [
-    GroupDefn name
-              (TypeRef typeSchemeName Nothing Nothing Nothing Nothing) ln doc
-    ]
+  let defn = GroupDefn name
+               (TypeRef typeSchemeName Nothing Nothing Nothing Nothing) ln doc
+  fileNewDefinition defn
+  return $ defs ++ [defn]
 
 flattenSchemaItem' (GroupScheme (WithRef ref) Nothing ln _doc) = do
   whenDebugging $ dbgLn "Flattening group scheme with reference and no content"
@@ -194,8 +194,8 @@ flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
     musterComplexSequenceComponents (filter nonSkip cts) (ats0 ++ ats) nam
       -- TODO DOC possible to add a docstring here?
 
-  let tyDefn = SequenceDefn (qName nam) refs l d
-  addTypeDefn nam tyDefn
+  let tyDefn = SequenceDefn nam refs l d
+  fileNewDefinition tyDefn
   -- whenDebugging $ do
   --   recheck <- isKnownType nam
   --   dbgLn $ "- Have set " ++ qName nam
@@ -204,22 +204,26 @@ flattenComplexTypeScheme (Composing cts ats0) ats (Just nam) l d = do
 
 flattenComplexTypeScheme (ComplexRestriction base) _ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex restriction"
-  dbgResult "Flattened to" $ [ComplexSynonymDefn nam base l d]
+  let defn = ComplexSynonymDefn nam base l d
+  fileNewDefinition defn
+  dbgResult "Flattened to" $ [defn]
 
 flattenComplexTypeScheme (Extension base ds) _ats (Just nam) l d = do
   whenDebugging $ dbgLn "Flattening complex extension"
   (defs, refs) <- indenting $ flattenSchemaRefs ds
-  dbgResult "Flattened to" $ defs ++ [
-    ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
-    ]
+  let defn = ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
+  fileNewDefinition defn
+  dbgResult "Flattened to" $ defs ++ [defn]
 
 flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
   let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuterName)
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents
   let labelledRefs = zipWith getLabelledDisjunct refs contents
+      defn = ChoiceDefn name labelledRefs ln doc
+  fileNewDefinition defn
   dbgResult "Flattened to" $
-    defs ++ [ChoiceDefn name labelledRefs ln doc]
+    defs ++ [defn]
 
 flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
                          ats ifName l d = do
@@ -235,7 +239,9 @@ flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
     dbgBLabel "IFNAME " ifName
     dbgLn $ "L " ++ show l
     dbgBLabel "FLATCTNT " $ flatCtnt
-  dbgResult "Flattened to" $ flatCtnt ++ [GroupDefn n ctntRef l d]
+  let defn = GroupDefn n ctntRef l d
+  fileNewDefinition defn
+  dbgResult "Flattened to" $ flatCtnt ++ [defn]
   error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
@@ -243,8 +249,8 @@ flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
   (defs, refs) <- indenting $ musterAttributesForComplexSequence [] [
     TypeRef r ifMin ifMax l d
     ] ats
-  let tyDefn = SequenceDefn (qName name) refs l d
-  addTypeDefn name tyDefn
+  let tyDefn = SequenceDefn name refs l d
+  fileNewDefinition tyDefn
   dbgResult "Flattened to" $ defs ++ [tyDefn]
 
   {-
@@ -268,7 +274,9 @@ flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
     dbgBLabel "NAME " name
     dbgLn $ "L " ++ show l
     dbgBLabel "FLATCTNT " $ flatCtnt
-  dbgResult "Flattened to" $ flatCtnt ++ [GroupDefn name ctntRef l d]
+  let defn = GroupDefn name ctntRef l d
+  fileNewDefinition defn
+  dbgResult "Flattened to" $ flatCtnt ++ [defn]
   error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme cts ats ifName ln _ = do

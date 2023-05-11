@@ -116,7 +116,7 @@ data Definition =
 -}
   | SequenceDefn
     -- ^ Define a complex type as a sequence of subelements.
-        String [Reference]
+        QName [Reference]
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | UnionDefn
@@ -148,7 +148,7 @@ data Definition =
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | GroupDefn
-    -- ^ Define a type the extension of one type with additional
+    -- ^ Define a type for extending another type with additional
     -- contexts/attributes
         QName
         -- ^ Name of the group
@@ -184,8 +184,8 @@ instance Blockable Definition where
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $
     "ComplexSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
-  block (SequenceDefn n rs _ _) = stackBlocks $
-    (stringToBlock $ "SequenceDefn " ++ n) : map (indent "  " . block) rs
+  block (SequenceDefn qn rs _ _) = stackBlocks $
+    (labelBlock "SequenceDefn " $ block qn) : map (indent "  " . block) rs
   block (UnionDefn n ns _ _) = stackBlocks $
     (stringToBlock $ "UnionDefn " ++ showQName n)
     : map (indent "  " . uncurry horizontalPair) ns

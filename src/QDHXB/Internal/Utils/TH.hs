@@ -224,7 +224,7 @@ stringListType = AppT ListT stringType
 
 -- | TH `String` list converter from `String`.
 stringListBasicDecoder :: Exp -> Exp
-stringListBasicDecoder _ = error "TODO"
+stringListBasicDecoder _ = throwsError "TODO"
 
 -- | TH `Name` for "Float"
 floatName :: Name
@@ -334,7 +334,7 @@ qnameType = ConT qnameName
 
 -- | TH `Text.XML.Light.Types.QName` converter from `String`.
 qnameBasicDecoder :: Exp -> Exp
-qnameBasicDecoder _ = error "TODO"
+qnameBasicDecoder _ = throwsError "TODO"
 
 -- | Capitalize the first character of a `String`.
 firstToUpper :: String -> String

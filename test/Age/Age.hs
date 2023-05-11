@@ -17,3 +17,4 @@ testAge = inGroup "XSD age" $ do
   inGroup "Age 2" $ do
     p <- lift $ loadAge "test/Age/age2.xml"
     "Correctly decode <age> in age2.xml" ~: 55 @==- p
+
