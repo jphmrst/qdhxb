@@ -242,7 +242,6 @@ flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
   let defn = GroupDefn n ctntRef l d
   fileNewDefinition defn
   dbgResult "Flattened to" $ flatCtnt ++ [defn]
-  error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
                          ats (Just name) l d = do
@@ -277,7 +276,6 @@ flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
   let defn = GroupDefn name ctntRef l d
   fileNewDefinition defn
   dbgResult "Flattened to" $ flatCtnt ++ [defn]
-  error "TODO flattenComplexTypeScheme Group case"
 
 flattenComplexTypeScheme cts ats ifName ln _ = do
   boxed $ do

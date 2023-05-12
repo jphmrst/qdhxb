@@ -60,7 +60,7 @@ getAnnotationDocFrom cs = case zomToList $ pullContent "annotation" cs of
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefContent :: Content -> Maybe String
-pullCRefContent (Elem (Element (QName n _ _) _ [sub] _)) = pullCRef sub
+pullCRefContent (Elem (Element (QName _ _ _) _ [sub] _)) = pullCRef sub
 pullCRefContent _ = Nothing
 
 -- | Retrieve the named attribute value from a single content element.

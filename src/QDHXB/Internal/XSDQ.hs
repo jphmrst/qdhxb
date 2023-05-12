@@ -40,7 +40,6 @@ import Language.Haskell.TH
 import Control.Monad.IO.Class
 import Control.Monad.Extra
 import Control.Monad.Except
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.State.Lazy
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.BPP
@@ -54,7 +53,7 @@ import QDHXB.Internal.Utils.TH (
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType,
-    firstToUpper, throwsError)
+    firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Options
 

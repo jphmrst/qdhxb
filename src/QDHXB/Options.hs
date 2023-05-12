@@ -37,11 +37,11 @@ data QDHXBOptionSet = QDHXBOptionSet {
   }
 
 instance Blockable QDHXBOptionSet where
-  block (QDHXBOptionSet optUseNewType optDebugging optDebuggingDoc) =
+  block (QDHXBOptionSet newTypes debuggingOn debuggingDocOn) =
     stringToBlock "Options: "
-    `stack2` (stringToBlock $ "- useNewType " ++ show optUseNewType)
-    `stack2` (stringToBlock $ "- debugging " ++ show optDebugging)
-    `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show optDebuggingDoc)
+    `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
+    `stack2` (stringToBlock $ "- debugging " ++ show debuggingOn)
+    `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show debuggingDocOn)
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet

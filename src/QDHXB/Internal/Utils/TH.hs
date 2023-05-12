@@ -6,7 +6,7 @@ module QDHXB.Internal.Utils.TH (
 
   -- * XSD types
   intType, stringType, floatType, boolType, doubleType,
-  zonedTimeConT, diffTimeType, timeOfDayType, dayType, qnameType,
+  zonedTimeConT, diffTimeType, dayType, qnameType,
   timeOfDayType, stringListType,
 
   intBasicDecoder, stringBasicDecoder, floatBasicDecoder,
