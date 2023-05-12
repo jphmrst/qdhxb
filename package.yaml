@@ -37,7 +37,8 @@ ghc-options:
 - -Wincomplete-uni-patterns
 - -Wpartial-fields
 - -Wredundant-constraints
-- -ddump-splices
+
+# - -ddump-splices
 
 library:
   source-dirs: src
