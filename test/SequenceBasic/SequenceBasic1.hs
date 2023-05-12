@@ -1,20 +1,20 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module SequenceBasic.SequenceBasic0 where
+module SequenceBasic.SequenceBasic1 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/SequenceBasic/seqbasic0.xsd"]
-qdhxb' ["test/SequenceBasic/seqbasic0.xsd"]
+-- qdhxb useDebugging ["test/SequenceBasic/seqbasic1.xsd"]
+-- qdhxb' ["test/SequenceBasic/seqbasic1.xsd"]
 
-testSequencebasic0 :: TLT IO ()
-testSequencebasic0 = inGroup "XSD seqbasic0" $ do
+testSequencebasic1 :: TLT IO ()
+testSequencebasic1 = inGroup "XSD seqbasic1" $ do
+  {-
   "Correctly decode <orderperson> text in seqbasic0a.xml" ~:
     (Seqbasic "xyz789" 59) @== (lift $ loadSeqbasic "test/SequenceBasic/seqbasic0a.xml")
 
-  {-
   "Correctly decode <price> text in shiporder0b.xml" ~:
     10.9 @== (lift $ loadPrice "test/Shiporder/shiporder0b.xml")
   inGroup "Structures" $ do

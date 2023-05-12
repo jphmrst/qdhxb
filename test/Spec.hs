@@ -20,6 +20,8 @@ import PersonAttr2r.PersonAttr2r (testPersonAttr2r)
 import GroupBasic.GroupBasic0 (testGB0)
 import GroupBasic.GroupBasic1 (testGB1)
 import ChoiceBasic.ChoiceBasic0 (testCB0)
+import SequenceBasic.SequenceBasic0 (testSequencebasic0)
+import SequenceBasic.SequenceBasic1 (testSequencebasic1)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -29,6 +31,9 @@ main = do
   tlt $ do
     testAge
     testAge0
+    testInitials
+    testSequencebasic0
+    testSequencebasic1
     testShiporder0
     testShiporder1
     testShiporder2
@@ -38,7 +43,6 @@ main = do
     testCustomersOrders1
     testOFX1
     testXSD1
-    testInitials
     testSizesNoList
     testSizesAndList
     testSizesAndListInline
