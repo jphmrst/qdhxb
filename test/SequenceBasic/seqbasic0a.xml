@@ -1,0 +1,7 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+<seqbasic>
+  <f1>xyz789</f1>
+  <f2>59</f2>
+</seqbasic>
