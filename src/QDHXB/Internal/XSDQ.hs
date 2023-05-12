@@ -184,6 +184,8 @@ fileNewDefinition d@(BuiltinDefn qn _ _ _) = do
        -- `follow` (labelBlock " :: " $ block t)
   addTypeDefn qn d
 
+-- | Write the current state of the `XSDQ` internals to the standard
+-- output.
 debugXSDQ :: XSDQ ()
 debugXSDQ = do
   st <- liftStatetoXSDQ $ get
@@ -350,15 +352,22 @@ getTypeDefn name = liftStatetoXSDQ $ do
   QdxhbState _ _ _ typeDefns _ _ _ _ <- get
   return $ lookupFirst typeDefns name
 
+-- | If the argument names an XSD type known to the translator, then
+-- return the `String` name of the corresponding Haskell type (and
+-- throw on error in the `XSDQ` monad otherwise).
 getTypeHaskellName :: QName -> XSDQ String
 getTypeHaskellName qn = do
   ifDefn <- getTypeDefn qn
   case ifDefn of
-    Nothing -> liftExcepttoXSDQ $ throwError $ "No type " ++ bpp qn ++ " found"
+    Nothing -> liftExcepttoXSDQ $ throwError $
+      "No type \"" ++ bpp qn ++ "\" found"
     Just defn -> return $ case defn of
                             BuiltinDefn _ hn _ _ -> hn
                             _ -> firstToUpper $ qName qn
 
+-- | If the argument names an XSD type known to the translator, then
+-- return the the corresponding TH `Type` (and throw on error in the
+-- `XSDQ` monad otherwise).
 getTypeHaskellType :: QName -> XSDQ Type
 getTypeHaskellType qn = do
   ifDefn <- getTypeDefn qn
@@ -368,10 +377,16 @@ getTypeHaskellType qn = do
                             BuiltinDefn _ _ ht _ -> ht
                             _ -> ConT $ mkName $ firstToUpper $ qName qn
 
+-- | Build the @"tryDecodeAs"@-prefixed name for the XSD type named by
+-- the argument `QName`.  __NOTE__: this function will not necessarily
+-- exist; it's just an operation on the `QName` contents.
 getTypeSafeDecoderAsName :: QName -> XSDQ Name
 getTypeSafeDecoderAsName =
   return . mkName . ("tryDecodeAs" ++) . firstToUpper . qName
 
+-- | Build the @"decodeAs"@-prefixed name for the XSD type named by
+-- the argument `QName`.  __NOTE__: this function will not necessarily
+-- exist; it's just an operation on the `QName` contents.
 getTypeDecoderAsName :: QName -> XSDQ Name
 getTypeDecoderAsName =
   return . mkName . ("decodeAs" ++) . firstToUpper . qName

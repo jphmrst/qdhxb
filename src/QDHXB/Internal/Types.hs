@@ -18,24 +18,21 @@ import QDHXB.Internal.Utils.BPP
 
 -- | A reference to an XSD element.
 data Reference =
-  ElementRef
-  -- ^ A named element type, possibly with numeric instance bounds.
-      QName (Maybe Int) (Maybe Int) (Maybe Line)
-  | AttributeRef
-    -- ^ The name of an attribute.
-       QName AttributeUsage
-  | TypeRef
-    -- ^ Reference to a type.
-        QName
-        -- ^ Name of the type.
-        (Maybe Int)
-        -- ^ Lower bound of occurences.
-        (Maybe Int)
-        -- ^ Upper bound of occurences.
-        (Maybe Line)
-        -- ^ Source code line.
-        (Maybe String)
-        -- ^ Documentation of the referenced type.
+  ElementRef     -- ^ A named element type, possibly with numeric
+                 -- instance bounds.
+      QName       --
+      (Maybe Int)  --
+      (Maybe Int)   --
+      (Maybe Line)   --
+  | AttributeRef    -- ^ The name of an attribute.
+      QName          --
+      AttributeUsage  --
+  | TypeRef       -- ^ Reference to a type.
+      QName        -- ^ Name of the type.
+      (Maybe Int)   -- ^ Lower bound of occurences.
+      (Maybe Int)    -- ^ Upper bound of occurences.
+      (Maybe Line)    -- ^ Source code line.
+      (Maybe String)   -- ^ Documentation of the referenced type.
 {-
   | ComplexTypeRef String
   -- ^ The name of a complex type.

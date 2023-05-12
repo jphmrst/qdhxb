@@ -8,6 +8,7 @@ import Books.BooksMod1 (testBooksMod1)
 import Books.BooksMod2 (testBooksMod2)
 import CustomersOrders.CustomersOrders1 (testCustomersOrders1)
 import Age.Age (testAge)
+import Age.Age0 (testAge0)
 import Initials.Initials (testInitials)
 import SizesNoList.SizesNoList (testSizesNoList)
 import SizesAndList.SizesAndList (testSizesAndList)
@@ -26,6 +27,8 @@ import XSD1 (testXSD1)
 main :: IO ()
 main = do
   tlt $ do
+    testAge
+    testAge0
     testShiporder0
     testShiporder1
     testShiporder2
@@ -35,7 +38,6 @@ main = do
     testCustomersOrders1
     testOFX1
     testXSD1
-    testAge
     testInitials
     testSizesNoList
     testSizesAndList

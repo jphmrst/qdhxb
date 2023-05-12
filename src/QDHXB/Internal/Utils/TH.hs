@@ -24,6 +24,7 @@ module QDHXB.Internal.Utils.TH (
   -- * Utilities for building expressions for other standard Haskell types and values
   caseLeftRight, caseLeftRight',
   caseNothingJust, caseNothingJust',
+  qLambdaWithArg, qLambdaCtntArg,
   -- ** Primitive types
   stringConT, quoteStr,
   -- ** Primitive functions
@@ -57,6 +58,7 @@ module QDHXB.Internal.Utils.TH (
   throwsExc, returnExp, applyReturn,
   -- ** Miscellaneous expression builders
   fn1Type, fn2Type, app2Exp, app3Exp, app4Exp,
+  quotedId,
 
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zeroPat, onePat, manyPat, zomToListVarE,
@@ -72,7 +74,7 @@ module QDHXB.Internal.Utils.TH (
   xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
 
   -- * Other
-  firstToUpper, todoStr)
+  firstToUpper, todoStr, useBang)
 where
 
 import Language.Haskell.TH
@@ -872,3 +874,23 @@ hxbExceptConT = ConT $ mkName "QDHXB.Expansions.HXBExcept"
 -- `Control.Monad.Except` is not yet supplied.
 qHXBExcT :: Type -> Type
 qHXBExcT = AppT hxbExceptConT
+
+-- | Quotation of the identity function.
+quotedId :: Exp
+quotedId = LamE [VarP xName] $ xVarE
+
+-- | Given a function argument @f@ which takes and returns an `Exp`,
+-- build a lambda expression the identifier @content@ whose body is
+-- built by passing @ctnt@ to @f@.
+qLambdaCtntArg :: (Exp -> Exp) -> Exp
+qLambdaCtntArg = qLambdaWithArg $ mkName "content"
+
+-- | Given a function argument @f@ which takes and returns an `Exp`,
+-- build a lambda expression whose body is built by passing @f@ the
+-- abstraction's bound variable.
+qLambdaWithArg :: Name -> (Exp -> Exp) -> Exp
+qLambdaWithArg name f = LamE [VarP name] $ f $ VarE name
+
+-- | Handy abbreviation of some TH boilerplate.
+useBang :: Bang
+useBang = Bang NoSourceUnpackedness NoSourceStrictness

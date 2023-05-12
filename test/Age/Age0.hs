@@ -1,16 +1,16 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module Age.Age where
+module Age.Age0 where
 import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["test/Age/age.xsd"]
--- qdhxb' ["test/Age/age.xsd"]
+-- qdhxb useDebugging ["test/Age/age0.xsd"]
+qdhxb' ["test/Age/age0.xsd"]
 
-testAge :: TLT IO ()
-testAge = inGroup "XSD age" $ do
+testAge0 :: TLT IO ()
+testAge0 = inGroup "XSD age" $ do
   inGroup "Age 1" $ do
     p <- lift $ loadAge "test/Age/age1.xml"
     "Correctly decode <age> in age1.xml" ~: 10 @==- p
