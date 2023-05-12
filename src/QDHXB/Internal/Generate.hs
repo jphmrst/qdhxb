@@ -355,10 +355,6 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) =
       -- tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
   in do
     whenDebugging $ dbgBLabel "Generating from (h) " decl
-    error "REDO"
-    {-
-
-    -- haskellType <- getTypeHaskellType nam
     decoder <- getSafeDecoder nam
     hrefOut <- mapM xsdRefToBangTypeQ refs
     dbgResultM "Generated" $
@@ -387,7 +383,6 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) =
 
     dbgResult "Generated" $ typeDef : decs
     -}
-  -}
 
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
@@ -564,8 +559,6 @@ getSafeDecoder qn = indenting $ do
         ComplexSynonymDefn _ _ _ _ -> do
           error "TODO"
         SequenceDefn nam refs _ln _doc -> do
-          error "REDO"
-          {-
           refDecoders <- mapM getRefSafeDecoder refs
           let (bindingsF, boundNames) = makeBindings refDecoders
           return $ \ctnt ->
@@ -574,7 +567,6 @@ getSafeDecoder qn = indenting $ do
               ++ [NoBindS $ applyReturn $
                     foldl (AppE) (ConE $ mkName $ firstToUpper $ qName nam)
                           (map VarE boundNames)]
-          -}
         UnionDefn _ _ _ _ -> do
           error "TODO"
         ChoiceDefn _ _ _ _ -> do
@@ -596,8 +588,6 @@ getSafeDecoder qn = indenting $ do
                            (qCrefMustBePresentIn (qName qn) Nothing)
                            (qLambdaCtntArg f)
 
-{-
-
         getRefSafeDecoder :: Reference -> XSDQ (Exp -> Exp)
         getRefSafeDecoder (ElementRef nam _ _ _) = do
           ifTypeOf <- getElementType nam
@@ -614,7 +604,7 @@ getSafeDecoder qn = indenting $ do
         getRefSafeDecoder (TypeRef nam _ _ _ _) = getSafeDecoder nam
 
         getAttrRefSafeDecoder :: String -> XSDQ (Exp -> Exp)
-        getAttrRefSafeDecoder rf = return $ AppE (decoderExpFor rf)
+        getAttrRefSafeDecoder rf = return $ AppE (buildDecoderNameFor rf)
 
         unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (Exp -> Exp)
         unpackAttrDecoderForUsage Forbidden = return $ \_ -> TupE []
@@ -641,6 +631,7 @@ getSafeDecoder qn = indenting $ do
                             BindS (VarP n) (f ctnt)) : accFns)
                         ns
 
+  {-
 getSafeDecoderCall :: QName -> XSDQ (Exp -> Exp)
 getSafeDecoderCall qn = indenting $ do
   whenDebugging $ dbgBLabel "getSafeDecoderCall for " qn
@@ -931,7 +922,7 @@ xsdRefToSafeHaskellExpr param r@(AttributeRef ref usage) _ = do
           maybeMatches (throwsError "QDHXB: should not return Nothing") VarE
 
         getAttrRefSafeDecoder :: Name -> String -> XSDQ Exp
-        getAttrRefSafeDecoder p rf = return $ AppE (decoderExpFor rf) (VarE p)
+        getAttrRefSafeDecoder p rf = return $ AppE (buildDecoderNameFor rf) (VarE p)
 
 
 xsdRefToSafeHaskellExpr param ref@(TypeRef qn _lower _upper _l _d) _ctxt = do
@@ -956,11 +947,6 @@ xsdRefToSafeHaskellExpr param ref ctxt = do
   error "xsdRefToSafeHaskellExpr unmatched"
 -}
 
-
--- | From an element reference name, construct the associated Haskell
--- decoder function `Exp`ression.
-decoderExpFor :: String -> Exp
-decoderExpFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
 
 -- | From a type name, construct the associated Haskell element
 -- decoder function `Exp`ression.
@@ -992,7 +978,19 @@ assembleZomMatches zeroCase onePattern oneCase manyPattern manyCase =
     Match (onePat onePattern) (NormalB oneCase) [],
     Match (manyPat manyPattern) (NormalB manyCase) []
     ]
+-}
+
 
+-- | From an element reference name, construct the associated Haskell
+-- decoder function `Exp`ression.  __Note__ that this function will
+-- just operate on the name; there is no assurance that the name will
+-- actually exist.
+buildDecoderNameFor :: String -> Exp
+buildDecoderNameFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
+
+-- | Builds a list of two `Match`es for a `Maybe` expression, given
+-- the alternative expressions for `Nothing` and `Just` (the latter
+-- parameterized over a `Name`).
 maybeMatches :: Exp -> (Name -> Exp) -> XSDQ [Match]
 maybeMatches zeroCase oneCaseF = do
   newX <- newName "x"
@@ -1000,8 +998,6 @@ maybeMatches zeroCase oneCaseF = do
     Match nothingPat (NormalB zeroCase) [],
     Match (justPat newX) (NormalB $ oneCaseF newX) []
     ]
--}
-
 
 -- | Translate a reference to an XSD element type to a Template Haskell
 -- quotation monad returning a type.
