@@ -753,8 +753,8 @@ caseLeftRight' e nl el nr er =
     Match (ConP rightName [] [VarP nr]) (NormalB er) []
     ]
 
--- | Build a TH @case@ expression over a `List` values with clauses
--- for empty, singleton, and other lists.
+-- | Build a TH @case@ expression over list values with clauses for
+-- empty, singleton, and other lists.
 caseListZeroOneMany :: Exp -> Exp -> Name -> Exp -> Name -> Exp -> Exp
 caseListZeroOneMany e zeroExp oneN oneExp manyN manyExp =
   CaseE e [
