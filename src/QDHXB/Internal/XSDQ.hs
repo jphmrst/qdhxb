@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 -- | Internal monad for the XSD-to-Haskell rewriting.
 module QDHXB.Internal.XSDQ (
@@ -131,6 +133,11 @@ liftStatetoXSDQ = XSDQ . lift
 -- | Lift a computation from the `ExceptT` layer to the `XSDQ` wrapper.
 liftExcepttoXSDQ :: ExceptT String (StateT QdxhbState Q) a -> XSDQ a
 liftExcepttoXSDQ = XSDQ
+
+instance MonadError String XSDQ where
+  throwError e = liftExcepttoXSDQ $ throwError e
+  catchError (XSDQ p) h =
+    liftExcepttoXSDQ $ catchError p (\e -> case h e of XSDQ h' -> h')
 
 -- | Provide the `newName` function from the internal `Q` layer to
 -- top-level `XSDQ` computations.

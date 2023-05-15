@@ -2,10 +2,12 @@
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Internal.Utils.ZeroOneMany (
     ZeroOneMany(Zero, One, Many),
-    zomToList, listToZom, zappend, lzappend, zomfilter, zommap, zomintercalate
+    zomToMaybe, zomToSingle, zomToList, listToZom,
+    zappend, lzappend, zomfilter, zommap, zomintercalate
     )
 where
 import Data.List (intercalate)
+import Control.Monad.Except
 import QDHXB.Internal.Utils.BPP
 
 -- | Explicit tagging of whether a list has zero, one, or more than
@@ -21,11 +23,26 @@ instance Blockable c => Blockable (ZeroOneMany c) where
   block (Many xs) =
     stringToBlock "{Many}" `follow` (stackBlocks $ map block xs)
 
--- | Convert a `ZeroOneMany` type to a list type.
-zomToList :: ZeroOneMany a -> [a]
-zomToList Zero = []
-zomToList (One m) = [m]
-zomToList (Many ms) = ms
+-- | Convert a `ZeroOneMany` type to a `Maybe` value, or fail, in an
+-- error-handling monad.
+zomToMaybe :: MonadError e m => e -> ZeroOneMany a -> m (Maybe a)
+zomToMaybe _ Zero = return Nothing
+zomToMaybe _ (One m) = return $ Just m
+zomToMaybe e (Many _) = throwError e
+
+-- | Convert a `ZeroOneMany` type to a single element, or fail, in an
+-- error-handling monad.
+zomToSingle :: MonadError e m => e -> ZeroOneMany a -> m a
+zomToSingle e Zero = throwError e
+zomToSingle _ (One m) = return m
+zomToSingle e (Many _) = throwError e
+
+-- | Convert a `ZeroOneMany` type to a list type, in an error-handling
+-- monad.
+zomToList :: MonadError e m => ZeroOneMany a -> m [a]
+zomToList Zero = return []
+zomToList (One m) = return [m]
+zomToList (Many ms) = return ms
 
 -- | Convert a `Data.List` to a `ZeroOneMany` type.
 listToZom :: [a] -> ZeroOneMany a

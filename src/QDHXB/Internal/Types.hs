@@ -20,13 +20,13 @@ import QDHXB.Internal.Utils.BPP
 data Reference =
   ElementRef     -- ^ A named element type, possibly with numeric
                  -- instance bounds.
-      QName       --
-      (Maybe Int)  --
-      (Maybe Int)   --
-      (Maybe Line)   --
-  | AttributeRef    -- ^ The name of an attribute.
-      QName          --
-      AttributeUsage  --
+      QName       -- ^ Name of the element.
+      (Maybe Int)  -- ^ Lower bound of occurences
+      (Maybe Int)   -- ^ Upper bound of occurences.
+      (Maybe Line)   -- ^ Source code line.
+  | AttributeRef    -- ^ Reference to an attribute.
+      QName          -- ^ Name of the attribute.
+      AttributeUsage  -- ^ Whether the attribute is required.
   | TypeRef       -- ^ Reference to a type.
       QName        -- ^ Name of the type.
       (Maybe Int)   -- ^ Lower bound of occurences.

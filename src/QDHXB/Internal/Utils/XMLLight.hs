@@ -12,6 +12,7 @@ module QDHXB.Internal.Utils.XMLLight (
 where
 import Language.Haskell.TH (mkName, Name)
 import System.IO
+import Control.Monad.Except
 import Text.XML.Light.Input
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.Misc
@@ -40,23 +41,31 @@ pullCRef _ = Nothing
 -- @\<annotation>\<documentation>...\<\/documentation>\<\/annotation>@
 -- string contained within the given node's subcontents.  Any
 -- leading/trailing whitespace will be pruned from the result.
-getAnnotationDoc :: Content -> Maybe String
-getAnnotationDoc c = case zomToList $ pullContentFrom "annotation" c of
-  [] -> Nothing
-  ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
-    [] -> Nothing
-    doc:_ -> fmap chomp $ pullCRef doc
+getAnnotationDoc :: MonadError e m => Content -> m (Maybe String)
+getAnnotationDoc c = do
+  annContents <- zomToList $ pullContentFrom "annotation" c
+  case annContents of
+    [] -> return $ Nothing
+    ann:_ -> do
+      docContents <- zomToList $ pullContentFrom "documentation" ann
+      case docContents of
+        [] -> return $ Nothing
+        doc:_ -> return $ fmap chomp $ pullCRef doc
 
 -- |Attempt to retrieve a
 -- @\<annotation>\<documentation>...\<\/documentation>\<\/annotation>@
 -- string from the given list of subcontents.  Any leading/trailing
 -- whitespace will be pruned from the result.
-getAnnotationDocFrom :: [Content] -> Maybe String
-getAnnotationDocFrom cs = case zomToList $ pullContent "annotation" cs of
-  [] -> Nothing
-  ann:_ -> case zomToList $ pullContentFrom "documentation" ann of
-    [] -> Nothing
-    doc:_ -> fmap chomp $ pullCRefContent doc
+getAnnotationDocFrom :: MonadError e m => [Content] -> m (Maybe String)
+getAnnotationDocFrom cs = do
+  annContents <- zomToList $ pullContent "annotation" cs
+  case annContents of
+    [] -> return Nothing
+    ann:_ -> do
+      docContents <- zomToList $ pullContentFrom "documentation" ann
+      case docContents of
+        [] -> return Nothing
+        doc:_ -> return $ fmap chomp $ pullCRefContent doc
 
 -- | Retrieve the named attribute value from a single content element.
 pullCRefContent :: Content -> Maybe String

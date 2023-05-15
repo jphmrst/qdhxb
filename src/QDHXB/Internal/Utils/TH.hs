@@ -40,11 +40,11 @@ module QDHXB.Internal.Utils.TH (
   -- *** With `Just`
   justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
-  mapVarE,
+  mapVarE, caseListZeroOneMany, caseListOneElse,
   -- ** `IO`
   ioConT,
   -- ** `Functor` and `Contol.Monad.Monad`
-  fmapVarE, applyMapM,
+  fmapVarE, applyMap, applyMapM, applyFmap,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon,
   -- *** With `Control.Monad.Except.runAccept`
@@ -62,9 +62,11 @@ module QDHXB.Internal.Utils.TH (
 
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zeroPat, onePat, manyPat, zomToListVarE,
+  applyZomToSingle, applyZomToMaybe, applyZomToList,
+  zomCase, zomCaseSingle,
 
   -- * @XMLLight@
-  contentConT,
+  contentConT, applyPullContentFrom,
 
   -- * Functions used in TH expansions
   simpleTypeDecoderVarE, spaceSepApp,
@@ -467,10 +469,6 @@ readName = mkName "read"
 readMaybeName :: Name
 readMaybeName = mkName "QDHXB.Expansions.readMaybe"
 
--- | TH `Name` for `QDHXB.Internal.Utils.XMLLight.zomToList`
-zomToListName :: Name
-zomToListName = mkName "QDHXB.Expansions.zomToList"
-
 -- | TH `Name` for "a"
 aName :: Name
 aName = mkName "a"
@@ -483,9 +481,63 @@ readVarE = VarE readName
 readMaybeVarE :: Exp
 readMaybeVarE = VarE readMaybeName
 
--- | TH `Exp` for function `QDHXB.Internal.Utils.XMLLight.zomToList`
+-- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToList`
+zomToListName :: Name
+zomToListName = mkName "QDHXB.Expansions.zomToList"
+
+-- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToList`
 zomToListVarE :: Exp
 zomToListVarE = VarE zomToListName
+
+-- | Apply the TH quotation of the function
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToList` to another `Exp`.
+applyZomToList :: Exp -> Exp
+applyZomToList = AppE zomToListVarE
+
+-- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`
+zomToMaybeName :: Name
+zomToMaybeName = mkName "QDHXB.Expansions.zomToMaybe"
+
+-- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`
+zomToMaybeVarE :: Exp
+zomToMaybeVarE = VarE zomToMaybeName
+
+-- | Apply the TH quotation of the function
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe` to another `Exp`.
+applyZomToMaybe :: Exp -> Exp
+applyZomToMaybe = AppE zomToMaybeVarE
+
+-- | Build a TH @case@ expression over a
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression.
+zomCase :: Exp -> Exp -> Name -> Exp -> Name -> Exp -> Exp
+zomCase e zeroExp oneN oneExp manyN manyExp =
+  CaseE e [
+    Match zeroPat (NormalB zeroExp) [],
+    Match (onePat $ VarP oneN) (NormalB oneExp) [],
+    Match (manyPat $ VarP manyN) (NormalB manyExp) []
+    ]
+
+-- | Build a TH @case@ expression over a
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression.
+zomCaseSingle :: Exp -> Name -> Exp -> Name -> Exp -> Exp
+zomCaseSingle e oneN oneExp otherN otherExp =
+  CaseE e [
+    Match (onePat $ VarP oneN) (NormalB oneExp) [],
+    Match (VarP otherN) (NormalB otherExp) []
+    ]
+
+-- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle`
+zomToSingleName :: Name
+zomToSingleName = mkName "QDHXB.Expansions.zomToSingle"
+
+-- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle`
+zomToSingleVarE :: Exp
+zomToSingleVarE = VarE zomToSingleName
+
+-- | Apply the TH quotation of the function
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle` to another `Exp`.
+applyZomToSingle :: Exp -> Exp
+applyZomToSingle = AppE zomToSingleVarE
 
 -- | TH `Exp` for function `map`
 mapVarE :: Exp
@@ -701,6 +753,25 @@ caseLeftRight' e nl el nr er =
     Match (ConP rightName [] [VarP nr]) (NormalB er) []
     ]
 
+-- | Build a TH @case@ expression over a `List` values with clauses
+-- for empty, singleton, and other lists.
+caseListZeroOneMany :: Exp -> Exp -> Name -> Exp -> Name -> Exp -> Exp
+caseListZeroOneMany e zeroExp oneN oneExp manyN manyExp =
+  CaseE e [
+    Match (ListP []) (NormalB zeroExp) [],
+    Match (ListP [VarP oneN]) (NormalB oneExp) [],
+    Match (ListP [VarP manyN]) (NormalB manyExp) []
+    ]
+
+-- | Build a TH @case@ expression over list values with clauses for
+-- empty, singleton, and other lists.
+caseListOneElse :: Exp -> Name -> Exp -> Name -> Exp -> Exp
+caseListOneElse e oneN oneExp otherN otherExp =
+  CaseE e [
+    Match (ListP [VarP oneN]) (NormalB oneExp) [],
+    Match (VarP otherN) (NormalB otherExp) []
+    ]
+
 -- | Build a TH @case@ expression over `Either` values where we do not
 -- care about the `Name` of the bound variable.
 caseLeftRight :: Exp -> (Name -> Exp) -> (Name -> Exp) -> Exp
@@ -763,6 +834,16 @@ mapMName = mkName "QDHXB.Expansions.mapM"
 -- `Control.Monad.mapM` function.
 applyMapM :: Exp -> Exp -> Exp
 applyMapM f = AppE (AppE (VarE mapMName) f)
+
+-- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
+-- `Control.Monad.mapM` function.
+applyMap :: Exp -> Exp -> Exp
+applyMap f = AppE (AppE (VarE mapName) f)
+
+-- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
+-- `Control.Monad.mapM` function.
+applyFmap :: Exp -> Exp -> Exp
+applyFmap f = AppE (AppE (VarE fmapName) f)
 
 applyBPP :: Exp -> Exp
 applyBPP = AppE (VarE $ mkName "QDHXB.Expansions.bpp")
@@ -894,3 +975,20 @@ qLambdaWithArg name f = LamE [VarP name] $ f $ VarE name
 -- | Handy abbreviation of some TH boilerplate.
 useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness
+
+-- | Reference to exported version of
+-- `QDHXB.Internal.Utils.XMLLight.pullContentFrom`.
+pullContentFromName :: Name
+pullContentFromName = mkName "QDHXB.Expansions.pullContentFrom"
+
+pullContentFromVarE :: Exp
+pullContentFromVarE = VarE pullContentFromName
+
+-- | The `QDHXB.Internal.Utils.XMLLight.pullContentFrom` function
+-- returns the sub-elements of a piece of XML
+-- `QDHXB.Internal.Utils.XMLLight.Content` with the given name; this
+-- function creates a TH `Exp` to apply
+-- `QDHXB.Internal.Utils.XMLLight.pullContentFrom` with a particular
+-- tag name.
+applyPullContentFrom :: String -> Exp -> Exp
+applyPullContentFrom s = AppE $ AppE pullContentFromVarE $ LitE $ StringL s

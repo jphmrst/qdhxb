@@ -36,7 +36,8 @@ inputSchemaItems' outer items = do
 inputSchemaItem :: String -> Content -> XSDQ DataScheme
 inputSchemaItem o e@(Elem (Element q a c l)) = do
   whenDebugging $ dbgPt $ "Encoding element " ++ showContent e
-  res <- indenting $ inputElement q a c o l $ getAnnotationDocFrom c
+  ifDoc <- getAnnotationDocFrom c
+  res <- indenting $ inputElement q a c o l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 inputSchemaItem _ (Text _) = do
@@ -61,8 +62,8 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
-  let ifDoc = getAnnotationDocFrom content
-      ifId = pullAttr "id" ats
+  ifDoc <- getAnnotationDocFrom content
+  let ifId = pullAttr "id" ats
   sub <- case included of
            [] -> return Nothing
            [x] -> return $ Just x
@@ -80,13 +81,13 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
              ln ifDoc
 
 inputElement q@(QName "attribute" _ _) a c o l _d = do
-  let ifDoc = getAnnotationDocFrom c
+  ifDoc <- getAnnotationDocFrom c
   scheme <- encodeAttribute (o ++ "Attr") q a
                             (filter isNonKeyNonNotationElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
 
 inputElement q@(QName "attributeGroup" _ _) a c o l _d = do
-  let ifDoc = getAnnotationDocFrom c
+  ifDoc <- getAnnotationDocFrom c
   scheme <- encodeAttribute (o ++ "AtrGrp") q a
                             (filter isNonKeyNonNotationElem c) l ifDoc
   return $ AttributeScheme scheme l ifDoc
@@ -296,7 +297,7 @@ inputElement (QName "sequence" _ _) ats ctnts outer ifLn ifDoc = do
 
 inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgPt $ "Restriction, outer name " ++ outer
-  let ifDoc' = getAnnotationDocFrom ctnts
+  ifDoc' <- getAnnotationDocFrom ctnts
   ifName <- pullAttrQName "name" ats
   case pullAttr "base" ats of
     Just base -> do
@@ -370,7 +371,7 @@ inputElement (QName "group" _ _) ats ctnts outer ifLn ifDoc = do
         finishGroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
     (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
       whenDebugging $ dbgPt "all subcase"
-      -- let ifDoc' = getAnnotationDocFrom contents
+      -- ifDoc' <- getAnnotationDocFrom contents
       boxed $ do
         dbgLn $
           "TODO inputElement > group with all" ++ ifAtLine ifLn'
@@ -467,7 +468,7 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
 encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
 encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
   whenDebugging $ dbgBLabel "- Encoding attribute " q
-  let ifDoc = getAnnotationDocFrom c
+  ifDoc <- getAnnotationDocFrom c
   res <- encodeAttribute (outer ++ "Elem") q a
                          (filter isNonKeyNonNotationElem c) l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
@@ -595,7 +596,7 @@ encodeSimpleTypeByRestriction ::
 encodeSimpleTypeByRestriction -- Note ignoring ats
     ifName outer _ (Elem (Element (QName "restriction" _ _) ats' cs ln)) = do
   whenDebugging $ dbgPt $ "encode simple by restr, outer name " ++ outer
-  let ifDoc = getAnnotationDocFrom cs
+  ifDoc <- getAnnotationDocFrom cs
   case pullAttr "base" ats' of
     Just base -> do
       dbgLn $ "- base " ++ base

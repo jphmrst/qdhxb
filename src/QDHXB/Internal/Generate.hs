@@ -79,7 +79,7 @@ import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
-import QDHXB.Internal.Utils.BPP (bpp)
+import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 
@@ -559,8 +559,7 @@ getSafeDecoder qn = indenting $ do
         ComplexSynonymDefn _ _ _ _ -> do
           error "TODO"
         SequenceDefn nam refs _ln _doc -> do
-          refDecoders <- mapM getRefSafeDecoder refs
-          let (bindingsF, boundNames) = makeBindings refDecoders
+          (bindingsF, boundNames) <- makeSubBindings refs
           return $ \ctnt ->
             DoE Nothing $
               bindingsF ctnt
@@ -589,19 +588,21 @@ getSafeDecoder qn = indenting $ do
                            (qLambdaCtntArg f)
 
         getRefSafeDecoder :: Reference -> XSDQ (Exp -> Exp)
-        getRefSafeDecoder (ElementRef nam _ _ _) = do
+        getRefSafeDecoder (ElementRef nam lower upper _) = do
           ifTypeOf <- getElementType nam
           case ifTypeOf of
             Nothing -> error $
               "No type stored for element \"" ++ show nam ++ "\""
-            Just typeOf -> getSafeDecoder typeOf
+            Just typeOf -> -- fmap (\c -> GET-SUB-FROM-CTNT) $
+              getSafeDecoder typeOf
         getRefSafeDecoder (AttributeRef ref usage) = do
           coreFn <- getAttrRefSafeDecoder $ qName ref
           usageFn <- unpackAttrDecoderForUsage usage
           let res :: Exp -> Exp
               res = applyReturn . usageFn . coreFn
           return res
-        getRefSafeDecoder (TypeRef nam _ _ _ _) = getSafeDecoder nam
+        getRefSafeDecoder (TypeRef nam _ lower upper _) =
+          getSafeDecoder nam
 
         getAttrRefSafeDecoder :: String -> XSDQ (Exp -> Exp)
         getAttrRefSafeDecoder rf = return $ AppE (buildDecoderNameFor rf)
@@ -615,21 +616,71 @@ getSafeDecoder qn = indenting $ do
           return $ \expr -> CaseE expr matches
 
 
-        makeBindings :: [Exp -> Exp] -> (Exp -> [Stmt], [Name])
-        makeBindings fs = makeBindings' fs [] [] $
-          map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
+        makeSubBindings :: [Reference] -> XSDQ (Exp -> [Stmt], [Name])
+        makeSubBindings fs =
+          makeSubBindings' fs
+            (map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int]))
+            [] []
 
-        makeBindings' ::
-          [Exp -> Exp] -> [Name] -> [Exp -> Stmt] -> [Name]
-          -> ((Exp -> [Stmt]), [Name])
-        makeBindings' [] accNames accFns _ =
-          ((\ctnt -> reverse $ map (\x -> x ctnt) accFns), reverse accNames)
-        makeBindings' _ _ _ [] = error "Internal error --- end of infinite list"
-        makeBindings' (f:fs) accNames accFns (n:ns) =
-          makeBindings' fs (n : accNames)
-                        ((\ctnt ->
-                            BindS (VarP n) (f ctnt)) : accFns)
-                        ns
+        makeSubBindings' ::
+          [Reference] -> [Name] -> [Name] -> [Exp -> Stmt]
+          -> XSDQ ((Exp -> [Stmt]), [Name])
+        makeSubBindings' [] _ accNames accFns = do
+          whenDebugging $ dbgLn "- End of makeSubBindings'"
+          return
+            ((\ctnt -> reverse $ map (\x -> x ctnt) accFns), reverse accNames)
+        makeSubBindings' (r@(ElementRef qn lo hi _):rs) (n:ns) accNs accFns = do
+          whenDebugging $ dbgBLabel "- makeSubBindings' for " r
+          f <- indenting $ getRefSafeDecoder r
+          whenDebugging $ do
+            dbgLn $ outBlock $
+              labelBlock "  getRefSafeDecoder gives " $
+                stringToBlock $ pprint $ f $ VarE $ mkName "XX"
+          f' <- indenting $ makeSubelementBinder qn f lo hi
+          whenDebugging $ do
+            dbgLn $ outBlock $
+              labelBlock "  makeSubelementBinder gives " $
+                stringToBlock $ pprint $ f' $ VarE $ mkName "XX"
+          makeSubBindings' rs ns (n : accNs)
+                           ((\ctnt -> BindS (VarP n) (f' ctnt)) : accFns)
+        makeSubBindings' (AttributeRef _ _:_) _ _ _ = do
+          error "AttributeRef not allowed in complex sequence"
+        makeSubBindings' (TypeRef _ _ _ _ _:_) _ _ _ = do
+          error "TypeRef not allowed in complex sequence"
+        makeSubBindings' _ [] _ _ =
+          error "Internal error --- end of infinite list"
+
+        makeSubelementBinder ::
+          QName -> (Exp -> Exp) -> Maybe Int -> Maybe Int
+          -> XSDQ (Exp -> Exp)
+        makeSubelementBinder qn indivF lo hi =
+          makeSubelementBinder' (applyPullContentFrom $ qName qn) indivF lo hi
+
+        makeSubelementBinder' ::
+          (Exp -> Exp) -> (Exp -> Exp) -> Maybe Int -> Maybe Int
+          -> XSDQ (Exp -> Exp)
+        makeSubelementBinder' _ _ _ (Just 0) = do       -- Unit
+          return $ \ _ -> TupE []
+        makeSubelementBinder' puller indivF (Just 1) (Just 1) = do -- Single
+          return $ indivF . listToSingle . puller
+        makeSubelementBinder' puller indivF _ (Just 1) = do        -- Maybe
+          return $ applyFmap (qLambdaWithArg (mkName "a") indivF) .
+            listToMaybe . puller
+        makeSubelementBinder' puller indivF _ _ = do               -- List
+          return $ applyMap (qLambdaWithArg (mkName "a") indivF) .
+            indivF . puller
+
+        listToSingle :: Exp -> Exp
+        listToSingle x =
+          zomCaseSingle x uName (VarE uName) uName
+            (throwsError "Single element required, multiple found")
+          where uName = mkName "u"
+
+        listToMaybe :: Exp -> Exp
+        listToMaybe x = zomCase x nothingConE
+          vName (AppE justConE (VarE vName))
+          vName (throwsError "Zero or single element required, multiple found")
+          where vName = mkName "v"
 
   {-
 getSafeDecoderCall :: QName -> XSDQ (Exp -> Exp)
