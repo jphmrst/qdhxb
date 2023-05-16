@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Exceptions raised in QDHXB code generation.
-module QDHXB.Errs(HXBErr(..), HXBExcept) where
+module QDHXB.Errs(HXBErr(..), HXBExcept, HXBExceptT) where
 import Control.Monad.Except
 import Text.XML.Light.Types (Line)
 import QDHXB.Internal.Utils.BPP
@@ -66,3 +66,6 @@ instance Show HXBErr where show = bpp
 
 -- | An `Except` computation which may throw an `HXBErr`.
 type HXBExcept a = Except HXBErr a
+
+-- | An `ExceptT` computation which may throw an `HXBErr`.
+type HXBExceptT m a = ExceptT HXBErr m a

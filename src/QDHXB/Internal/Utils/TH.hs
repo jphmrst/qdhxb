@@ -15,7 +15,7 @@ module QDHXB.Internal.Utils.TH (
   qnameBasicDecoder, stringListBasicDecoder,
 
   -- * Building expressions related to the exceptions in `QDHXB.Errs`
-  qHXBExcT,
+  qHXBExcT, qHXBExcTIO,
   qMiscError, qNoValidContentInUnion, qAtMostOnceIn,
   qMustBePresentIn, qCrefMustBePresentIn, qCouldNotDecodeSimpleType,
   qthMiscError, qthNoValidContentInUnion, qthAtMostOnceIn,
@@ -32,21 +32,21 @@ module QDHXB.Internal.Utils.TH (
   -- ** `Eq`
   eqConT,
   -- ** `Read` and `Show`
-  showConT, readVarE,
+  showConT, showVarE, readVarE,
   -- ** `Maybe`
-  maybeConT, appMaybeType,
+  maybeConT, appMaybeType, applyMaybe, justOrThrow,
   -- *** With `Nothing`
   nothingConE, nothingPat,
   -- *** With `Just`
   justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
-  mapVarE, caseListZeroOneMany, caseListOneElse,
+  mapVarE, caseListZeroOneMany, caseListOneElse, applyConcat,
   -- ** `IO`
   ioConT,
   -- ** `Functor` and `Contol.Monad.Monad`
   fmapVarE, applyMap, applyMapM, applyFmap,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
-  exceptConT, applyExceptCon,
+  exceptConT, applyExceptCon, applyRunExcept,
   -- *** With `Control.Monad.Except.runAccept`
   runExceptVarE, applyRunExceptExp, resultOrThrow,
   -- *** With `Control.Monad.Except.throwError`
@@ -66,7 +66,7 @@ module QDHXB.Internal.Utils.TH (
   zomCase, zomCaseSingle,
 
   -- * @XMLLight@
-  contentConT, applyPullContentFrom,
+  contentConT, applyPullContentFrom, applyPullCRefContent, applyLoadContent,
 
   -- * Functions used in TH expansions
   simpleTypeDecoderVarE, spaceSepApp,
@@ -457,6 +457,10 @@ eqName = mkName "Eq"
 showName :: Name
 showName = mkName "Show"
 
+-- | TH `Name` for "show"
+lcshowName :: Name
+lcshowName = mkName "show"
+
 -- | TH `Name` for "map"
 mapName :: Name
 mapName = mkName "map"
@@ -543,6 +547,12 @@ applyZomToSingle = AppE zomToSingleVarE
 mapVarE :: Exp
 mapVarE = VarE mapName
 
+concatName = mkName "concat"
+
+-- | Quote applying the @concat@ function to the given TH `Exp`.
+applyConcat :: Exp -> Exp
+applyConcat = AppE (VarE concatName)
+
 -- | TH `Exp` for function `error`
 errorVarE :: Exp
 errorVarE = VarE errorName
@@ -583,6 +593,13 @@ ioConT = ConT ioName
 maybeConT :: Type
 maybeConT = ConT maybeName
 
+maybeFnName :: Name
+maybeFnName = mkName "maybe"
+
+applyMaybe :: Exp -> Exp -> Exp -> Exp
+applyMaybe ifNothing ifJust e =
+  AppE (AppE (AppE (VarE maybeFnName) ifNothing) ifJust) e
+
 -- | Given a `Type`, wrap it as an argument to `Maybe`.
 appMaybeType :: Type -> Type
 appMaybeType t = AppT maybeConT t
@@ -590,6 +607,10 @@ appMaybeType t = AppT maybeConT t
 -- | TH `Type` for `Show`
 showConT :: Type
 showConT = ConT showName
+
+-- | TH `Exp` for `show`
+showVarE :: Exp
+showVarE = VarE lcshowName
 
 -- | TH `Type` for `Eq`
 eqConT :: Type
@@ -650,6 +671,15 @@ throwVarE = VarE throwName
 -- expression as non-binding TH `Stmt`.
 applyThrowStmt :: Exp -> Stmt
 applyThrowStmt = NoBindS . applyThrowExp
+
+pullCRefContentName :: Name
+pullCRefContentName = mkName "QDHXB.Expansions.pullCRefContent"
+
+-- | Given a TH `Exp`, return the TH `Stmt` which applies the
+-- `Control.Monad.Except.throwError` function to the argument
+-- expression as non-binding TH `Stmt`.
+applyPullCRefContent :: Exp -> Exp
+applyPullCRefContent = AppE $ VarE $ pullCRefContentName
 
 -- | Given a TH `Exp`, return the TH `Exp` which applies the
 -- `Control.Monad.Except.throwError` function to the argument.
@@ -791,6 +821,12 @@ caseNothingJust' e en nj ej =
 -- care about the `Name` of the bound variable.
 caseNothingJust :: Exp -> Exp -> (Name -> Exp) -> Exp
 caseNothingJust e el erf = caseNothingJust' e el zName (erf zName)
+
+-- | Given a TH `Exp` expression of type @Maybe a@, either returns a
+-- value of type @a@ or throws an `error` with the given `String`
+justOrThrow :: Exp -> Exp -> Exp
+justOrThrow ex msg =
+  caseNothingJust ex (throwsErrorExp msg) VarE
 
 -- | Given a TH `Exp` expression of type @Except String a@, either
 -- returns a value of type @a@ or throws an `error` with the given
@@ -950,11 +986,24 @@ quoteLoc (Just l) = applyJust $ LitE $ IntegerL l
 hxbExceptConT :: Type
 hxbExceptConT = ConT $ mkName "QDHXB.Expansions.HXBExcept"
 
+hxbExceptTConT :: Type
+hxbExceptTConT = ConT $ mkName "QDHXB.Expansions.HXBExceptT"
+
 -- | Build the `Type` of an `Control.Monad.Except` computation
 -- throwing a `QDHXB.Errs.HXBErr`.  The second argument to
 -- `Control.Monad.Except` is not yet supplied.
 qHXBExcT :: Type -> Type
 qHXBExcT = AppT hxbExceptConT
+
+-- | Build the `Type` of an `Control.Monad.ExceptT`-over-`IO`
+-- computation throwing a `QDHXB.Errs.HXBErr`.  The result type of the
+-- monad stack is not yet supplied.
+qHXBExcTIO :: Type -> Type
+qHXBExcTIO = AppT (AppT hxbExceptTConT quotedIOcon)
+
+-- | Quotation of the identity function.
+quotedIOcon :: Type
+quotedIOcon = ConT $ mkName "IO"
 
 -- | Quotation of the identity function.
 quotedId :: Exp
@@ -992,3 +1041,12 @@ pullContentFromVarE = VarE pullContentFromName
 -- tag name.
 applyPullContentFrom :: String -> Exp -> Exp
 applyPullContentFrom s = AppE $ AppE pullContentFromVarE $ LitE $ StringL s
+
+loadContentName :: Name
+loadContentName = mkName "QDHXB.Expansions.__loadContent"
+
+applyLoadContent :: Exp -> Exp
+applyLoadContent = AppE (VarE loadContentName)
+
+applyRunExcept :: Exp -> Exp
+applyRunExcept = AppE runExceptVarE

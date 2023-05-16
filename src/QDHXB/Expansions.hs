@@ -4,11 +4,12 @@ module QDHXB.Expansions (
   readMaybe, mapM,
   simpleTypeDecoder,
   Content,
-  ZeroOneMany(Zero, One, Many), zomToList, __loadElement, pullContentFrom,
+  ZeroOneMany(Zero, One, Many), zomToList,
   Except, throwError, catchError, runExcept,
   spaceSep, pullAttrFrom,
   Day, TimeOfDay, DiffTime, ZonedTime,
-  HXBErr(..), HXBExcept,
+  __loadElement, __loadContent, pullContentFrom, pullCRefContent,
+  HXBErr(..), HXBExcept, HXBExceptT,
   bpp, QName
   )
 where
@@ -22,7 +23,8 @@ import Data.Time.Clock (DiffTime)
 import QDHXB.Errs
 import QDHXB.Internal.Utils.ZeroOneMany
 import QDHXB.Internal.Utils.XMLLight (
-  __loadElement, pullContentFrom, pullAttrFrom)
+  __loadElement, __loadContent,
+  pullContentFrom, pullAttrFrom, pullCRefContent)
 import QDHXB.Internal.Utils.Misc (spaceSep)
 import QDHXB.Internal.Utils.BPP (bpp)
 import QDHXB.Internal.Generate (simpleTypeDecoder)

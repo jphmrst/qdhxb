@@ -7,7 +7,7 @@ module QDHXB.Internal.Utils.XMLLight (
     filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isFocusElem,
     isTagged,
 
-    __loadElement, loadElementName,
+    __loadElement, __loadContent, loadElementName,
     withPrefix, withSuffix, withNamePrefix, withNameSuffix)
 where
 import Language.Haskell.TH (mkName, Name)
@@ -133,6 +133,20 @@ isFocusElem (Elem (Element (QName "notation" _ _) _ _ _)) = False
 isFocusElem (Elem (Element (QName "annotation" _ _) _ _ _)) = False
 isFocusElem (Elem (Element _ _ _ _)) = True
 isFocusElem _ = False
+
+-- | Using the given decoder for an XMLLight `Content` structure,
+-- extract a decoded value from an XML file.
+__loadContent :: String -> IO Content
+__loadContent xmlFile = do
+  xml <- fmap parseXML $ readFile' xmlFile
+  case filter isElem xml of
+    ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) ->
+      case ds of
+        e:[] -> return e
+        _:_  -> error "Expected a single top-level element, found multiple"
+        _    -> error "Missing top-level element"
+    [e] -> return e
+    _ -> error "No elements in XML file"
 
 -- | Using the given decoder for an XMLLight `Content` structure,
 -- extract a decoded value from an XML file.
