@@ -348,13 +348,6 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
 
 xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (h) " decl
-  error "REDO"
-  {-
-  let namStr = qName nam
-      nameRoot = firstToUpper namStr
-      typNam = mkName nameRoot
-      -- decNam = mkName $ "decodeAs" ++ nameRoot
-      -- tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
   decoder <- getSafeDecoder nam
   hrefOut <- mapM xsdRefToBangTypeQ refs
   dbgResultM "Generated" $
@@ -362,28 +355,6 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
                         DataD [] tn [] Nothing [NormalC tn $ hrefOut]
                               [DerivClause Nothing [eqConT, showConT]])
                     decoder ifDoc
-    -}
-
-    {-
-    whenDebugging $ indenting $ do
-      dbgLn $ "REFS " ++ (foldr (++) " " $ map show refs)
-      dbgLn $ "HREFOUT " ++ (foldr (++) " " $ map show hrefOut)
-    let subNames = map (mkName . ("s" ++) . (show :: Int -> String)) [1..]
-    safeDecoder <- fmap (DoE Nothing) $ indenting $
-      assembleTryStatements refs subNames ctxtName (ConE typNam) []
-
-    (typeName, decs) <-
-      getComplexTypeElements (firstToUpper namStr) safeDecoder ln ifDoc
-
-    pushDeclHaddock ifDoc typeName $
-      "Representation of the @\\<" ++ namStr ++ ">@ attribute"
-
-    -- Type declaration
-    let typeDef = DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
-                    [DerivClause Nothing [eqConT, showConT]]
-
-    dbgResult "Generated" $ typeDef : decs
-    -}
 
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
@@ -700,7 +671,7 @@ getSafeDecoder qn = indenting $ do
           pull <- newName "pull"
           single <- newName "single"
           return $ \src dest ->
-            (BindS (VarP pull) $ puller $ VarE src)
+            (LetS [ValD (VarP pull) (NormalB $ puller $ VarE src) []])
             : listToSingle pull single ++ indivF single dest
         makeSubelementBinder' puller indivF _ (Just 1) = do        -- Maybe
           pull <- newName "pull"
@@ -708,7 +679,7 @@ getSafeDecoder qn = indenting $ do
           a <- newName "a"
           mapped <- newName "mapped"
           return $ \src dest ->
-            (BindS (VarP pull) $ puller $ VarE src)
+            LetS [ValD (VarP pull) (NormalB $ puller $ VarE src) []]
             : (BindS (VarP mapped) $ applyConcat $
                  applyMapM (LamE [VarP a] $ DoE Nothing $
                               indivF a tmp ++ [
@@ -719,7 +690,7 @@ getSafeDecoder qn = indenting $ do
           tmp <- newName "tmp"
           a <- newName "a"
           return $ \src dest -> [
-            BindS (VarP pull) $ puller $ VarE src,
+            LetS [ValD (VarP pull) (NormalB $ puller $ VarE src) []],
             BindS (VarP dest) $ applyConcat $
               applyMapM (LamE [VarP a] $ DoE Nothing $
                            indivF a tmp ++ [
@@ -729,17 +700,25 @@ getSafeDecoder qn = indenting $ do
 
         listToSingle :: Transformer
         listToSingle src dest =
-          [ BindS (VarP dest) $
-              zomCaseSingle (VarE src) uName (VarE uName) uName
-                (throwsError "Single element required, multiple found") ]
+          [ LetS [
+             ValD (VarP dest)
+               (NormalB $
+                 zomCaseSingle (VarE src) uName (VarE uName) uName
+                   (throwsError "Single element required, multiple found")) []
+             ]
+          ]
           where uName = mkName "u"
 
         listToMaybe :: Transformer
         listToMaybe src dest =
-          [ BindS (VarP dest) $
-              zomCase (VarE src) nothingConE
-                vName (AppE justConE (VarE vName))
-                vName (throwsError "Zero or single element required, multiple found") ]
+          [ LetS [
+              ValD (VarP dest)
+                (NormalB $
+                   zomCase (VarE src) nothingConE
+                     vName (AppE justConE (VarE vName))
+                     vName (throwsError
+                         "Zero or single element required, multiple found"))
+                []]]
           where vName = mkName "v"
 
   {-

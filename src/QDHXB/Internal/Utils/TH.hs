@@ -596,6 +596,8 @@ maybeConT = ConT maybeName
 maybeFnName :: Name
 maybeFnName = mkName "maybe"
 
+-- | Build a TH `Exp` which applies the standard `maybe` function to
+-- the arguments denoted by three other `Exp`s.
 applyMaybe :: Exp -> Exp -> Exp -> Exp
 applyMaybe ifNothing ifJust e =
   AppE (AppE (AppE (VarE maybeFnName) ifNothing) ifJust) e
@@ -731,8 +733,9 @@ applyCatchErrorExp :: Exp -> Exp -> Exp
 applyCatchErrorExp e1 e2 = InfixE (Just e1) catchErrorVarE (Just e2)
 
 -- | Given some TH `Exp` denoting a monadic-typed value, use
--- `Control.Monad.Except.catchError` to catch any `ExceptT`-related
--- exceptions, convert them to a `String`, and throw with `error`.
+-- `Control.Monad.Except.catchError` to catch any
+-- `Control.Monad.Except.ExceptT`-related exceptions, convert them to
+-- a `String`, and throw with `error`.
 withShowAndThrowHandler :: Exp -> Exp
 withShowAndThrowHandler e = e `applyCatchErrorExp`
   (LamE [VarP xName] $ throwsErrorExp $ AppE showVarE $ VarE xName)
@@ -1075,8 +1078,14 @@ applyPullContentFrom s = AppE $ AppE pullContentFromVarE $ LitE $ StringL s
 loadContentName :: Name
 loadContentName = mkName "QDHXB.Expansions.__loadContent"
 
+-- | Build a TH `Exp` which applies the
+-- `QDHXB.Expansions.__loadContent` function to the argument denoted
+-- by the given `Exp`.
 applyLoadContent :: Exp -> Exp
 applyLoadContent = AppE (VarE loadContentName)
 
+-- | Build a TH `Exp` which applies the standard
+-- `Control.Monad.Except.runExcept` function to the argument denoted
+-- by the given `Exp`.
 applyRunExcept :: Exp -> Exp
 applyRunExcept = AppE runExceptVarE
