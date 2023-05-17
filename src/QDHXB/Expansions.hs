@@ -5,16 +5,17 @@ module QDHXB.Expansions (
   simpleTypeDecoder,
   Content,
   ZeroOneMany(Zero, One, Many), zomToList,
-  Except, throwError, catchError, runExcept,
+  Except, throwError, catchError, runExcept, runExceptT,
   spaceSep, pullAttrFrom,
   Day, TimeOfDay, DiffTime, ZonedTime,
   __loadElement, __loadContent, pullContentFrom, pullCRefContent,
-  HXBErr(..), HXBExcept, HXBExceptT,
+  HXBErr(..), HXBExcept,
   bpp, QName
   )
 where
 
-import Control.Monad.Except (Except, throwError, runExcept, catchError)
+import Control.Monad.Except (
+  Except, throwError, runExcept, runExceptT, catchError)
 import Text.Read (readMaybe)
 import Text.XML.Light.Types (Content, QName)
 import Data.Time.Calendar.OrdinalDate (Day)

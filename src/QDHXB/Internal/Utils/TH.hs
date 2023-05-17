@@ -48,17 +48,17 @@ module QDHXB.Internal.Utils.TH (
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon, applyRunExcept,
   -- *** With `Control.Monad.Except.runAccept`
-  runExceptVarE, applyRunExceptExp, resultOrThrow,
+  runExceptVarE, applyRunExceptExp, applyRunExceptTExp, resultOrThrow,
   -- *** With `Control.Monad.Except.throwError`
   throwVarE, applyThrowStmt, applyThrowStrStmt,
   applyThrowExp, applyThrowStrExp,
   -- *** With `Control.Monad.Except.catchError`
-  catchErrorVarE, applyCatchErrorExp, replaceOnError,
+  catchErrorVarE, applyCatchErrorExp, replaceOnError, withShowAndThrowHandler,
   -- *** Monadic statements
   throwsExc, returnExp, applyReturn,
   -- ** Miscellaneous expression builders
   fn1Type, fn2Type, app2Exp, app3Exp, app4Exp,
-  quotedId,
+  quotedId, quotedReturnId,
 
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zeroPat, onePat, manyPat, zomToListVarE,
@@ -657,6 +657,20 @@ runExceptVarE = VarE runExceptName
 applyRunExceptExp :: Exp -> Exp
 applyRunExceptExp = AppE runExceptVarE
 
+-- | TH `Name` for the `QDHXB.Expansions.runExcept` re-export of
+-- `Control.Monad.Except.runExcept`.
+runExceptTName :: Name
+runExceptTName = mkName "QDHXB.Expansions.runExceptT"
+
+-- | TH `Exp` for the `Control.Monad.Except.runExceptT` function
+runExceptTVarE :: Exp
+runExceptTVarE = VarE runExceptTName
+
+-- | Given a TH `Exp`, return the TH `Exp` which applies the
+-- `Control.Monad.Except.runExcept` function to the argument
+applyRunExceptTExp :: Exp -> Exp
+applyRunExceptTExp = AppE runExceptTVarE
+
 -- | TH `Name` for the `QDHXB.Expansions.throwError` re-export of
 -- `Control.Monad.Except.throwError`.
 throwName :: Name
@@ -715,6 +729,13 @@ infixl `applyCatchErrorExp`
 applyCatchErrorExp :: Exp -> Exp -> Exp
 -- applyCatchErrorExp e1 e2 = AppE (AppE catchErrorVarE e1) e2
 applyCatchErrorExp e1 e2 = InfixE (Just e1) catchErrorVarE (Just e2)
+
+-- | Given some TH `Exp` denoting a monadic-typed value, use
+-- `Control.Monad.Except.catchError` to catch any `ExceptT`-related
+-- exceptions, convert them to a `String`, and throw with `error`.
+withShowAndThrowHandler :: Exp -> Exp
+withShowAndThrowHandler e = e `applyCatchErrorExp`
+  (LamE [VarP xName] $ throwsErrorExp $ AppE showVarE $ VarE xName)
 
 -- | Given two expressions of type `Except a`, run the first first and
 -- return its result, but if it fails run the other instead.
@@ -833,7 +854,12 @@ justOrThrow ex msg =
 -- `String`
 resultOrThrow :: Exp -> Exp
 resultOrThrow ex =
-  caseLeftRight (applyRunExceptExp ex) (throwsErrorExp . applyBPP . VarE) VarE
+  caseLeftRight (applyRunExceptExp ex)
+    (throwsErrorExp . applyBPP . (\x -> SigE x $ ConT hxberrName) . VarE)
+    VarE
+
+hxberrName :: Name
+hxberrName = mkName "QDHXB.Expansions.HXBErr"
 
 --  (`applyCatchErrorExp` (LamE [VarP xName] $ throwsErrorExp (VarE xName)))
 
@@ -1008,6 +1034,10 @@ quotedIOcon = ConT $ mkName "IO"
 -- | Quotation of the identity function.
 quotedId :: Exp
 quotedId = LamE [VarP xName] $ xVarE
+
+-- | Quotation of the identity function.
+quotedReturnId :: Exp
+quotedReturnId = LamE [VarP xName] $ applyReturn xVarE
 
 -- | Given a function argument @f@ which takes and returns an `Exp`,
 -- build a lambda expression the identifier @content@ whose body is

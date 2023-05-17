@@ -1,12 +1,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- | Exceptions raised in QDHXB code generation.
-module QDHXB.Errs(HXBErr(..), HXBExcept, HXBExceptT) where
+module QDHXB.Errs(HXBErr(..), HXBExcept) where
 import Control.Monad.Except
 import Text.XML.Light.Types (Line)
 import QDHXB.Internal.Utils.BPP
 
--- | Exceptions raised in `QDHXB.Internal.XSDQ` computations.
+-- | Exceptions raised when the code generated from an XSD
+-- specification encounters XML which it cannot process.  Note that
+-- these errors are __not__ raised from the `QDHXB.Internal.XSDQ`
+-- monad; the `ExceptT` layer there throws `String`s.
 data HXBErr =
   MiscError -- ^ Situation not covered by another case
       String -- ^ Plain-language description of the exception
@@ -66,6 +69,3 @@ instance Show HXBErr where show = bpp
 
 -- | An `Except` computation which may throw an `HXBErr`.
 type HXBExcept a = Except HXBErr a
-
--- | An `ExceptT` computation which may throw an `HXBErr`.
-type HXBExceptT m a = ExceptT HXBErr m a

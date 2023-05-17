@@ -103,7 +103,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
   -- let (haskellType, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   -- let decoder = basicDecoder $ VarE eName
   haskellType <- getTypeHaskellType typ
-  decoder <- getSafeDecoder typ
+  decoder <- indenting $ getSafeDecoder typ
   dbgResultM "Generated" $
     newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
@@ -203,23 +203,19 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   tmp1 <- newName "t"
   resId <- newName "res"
   resId2 <- newName "res"
-  subId <- newName "subres"
-  let loadSteps = [
-        BindS (VarP tmp1) (applyLoadContent $ VarE yName),
-        LetS [ValD (VarP resId) (NormalB $ applyRunExcept $ DoE Nothing $
-                                  decoderFn tmp1 subId
-                                  ++ [NoBindS $ applyReturn $ VarE subId])
-                   [],
-              ValD (VarP resId2)
-                   (NormalB $ caseLeftRight' (VarE resId)
-                     eName (throwsErrorExp $ AppE showVarE (VarE eName))
-                     xName (VarE xName)) []
-             ],
+  let loadSteps = decoderFn tmp1 resId2 ++ [
         NoBindS $ applyReturn $ VarE resId2
         ]
       res = [
         SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
-        FunD loadNam [Clause [VarP yName] (NormalB $ DoE Nothing loadSteps) []]
+        FunD loadNam [Clause [VarP yName]
+                      (NormalB $ DoE Nothing [
+                        BindS (VarP tmp1) (applyLoadContent $ VarE yName),
+                        NoBindS $ applyReturn $ resultOrThrow $
+                            (DoE Nothing [
+                                BindS (VarP resId) $ DoE Nothing loadSteps,
+                                NoBindS (applyReturn $ VarE resId)
+                                ])]) []]
         ]
 
   pushDeclHaddock ifDoc loadNam
@@ -561,7 +557,8 @@ getSafeDecoder qn = indenting $ do
     Just defn -> do
       whenDebugging $ dbgBLabel "- Found " defn
       case defn of
-        BuiltinDefn ty _ _ _ -> forSimpleType ty
+        BuiltinDefn ty _ _ _ -> do
+          forSimpleType ty
         ElementDefn _ ty _ _ -> do
           error "REDO"
           -- getSafeDecoder ty
@@ -601,11 +598,14 @@ getSafeDecoder qn = indenting $ do
           tmp1 <- newName "maybeContent"
           tmp2 <- newName "content"
           return $ \src dest -> [
-            BindS (VarP tmp1) (applyPullCRefContent $ VarE src),
+            LetS [
+              ValD (VarP tmp1) (NormalB $ applyPullCRefContent $ VarE src) []
+              ],
             BindS (VarP tmp2)
-              (applyMaybe (qCrefMustBePresentIn (qName qn) Nothing)
-                          quotedId
-                          (VarE tmp1)) {- ,
+              (applyMaybe (applyThrowExp $
+                             qCrefMustBePresentIn (qName qn) Nothing)
+                quotedReturnId (VarE tmp1))
+             {- ,
             BindS (VarP dest) $
               app3Exp simpleTypeDecoderVarE
                       (VarE tmp2) (qCrefMustBePresentIn (qName qn) Nothing)
@@ -1188,10 +1188,10 @@ getTypeDecoderFn qn = do
             ]
           -- fmap (qLambdaWithArg (mkName "w")) $ forSimpleType ty
         _ -> return $ \src dest -> [
-          BindS (VarP dest) $
-              AppE (VarE $ mkName $
-                     "decodeAs" ++ (firstToUpper $ qName qn))
-                   (VarE src)]
+          LetS [ValD (VarP dest)
+                     (NormalB $ AppE (VarE $ mkName $
+                                        "decodeAs" ++ (firstToUpper $ qName qn))
+                                     (VarE src)) []]]
 
   where forSimpleType :: QName -> XSDQ Transformer
         forSimpleType ty = do
