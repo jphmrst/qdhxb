@@ -22,6 +22,7 @@ import GroupBasic.GroupBasic1 (testGB1)
 import ChoiceBasic.ChoiceBasic0 (testCB0)
 import SequenceBasic.SequenceBasic0 (testSequencebasic0)
 import SequenceBasic.SequenceBasic1 (testSequencebasic1)
+import SequenceBasic.SequenceBasic2 (testSequencebasic2)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -34,6 +35,7 @@ main = do
     testInitials
     testSequencebasic0
     testSequencebasic1
+    testSequencebasic2
     testShiporder0
     testShiporder1
     testShiporder2

@@ -581,34 +581,51 @@ getSafeDecoder qn = indenting $ do
 
         getRefSafeDecoder :: Reference -> XSDQ (Transformer)
         getRefSafeDecoder (ElementRef nam lower upper _) = do
+          whenDebugging $ dbgLn "- getRefSafeDecoder ElementRef case"
           ifTypeOf <- getElementType nam
           case ifTypeOf of
             Nothing -> error $
               "No type stored for element \"" ++ show nam ++ "\""
-            Just typeOf -> -- fmap (\c -> GET-SUB-FROM-CTNT) $
+            Just typeOf -> do
               getSafeDecoder typeOf
         getRefSafeDecoder (AttributeRef ref usage) = do
-          coreFn <- getAttrRefSafeDecoder $ qName ref
-          usageFn <- unpackAttrDecoderForUsage usage
+          whenDebugging $ dbgLn "- getRefSafeDecoder AttributeRef case"
+          coreFn  <- indenting $ getAttrRefSafeDecoder $ qName ref
+          usageFn <- indenting $ unpackAttrDecoderForUsage usage
           tmp <- newName "attr"
+          whenDebugging $ do
+            dbgBLabel "  - coreFn " $ coreFn (mkName "SRC") (mkName "TMP")
+            dbgBLabel "  - usageFn " $ usageFn (mkName "TMP") (mkName "DEST")
           return $ \src dest -> coreFn src tmp ++ usageFn tmp dest
-        getRefSafeDecoder (TypeRef nam _ lower upper _) =
+        getRefSafeDecoder (TypeRef nam _ lower upper _) = do
+          whenDebugging $ dbgLn "- getRefSafeDecoder TypeRef case"
           getSafeDecoder nam
 
         getAttrRefSafeDecoder :: String -> XSDQ (Transformer)
-        getAttrRefSafeDecoder rf = return $ \src dest -> [
-          BindS (VarP dest) $ AppE (buildSafeDecoderNameFor rf) (VarE src)
-          ]
+        getAttrRefSafeDecoder rf = do
+          whenDebugging $ dbgLn "getAttrRefSafeDecoder only case"
+          let safeDec = buildSafeDecoderNameFor rf
+          whenDebugging $ do
+            dbgBLabel "  - safeDec " safeDec
+          return $ \src dest -> [
+            BindS (VarP dest) $ AppE safeDec (VarE src)
+            ]
 
         unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (Transformer)
-        unpackAttrDecoderForUsage Forbidden = return $ \_ dest ->
-          [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
-        unpackAttrDecoderForUsage Optional = return $ \src dest ->
-          [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
+        unpackAttrDecoderForUsage Forbidden = do
+          whenDebugging $ dbgLn "unpackAttrDecoderForUsage Forbidden case"
+          return $ \_ dest ->
+            [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
+        unpackAttrDecoderForUsage Optional = do
+          whenDebugging $ dbgLn "unpackAttrDecoderForUsage Optional case"
+          return $ \src dest ->
+            [ LetS [ ValD (VarP dest) (NormalB $ VarE src) [] ] ]
         unpackAttrDecoderForUsage Required = do
+          whenDebugging $ dbgLn "unpackAttrDecoderForUsage Required case"
           matches <-
             maybeMatches (throwsError "QDHXB: should not return Nothing") VarE
-          return $ \src dest -> [ LetS [ ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) [] ] ]
+          return $ \src dest ->
+            [LetS [ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) []]]
 
         -- | Given a list of `Reference`s to subelements, produce the
         -- pair of (1) a map from the `Name` of a source value to a
@@ -708,12 +725,15 @@ getSafeDecoder qn = indenting $ do
 
         makeUsageBinder ::
           QName -> Transformer -> AttributeUsage -> XSDQ Transformer
-        makeUsageBinder _qn singleTrans Forbidden = do
-          return $ \src dest ->
+        makeUsageBinder _ _ Forbidden = do
+          whenDebugging $ dbgLn "makeUsageBinder Forbidden case"
+          return $ \_ dest ->
             [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
-        makeUsageBinder _qn singleTrans Optional = do
+        makeUsageBinder _ singleTrans Optional = do
+          whenDebugging $ dbgLn "makeUsageBinder Optional case"
           return $ \src dest -> singleTrans src dest
-        makeUsageBinder _qn singleTrans Required = do
+        makeUsageBinder _ singleTrans Required = do
+          whenDebugging $ dbgLn "makeUsageBinder Required case"
           return $ \src dest -> singleTrans src dest
 
         listToSingle :: Transformer
