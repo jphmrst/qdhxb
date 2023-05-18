@@ -285,8 +285,6 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln ifDoc) = do
 
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
   whenDebugging $ dbgBLabel "Generating from (g) " d
-  error "REDO"
-  {-
   let xmlName = qName nam
       rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName ++ "AttrType"
@@ -303,8 +301,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
         NoBindS $
           caseNothingJust' (VarE yName)
             (applyReturn nothingConE)
-            xName (DoE Nothing [
-                      BindS (VarP resName) (coreDecoder $ VarE xName),
+            xName (DoE Nothing $ coreDecoder xName resName ++ [
                       NoBindS $ applyReturn $ applyJust (VarE resName)
                       ])
         ]
@@ -343,7 +340,6 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
                                                (quoteStr "TODO")) []]
         -}
         : [])
-  -}
 
 
 xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
@@ -595,26 +591,24 @@ getSafeDecoder qn = indenting $ do
           coreFn <- getAttrRefSafeDecoder $ qName ref
           usageFn <- unpackAttrDecoderForUsage usage
           tmp <- newName "attr"
-          -- let res :: Transformer
-          --     res = applyReturn . usageFn . coreFn
           return $ \src dest -> coreFn src tmp ++ usageFn tmp dest
         getRefSafeDecoder (TypeRef nam _ lower upper _) =
           getSafeDecoder nam
 
         getAttrRefSafeDecoder :: String -> XSDQ (Transformer)
         getAttrRefSafeDecoder rf = return $ \src dest -> [
-          BindS (VarP dest) $ AppE (buildDecoderNameFor rf) (VarE src)
+          BindS (VarP dest) $ AppE (buildSafeDecoderNameFor rf) (VarE src)
           ]
 
         unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (Transformer)
         unpackAttrDecoderForUsage Forbidden = return $ \_ dest ->
-          [ BindS (VarP dest) (TupE []) ]
+          [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
         unpackAttrDecoderForUsage Optional = return $ \src dest ->
-          [ BindS (VarP dest) (VarE src) ]
+          [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
         unpackAttrDecoderForUsage Required = do
           matches <-
             maybeMatches (throwsError "QDHXB: should not return Nothing") VarE
-          return $ \src dest -> [ BindS (VarP dest) $ CaseE (VarE src) matches ]
+          return $ \src dest -> [ LetS [ ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) [] ] ]
 
         -- | Given a list of `Reference`s to subelements, produce the
         -- pair of (1) a map from the `Name` of a source value to a
@@ -635,6 +629,7 @@ getSafeDecoder qn = indenting $ do
           return
             ((\src -> concat $ reverse $ map (\x -> x src) accFns),
              reverse accNames)
+
         makeSubBindings' (r@(ElementRef qn lo hi _):rs) (n:ns) accNs accFns = do
           whenDebugging $ dbgBLabel "- makeSubBindings' for " r
           f <- indenting $ getRefSafeDecoder r
@@ -649,8 +644,18 @@ getSafeDecoder qn = indenting $ do
                 stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
           makeSubBindings' rs ns (n : accNs)
                            ((\src -> f' src n) : accFns)
-        makeSubBindings' (AttributeRef _ _:_) _ _ _ = do
-          error "AttributeRef not allowed in complex sequence"
+
+        makeSubBindings' (r@(AttributeRef qn usage):rs) (n:ns) accNs accFns = do
+          whenDebugging $ dbgBLabel "- makeSubBindings' for " r
+          safeDec <- indenting $ getRefSafeDecoder r
+          f' <- indenting $ makeUsageBinder qn safeDec usage
+          let res src = f' src n
+          whenDebugging $ do
+            dbgBLabel "  - safeDec " $ safeDec (mkName "SRC") (mkName "DEST")
+            dbgBLabel "  - f' " $ f' (mkName "SRC") (mkName "DEST")
+            dbgBLabel "  - res " $ res (mkName "SRC")
+          makeSubBindings' rs ns (n : accNs) (res : accFns)
+
         makeSubBindings' (TypeRef _ _ _ _ _:_) _ _ _ = do
           error "TypeRef not allowed in complex sequence"
         makeSubBindings' _ [] _ _ =
@@ -659,21 +664,24 @@ getSafeDecoder qn = indenting $ do
         makeSubelementBinder ::
           QName -> Transformer -> Maybe Int -> Maybe Int
           -> XSDQ Transformer
-        makeSubelementBinder qn indivF lo hi =
+        makeSubelementBinder qn indivF lo hi = indenting $
           makeSubelementBinder' (applyPullContentFrom $ qName qn) indivF lo hi
 
         makeSubelementBinder' ::
           (Exp -> Exp) -> (Transformer) -> Maybe Int -> Maybe Int
           -> XSDQ (Transformer)
         makeSubelementBinder' _ _ _ (Just 0) = do       -- Unit
+          whenDebugging $ dbgLn "makeSubelementBinder' unit case"
           return $ \ _ dest -> [ BindS (VarP dest) $ TupE [] ]
         makeSubelementBinder' puller indivF (Just 1) (Just 1) = do -- Single
+          whenDebugging $ dbgLn "makeSubelementBinder' single case"
           pull <- newName "pull"
           single <- newName "single"
           return $ \src dest ->
             (LetS [ValD (VarP pull) (NormalB $ puller $ VarE src) []])
             : listToSingle pull single ++ indivF single dest
         makeSubelementBinder' puller indivF _ (Just 1) = do        -- Maybe
+          whenDebugging $ dbgLn "makeSubelementBinder' maybe case"
           pull <- newName "pull"
           tmp <- newName "tmp"
           a <- newName "a"
@@ -686,6 +694,7 @@ getSafeDecoder qn = indenting $ do
                                 NoBindS $ applyReturn $ VarE tmp]) $ VarE pull)
             : listToMaybe mapped dest
         makeSubelementBinder' puller indivF _ _ = do               -- List
+          whenDebugging $ dbgLn "makeSubelementBinder' list case"
           pull <- newName "pull"
           tmp <- newName "tmp"
           a <- newName "a"
@@ -697,6 +706,15 @@ getSafeDecoder qn = indenting $ do
                              NoBindS $ applyReturn $ VarE tmp]) $ VarE pull
             ]
 
+        makeUsageBinder ::
+          QName -> Transformer -> AttributeUsage -> XSDQ Transformer
+        makeUsageBinder _qn singleTrans Forbidden = do
+          return $ \src dest ->
+            [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
+        makeUsageBinder _qn singleTrans Optional = do
+          return $ \src dest -> singleTrans src dest
+        makeUsageBinder _qn singleTrans Required = do
+          return $ \src dest -> singleTrans src dest
 
         listToSingle :: Transformer
         listToSingle src dest =
@@ -1081,6 +1099,13 @@ assembleZomMatches zeroCase onePattern oneCase manyPattern manyCase =
 -- actually exist.
 buildDecoderNameFor :: String -> Exp
 buildDecoderNameFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
+
+-- | From an element reference name, construct the associated Haskell
+-- decoder function `Exp`ression.  __Note__ that this function will
+-- just operate on the name; there is no assurance that the name will
+-- actually exist.
+buildSafeDecoderNameFor :: String -> Exp
+buildSafeDecoderNameFor ref = VarE $ mkName $ "tryDecode" ++ firstToUpper ref
 
 -- | Builds a list of two `Match`es for a `Maybe` expression, given
 -- the alternative expressions for `Nothing` and `Just` (the latter
