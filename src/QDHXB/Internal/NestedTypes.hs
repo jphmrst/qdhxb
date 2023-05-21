@@ -288,11 +288,10 @@ instance Blockable QNameOr where
   block (Nested ds) = block ds
   block (Neither) = stringToBlock "(neither)"
 
-instance VerticalBlockablePair QName DataScheme
-
 instance Blockable [DataScheme] where block = verticalBlockListFn
 instance Blockable [AttributeScheme] where block = verticalBlockListFn
 
+verticalBlockablePair [t|QName|] [t|DataScheme|]
 verticalBlockList [t|SimpleTypeScheme|]
 verticalBlockList [t|(QName, DataScheme)|]
 verticalBlockList [t|ComplexTypeScheme|]

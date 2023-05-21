@@ -12,7 +12,9 @@ module QDHXB.Internal.Utils.BPP (
   stringToBlock,
   verticalBlockList, bulletedVerticalBlockList,
   verticalBlockListFn, bulletedVerticalBlockListFn,
-  VerticalBlockablePair, horizontalPair, horizontalBlocksPair,
+  verticalBlockablePair, verticalBlockablePairFn,
+  horizontalBlockablePair, horizontalBlockablePairFn,
+  horizontalPair, horizontalBlocksPair,
   -- * Operations on `Block`s
   follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock, outBlock
   ) where
@@ -55,37 +57,6 @@ instance Blockable Int    where block = stringToBlock . show
 instance Blockable c => Blockable (Maybe c) where
   block (Just x) = block x
   block Nothing  = stringToBlock "Nothing"
-
--- | For any two `Blockable` types, an ordered pair consisting of
--- values which are an instance of this class will be `Blockable`, and
--- moreover will format the pair with one element above the other.
-class (Blockable m, Blockable n) => VerticalBlockablePair m n
-
--- | Automatically infer `Blockable` for any instance of
--- `VerticalBlockablePair`.
-instance VerticalBlockablePair m n => Blockable (m,n) where
-  block (a, b) =
-    labelBlock "(" $ stackBlocks [
-    postlabelBlock "," $ block a,
-    postlabelBlock ")" $ block b
-    ]
-
-{-
-class (Blockable m, Blockable n) => HorizontalBlockablePair m n
-instance HorizontalBlockablePair m n => Blockable (m,n) where
-  block (a, b) =
-    labelBlock "(" $
-      (postlabelBlock "," $ block a) `follow` (postlabelBlock ")" $ block b)
- -}
-
--- | Given two blockable values, format them as an ordered pair.
-horizontalPair :: (Blockable a, Blockable b) => a -> b -> Block
-horizontalPair a b = horizontalBlocksPair (block a) (block b)
-
--- | Given two `Block`s, format them as an ordered pair.
-horizontalBlocksPair :: Block -> Block -> Block
-horizontalBlocksPair a b =
-  labelBlock "(" $ (postlabelBlock "," a) `follow` (postlabelBlock ")" b)
 
 -- | Print a `Blockable` value to standard output.
 bprint :: Blockable c => c -> IO ()
@@ -168,6 +139,35 @@ bulletedVerticalBlockList :: Q Type -> Q [Dec]
 bulletedVerticalBlockList name =
   [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
        where block = QDHXB.Internal.Utils.BPP.bulletedVerticalBlockListFn|]
+
+verticalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
+verticalBlockablePairFn (a, b) = labelBlock "(" $ stackBlocks [
+  postlabelBlock "," $ block a,
+  postlabelBlock ")" $ block b
+  ]
+
+verticalBlockablePair :: Q Type -> Q Type -> Q [Dec]
+verticalBlockablePair t1 t2 =
+  [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
+       where block = QDHXB.Internal.Utils.BPP.verticalBlockablePairFn|]
+
+horizontalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
+horizontalBlockablePairFn (a, b) = labelBlock "(" $
+    (postlabelBlock "," $ block a) `follow` (postlabelBlock ")" $ block b)
+
+horizontalBlockablePair :: Q Type -> Q Type -> Q [Dec]
+horizontalBlockablePair t1 t2 =
+  [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
+       where block = QDHXB.Internal.Utils.BPP.horizontalBlockablePairFn|]
+
+-- | Given two blockable values, format them as an ordered pair.
+horizontalPair :: (Blockable a, Blockable b) => a -> b -> Block
+horizontalPair a b = horizontalBlocksPair (block a) (block b)
+
+-- | Given two `Block`s, format them as an ordered pair.
+horizontalBlocksPair :: Block -> Block -> Block
+horizontalBlocksPair a b =
+  labelBlock "(" $ (postlabelBlock "," a) `follow` (postlabelBlock ")" b)
 
 -- | Indent every line of a pretty-printed representation with the given
 -- string.

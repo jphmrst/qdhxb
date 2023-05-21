@@ -206,9 +206,9 @@ instance Blockable Definition where
   block (BuiltinDefn qn n _ _) =
     stringToBlock $ "BuiltinDefn " ++ qName qn ++ " for " ++ n
 verticalBlockList [t|Definition|]
-instance VerticalBlockablePair QName Reference
+verticalBlockablePair [t|QName|] [t|Reference|]
 verticalBlockList [t|(QName, Reference)|]
-instance VerticalBlockablePair QName [Definition]
+verticalBlockablePair [t|QName|] [t|[Definition]|]
 verticalBlockList [t|(QName, [Definition])|]
 
 -- | Convert a `String` to an `AttributeUsage` value.
