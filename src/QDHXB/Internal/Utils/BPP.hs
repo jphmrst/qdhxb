@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 -- | Block Pretty-Printer, a quick-and-dirty pretty printer that uses
 -- a list of `String`s for a multi-line representation.
@@ -8,7 +9,9 @@ module QDHXB.Internal.Utils.BPP (
   bpp, bpp', bprint, bprintLn, bLabelPrint, bLabelPrintln,
   -- * Main type and classes
   Block(Block), Blockable, block,
-  VerticalBlockList, stringToBlock,
+  stringToBlock,
+  verticalBlockList, bulletedVerticalBlockList,
+  verticalBlockListFn, bulletedVerticalBlockListFn,
   VerticalBlockablePair, horizontalPair, horizontalBlocksPair,
   -- * Operations on `Block`s
   follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock, outBlock
@@ -149,14 +152,22 @@ postlabelBlock suffix = Block . helper . openBlock
         helper [x] = [x ++ suffix]
         helper (x:xs) = x : helper xs
 
--- | When a class @c@ is a member of the `VerticalBlockList` class,
--- Haskell is allowed to derive a `Blockable` instance for @[c]@.
-class Blockable c => VerticalBlockList c
+verticalBlockListFn :: Blockable c => [c] -> Block
+verticalBlockListFn = Block . concat . map (openBlock . block)
 
--- | Actual derivations of a `Blockable` instance for @[c]@ when @c@ is
--- a member of the `VerticalBlockList` class.
-instance VerticalBlockList c => Blockable [c] where
-  block = Block . concat . map (openBlock . block)
+verticalBlockList :: Q Type -> Q [Dec]
+verticalBlockList name =
+  [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
+       where block = QDHXB.Internal.Utils.BPP.verticalBlockListFn|]
+
+bulletedVerticalBlockListFn :: Blockable c => [c] -> Block
+bulletedVerticalBlockListFn =
+  Block . concat . map (openBlock . labelBlock "- " . block)
+
+bulletedVerticalBlockList :: Q Type -> Q [Dec]
+bulletedVerticalBlockList name =
+  [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
+       where block = QDHXB.Internal.Utils.BPP.bulletedVerticalBlockListFn|]
 
 -- | Indent every line of a pretty-printed representation with the given
 -- string.
@@ -168,28 +179,39 @@ instance Blockable Element where block = stringToBlock . showElement
 
 -- | Allow `Content` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Content where block = stringToBlock . showContent
-instance VerticalBlockList Content
+instance Blockable [Content] where block = verticalBlockListFn
 
 -- | Allow `Attr` from the @XMLLight@ library to be pretty-printed.
 instance Blockable Attr where block = stringToBlock . showAttr
-instance VerticalBlockList Attr
+instance Blockable [Attr] where block = verticalBlockListFn
 
 -- | Allow `QName` from the @XMLLight@ library to be pretty-printed.
 instance Blockable QName where block = stringToBlock . showQName
 -- | Allow [`QName`] from the @XMLLight@ library to be pretty-printed.
-instance VerticalBlockList QName
+instance Blockable [QName] where block = verticalBlockListFn
 
 -- | Allow `Dec` from the Template Haskell library to be pretty-printed.
 instance Blockable Dec where block = stringToBlock . pprint
 -- | Allow [`Dec`] from the Template Haskell library to be pretty-printed.
-instance VerticalBlockList Dec
+instance Blockable [Dec] where block = verticalBlockListFn
 
 -- | Allow `Stmt` from the Template Haskell library to be pretty-printed.
 instance Blockable Stmt where block = stringToBlock . pprint
 -- | Allow [`Stmt`] from the Template Haskell library to be pretty-printed.
-instance VerticalBlockList Stmt
+instance Blockable [Stmt] where block = verticalBlockListFn
+instance Blockable [[Stmt]] where block = bulletedVerticalBlockListFn
 
 -- | Allow `Exp` from the Template Haskell library to be pretty-printed.
 instance Blockable Exp where block = stringToBlock . pprint
 -- | Allow [`Exp`] from the Template Haskell library to be pretty-printed.
-instance VerticalBlockList Exp
+instance Blockable [Exp] where block = verticalBlockListFn
+
+-- | Allow `Type` from the Template Haskell library to be pretty-printed.
+instance Blockable Type where block = stringToBlock . pprint
+-- | Allow [`Type`] from the Template Haskell library to be pretty-printed.
+instance Blockable [Type] where block = verticalBlockListFn
+
+-- | Allow `Con` from the Template Haskell library to be pretty-printed.
+instance Blockable Con where block = stringToBlock . pprint
+-- | Allow [`Con`] from the Template Haskell library to be pretty-printed.
+instance Blockable [Con] where block = verticalBlockListFn

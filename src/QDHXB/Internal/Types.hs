@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TemplateHaskell #-}
 
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
@@ -50,7 +50,13 @@ instance Blockable Reference where
     "TypeRef " ++ showQName name
     ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
     ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
-instance VerticalBlockList Reference
+
+-- | Enumeration encoding the valid values of the XSD attribute
+-- definition's "usage" attribute.
+data AttributeUsage = Forbidden | Optional | Required
+  deriving (Eq, Show)
+
+verticalBlockList [t|Reference|]
 
 -- | Return the `QName` of the entity described in a `Reference`.
 referenceBase :: Reference -> QName
@@ -199,16 +205,11 @@ instance Blockable Definition where
     labelBlock ("GroupDefn " ++ showQName n ++ " == ") $ block t
   block (BuiltinDefn qn n _ _) =
     stringToBlock $ "BuiltinDefn " ++ qName qn ++ " for " ++ n
-instance VerticalBlockList Definition
+verticalBlockList [t|Definition|]
 instance VerticalBlockablePair QName Reference
-instance VerticalBlockList (QName, Reference)
+verticalBlockList [t|(QName, Reference)|]
 instance VerticalBlockablePair QName [Definition]
-instance VerticalBlockList (QName, [Definition])
-
--- | Enumeration encoding the valid values of the XSD attribute
--- definition's "usage" attribute.
-data AttributeUsage = Forbidden | Optional | Required
-  deriving (Eq, Show)
+verticalBlockList [t|(QName, [Definition])|]
 
 -- | Convert a `String` to an `AttributeUsage` value.
 stringToAttributeUsage :: String -> AttributeUsage

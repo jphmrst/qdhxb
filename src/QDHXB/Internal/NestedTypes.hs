@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
 
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
@@ -26,11 +26,6 @@ data NameOrRefOpt =
   | WithNeither   -- ^ Case for neither
   deriving Show
 
-instance Blockable NameOrRefOpt where
-  block (WithName n) = labelBlock "name=" $ block n
-  block (WithRef r)  = labelBlock "ref="  $ block r
-  block (WithNeither) = stringToBlock "(neither)"
-
 -- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
 -- values.  The first argument corresponds to a possible @name@
 -- attribute, and the second argument corresponds to a possible @ref@
@@ -57,21 +52,6 @@ data SimpleTypeScheme =
       (Maybe DataScheme) -- ^ Constituent type
   deriving Show
 
-instance Blockable SimpleTypeScheme where
-  block (Synonym t) = labelBlock "== " $ block t
-  block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
-  block (Union ds) = labelBlock "Union " $ block ds
-  block (List t Nothing) = labelBlock "List " $ block t
-  block (List Nothing t) = labelBlock "List " $ block t
-  block (List r t) = stackBlocks [
-    stringToBlock "List with both reference and subelement",
-    labelBlock "  reference " $ block r,
-    labelBlock "  element " $ block t
-    ]
-instance VerticalBlockList SimpleTypeScheme
-instance VerticalBlockList (QName, DataScheme)
-instance VerticalBlockablePair QName DataScheme
-
 -- |This type is used in places where either a named reference or a
 -- nested specification might be used.
 data QNameOr =
@@ -83,11 +63,6 @@ data QNameOr =
   | Neither -- ^ Used when neither a name nor a nested specification
             -- is given.
   deriving Show
-
-instance Blockable QNameOr where
-  block (NameRef qn) = block qn
-  block (Nested ds) = block ds
-  block (Neither) = stringToBlock "(neither)"
 
 
 -- | Further details about @complexType@ and @complexContents@ XSD
@@ -110,25 +85,6 @@ data ComplexTypeScheme =
           (Maybe Int) -- ^ ifMax
   deriving Show
 
-instance Blockable ComplexTypeScheme where
-  block (Composing ds as) =
-    (stringToBlock "Composing")
-    `stack2` labelBlock "  - subelements " (block ds)
-    `stack2` labelBlock "  - attributes " (block as)
-  block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
-  block (Extension base ds) =
-    (stringToBlock $ "Extension " ++ show base)
-    `stack2` indent "  " (block ds)
-  block (Choice base ds) =
-    (stringToBlock $ "Choice " ++ show base)
-    `stack2` indent "  " (block ds)
-  block (Group nr contents ifMin ifMax) =
-    (labelBlock "Group " $ block nr)
-    `stack2` (labelBlock "  min=" $ block ifMin)
-    `stack2` (labelBlock "  max=" $ block ifMax)
-    `stack2` (indent "  " $ block contents)
-instance VerticalBlockList ComplexTypeScheme
-
 
 -- | Details of attributes
 data AttributeScheme =
@@ -142,21 +98,6 @@ data AttributeScheme =
                                       -- attribute groups
                    (Maybe String) -- ^ idDoc
   deriving Show
-
-instance Blockable AttributeScheme where
-  block (SingleAttribute nameOrRef ifType mode _d) =
-    stringToBlock "single attr "
-    `follow` block nameOrRef
-    `stack2` stringToBlock "  type="
-    `follow` block ifType
-    `follow` stringToBlock " mode="
-    `follow` stringToBlock mode
-  block (AttributeGroup nameRef attrs _d) =
-    stringToBlock "group "
-    `follow` block nameRef
-    `follow` stringToBlock " "
-    `stack2` (indent "  " $ block attrs)
-instance VerticalBlockList AttributeScheme
 
 
 -- | Main representation of possibly-nested XSD definitions.
@@ -201,52 +142,6 @@ data DataScheme =
 --  block (GroupScheme base ref typeScheme ifLine ifDoc) =
 --  block (UnprocessedXML ifName ifLine ifDoc) =
 
-
-instance Blockable DataScheme where
-  block Skip = Block ["Skip"]
-  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine ifDoc) =
-    stackBlocks [
-      stringToBlock ("ElementScheme name="
-                       ++ maybe "undef" quoteShowQName ifName
-                       ++ " type="
-                       ++ maybe "undef" quoteShowQName ifType),
-      indent "  " $ stringToBlock ("ref="
-                           ++ maybe "undef" quoteShowQName ifRef
-                           ++ " id="
-                           ++ maybe "undef" quoteString ifId
-                           ++ " min="
-                           ++ maybe "undef" show ifMin
-                           ++ " max="
-                           ++ maybe "undef" show ifMax),
-        indent "  " $ block ctnts,
-        case ifDoc of
-          Nothing -> indent "  " $ stringToBlock "no doc"
-          Just doc -> stringToBlock $ "doc=\"" ++ doc ++ "\""
-      ]
-
-  block (AttributeScheme s _ _) = labelBlock "AttributeScheme " $ block s
-
-  block (ComplexTypeScheme form attrs ifName _ln _d) =
-    (labelBlock "ComplexTypeScheme name=" $ block ifName)
-    `stack2` (indent "  " $ block form)
-    `stack2` (indent "  " $ block attrs)
-
-  block (SimpleTypeScheme name detail _ln _d) =
-    stackBlocks [
-      labelBlock "SimpleTypeScheme " $ block name,
-      labelBlock "  scheme " $ block detail
-      ]
-
-  block (GroupScheme (WithName nam) ts _ln _d) =
-    stringToBlock ("Group " ++ showQName nam ++ " with contents")
-    `stack2` (labelBlock "  " $ block ts)
-  block (GroupScheme (WithRef ref) _ _ln _d) = stringToBlock $
-    "Group reference " ++ qName ref
-  block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
-    "Group unnamed no-ref " ++ show ts
-  block (UnprocessedXML ifName _ln _doc) = stringToBlock $
-    "Unprocessed XML" ++ maybe "" quoteShowQName ifName
-instance VerticalBlockList DataScheme
 
 quoteShowQName :: QName -> String
 quoteShowQName s = "\"" ++ showQName s ++ "\""
@@ -293,3 +188,111 @@ labelOf (GroupScheme WithNeither _n _l _d) = Nothing
 nonSkip :: DataScheme -> Bool
 nonSkip Skip = False
 nonSkip _ = True
+
+instance Blockable DataScheme where
+  block Skip = Block ["Skip"]
+  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine ifDoc) =
+    stackBlocks [
+      stringToBlock ("ElementScheme name="
+                       ++ maybe "undef" quoteShowQName ifName
+                       ++ " type="
+                       ++ maybe "undef" quoteShowQName ifType),
+      indent "  " $ stringToBlock ("ref="
+                           ++ maybe "undef" quoteShowQName ifRef
+                           ++ " id="
+                           ++ maybe "undef" quoteString ifId
+                           ++ " min="
+                           ++ maybe "undef" show ifMin
+                           ++ " max="
+                           ++ maybe "undef" show ifMax),
+        indent "  " $ block ctnts,
+        case ifDoc of
+          Nothing -> indent "  " $ stringToBlock "no doc"
+          Just doc -> stringToBlock $ "doc=\"" ++ doc ++ "\""
+      ]
+
+  block (AttributeScheme s _ _) = labelBlock "AttributeScheme " $ block s
+
+  block (ComplexTypeScheme form attrs ifName _ln _d) =
+    (labelBlock "ComplexTypeScheme name=" $ block ifName)
+    `stack2` (indent "  " $ block form)
+    `stack2` (indent "  " $ block attrs)
+
+  block (SimpleTypeScheme name detail _ln _d) =
+    stackBlocks [
+      labelBlock "SimpleTypeScheme " $ block name,
+      labelBlock "  scheme " $ block detail
+      ]
+
+  block (GroupScheme (WithName nam) ts _ln _d) =
+    stringToBlock ("Group " ++ showQName nam ++ " with contents")
+    `stack2` (labelBlock "  " $ block ts)
+  block (GroupScheme (WithRef ref) _ _ln _d) = stringToBlock $
+    "Group reference " ++ qName ref
+  block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
+    "Group unnamed no-ref " ++ show ts
+  block (UnprocessedXML ifName _ln _doc) = stringToBlock $
+    "Unprocessed XML" ++ maybe "" quoteShowQName ifName
+
+instance Blockable NameOrRefOpt where
+  block (WithName n) = labelBlock "name=" $ block n
+  block (WithRef r)  = labelBlock "ref="  $ block r
+  block (WithNeither) = stringToBlock "(neither)"
+
+instance Blockable SimpleTypeScheme where
+  block (Synonym t) = labelBlock "== " $ block t
+  block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
+  block (Union ds) = labelBlock "Union " $ block ds
+  block (List t Nothing) = labelBlock "List " $ block t
+  block (List Nothing t) = labelBlock "List " $ block t
+  block (List r t) = stackBlocks [
+    stringToBlock "List with both reference and subelement",
+    labelBlock "  reference " $ block r,
+    labelBlock "  element " $ block t
+    ]
+
+instance Blockable ComplexTypeScheme where
+  block (Composing ds as) =
+    (stringToBlock "Composing")
+    `stack2` labelBlock "  - subelements " (block ds)
+    `stack2` labelBlock "  - attributes " (block as)
+  block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
+  block (Extension base ds) =
+    (stringToBlock $ "Extension " ++ show base)
+    `stack2` indent "  " (block ds)
+  block (Choice base ds) =
+    (stringToBlock $ "Choice " ++ show base)
+    `stack2` indent "  " (block ds)
+  block (Group nr contents ifMin ifMax) =
+    (labelBlock "Group " $ block nr)
+    `stack2` (labelBlock "  min=" $ block ifMin)
+    `stack2` (labelBlock "  max=" $ block ifMax)
+    `stack2` (indent "  " $ block contents)
+
+instance Blockable AttributeScheme where
+  block (SingleAttribute nameOrRef ifType mode _d) =
+    stringToBlock "single attr "
+    `follow` block nameOrRef
+    `stack2` stringToBlock "  type="
+    `follow` block ifType
+    `follow` stringToBlock " mode="
+    `follow` stringToBlock mode
+  block (AttributeGroup nameRef attrs _d) =
+    stringToBlock "group "
+    `follow` block nameRef
+    `follow` stringToBlock " "
+    `stack2` (indent "  " $ block attrs)
+
+instance Blockable QNameOr where
+  block (NameRef qn) = block qn
+  block (Nested ds) = block ds
+  block (Neither) = stringToBlock "(neither)"
+
+instance VerticalBlockablePair QName DataScheme
+
+instance Blockable [DataScheme] where block = verticalBlockListFn
+instance Blockable [AttributeScheme] where block = verticalBlockListFn
+
+verticalBlockList [t|SimpleTypeScheme|]
+verticalBlockList [t|(QName, DataScheme)|]
+verticalBlockList [t|ComplexTypeScheme|]
