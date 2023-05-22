@@ -40,7 +40,7 @@ module QDHXB.Internal.Utils.TH (
   -- *** With `Just`
   justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
-  mapVarE, caseListZeroOneMany, caseListOneElse, applyConcat,
+  mapVarE, caseListZeroOneMany, caseListOneElse, applyConcat, applyFmapConcat,
   -- ** `IO`
   ioConT,
   -- ** `Functor` and `Contol.Monad.Monad`
@@ -549,9 +549,15 @@ mapVarE = VarE mapName
 
 concatName = mkName "concat"
 
+concatVarE = VarE concatName
+
 -- | Quote applying the @concat@ function to the given TH `Exp`.
 applyConcat :: Exp -> Exp
-applyConcat = AppE (VarE concatName)
+applyConcat = AppE concatVarE
+
+-- | Quote applying the @concat@ function to the given TH `Exp`.
+applyFmapConcat :: Exp -> Exp
+applyFmapConcat = AppE (AppE fmapVarE concatVarE)
 
 -- | TH `Exp` for function `error`
 errorVarE :: Exp
