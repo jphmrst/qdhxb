@@ -7,16 +7,20 @@ import QDHXB
 import qualified QDHXB.Expansions
 
 -- qdhxb useDebugging ["test/ChoiceBasic/choice-basic0.xsd"]
--- qdhxb' ["test/ChoiceBasic/choice-basic0.xsd"]
+qdhxb' ["test/ChoiceBasic/choice-basic0.xsd"]
 
 testCB0 :: TLT IO ()
-testCB0 = return ()
-{-
-inChoice "XSD choice basics" $ do
-  inChoice "Age 1" $ do
-    p <- lift $ loadAge "test/ChoiceBasic/choice-basic01.xml"
-    "Correctly decode <age> in age1.xml" ~: 10 @==- p
-  inChoice "Age 2" $ do
-    p <- lift $ loadAge "test/ChoiceBasic/choice-basic02.xml"
-    "Correctly decode <age> in age2.xml" ~: 55 @==- p
--}
+testCB0 = do
+  inGroup "XSD choice basics 0" $ do
+    {-
+    lift $ do
+      ch <- loadCh "test/ChoiceBasic/cb1a.xml"
+      putStrLn $ show ch
+    -}
+    inGroup "CB 1a" $ do
+      p <- lift $ loadCh "test/ChoiceBasic/cb1a.xml"
+      "Correctly decode <ch>2</ch> in cb1a.xml" ~: ChoiceTypeNuma 2 @==- p
+    inGroup "CB 1b" $ do
+      p <- lift $ loadCh "test/ChoiceBasic/cb1b.xml"
+      "Correctly decode <ch>zz</ch> in cb1b.xml" ~: ChoiceTypeNumz "zz" @==- p
+  return ()

@@ -83,13 +83,14 @@ import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 
-
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.
 xsdDeclsToHaskell :: [Definition] -> XSDQ [Dec]
 xsdDeclsToHaskell defns = do
   whenDebugging $ dbgLn "Generating Haskell declarations from definitions"
   dbgResultM "Declarations:" $
+    -- Translate each declaration individually, and then concatenate
+    -- the results together.
     fmap concat $ indenting $ mapM xsdDeclToHaskell defns
 
 
@@ -98,108 +99,16 @@ xsdDeclsToHaskell defns = do
 -- the associated Haddock documentation.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from (a) " decl
-  -- let (haskellType, basicDecoder) = xsdNameToTypeTranslation $ qName typ
-  -- let decoder = basicDecoder $ VarE eName
-  haskellType <- getTypeHaskellType typ
-  decoder <- indenting $ getSafeDecoder typ
-  dbgResultM "Generated" $
-    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
-
-xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from (b) " decl
-  error "REDO"
-  {-
-  -- let (haskellType, basicDecoder) = xsdNameToTypeTranslation $ qName typ
-  -- let decoder = basicDecoder $ VarE eName
-  haskellType <- getTypeHaskellType typ
-  decoder <- getSafeStringDecoder typ
-  let baseName = firstToUpper $ qName nam
-  (typeName, decs) <- indenting $
-    getComplexTypeElements baseName (decoder $ VarE eName) ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @" ++ qName nam ++ "@ simple type"
-  dbgResult "Generated" $ TySynD typeName [] haskellType : decs
-  -}
-
-xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from (c) UnionDefn" decl
-  error "REDO"
-  {-
-  let baseName = qName name
-
-      makeConstr :: (QName, QName) -> Con
-      makeConstr (constructorName, tn) =
-        NormalC (mkName $ qName constructorName)
-                [(useBang, ConT $ mkName $ qName tn)]
-
-      safeDecoder :: Exp
-      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
-                              (app2Exp
-                                 fmapVarE
-                                 (ConE $ mkName $ qName c)
-                                 (AppE (VarE $ mkName $
-                                            "tryStringDecodeFor" ++ qName t)
-                                       (VarE xName)))
-                              (LamE [WildP] e))
-                          (qthNoValidContentInUnion baseName ln)
-                          pairs
-  (typeName, decs) <- indenting $
-    getSimpleTypeElements baseName (VarP xName) safeDecoder ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @\\<" ++ baseName ++ ">@ union"
-  dbgResult "Generated" $
-      DataD [] typeName [] Nothing (map makeConstr pairs)
-            [DerivClause Nothing [eqConT, showConT]]
-      : decs
-  -}
-
-
-xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from (d) " decl
-  error "REDO"
-  {-
-
-  {-
-  let xmlName = qName name
-      baseStr = firstToUpper xmlName
-      elemStr = firstToUpper $ qName elemTypeRef
-      elemName = mkName elemStr
-      elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
-      decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
-  (typeName, decs) <- indenting $
-    getSimpleTypeElements baseStr (VarP eName) decodeAs ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Type associated with the @\\<" ++ xmlName ++ ">@ list type"
-  dbgResult "Generated" $
-    TySynD typeName [] (AppT ListT $ ConT elemName) : decs
-  -}
-
-  elemHaskellType <- getTypeHaskellType elemTypeRef
-  let haskellType = AppT ListT elemHaskellType
-  decoder <- getSafeDecoder name
-  dbgResultM "Generated" $
-    newAssemble name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
-  -}
-
-
 xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (e) " decl
     dbgBLabel "- typ " typ
-  -- let (haskellType, _) = xsdNameToNameTranslation $ qName typ
   let origName = qName nam
       baseName = firstToUpper $ origName
-      -- typBaseName = firstToUpper $ qName typ
-      -- tryDecNam = mkName $ "tryDecode" ++ baseName
       tryLoadNam = mkName $ "tryLoad" ++ baseName
       loadNam = mkName $ "load" ++ baseName
   decodedType <- getTypeHaskellType typ
   decoderFn <- getTypeDecoderFn typ
-  {-
-  whenDebugging $ dbgLn $ "- decodedType " ++ show decodedType
-  -}
   tmp1 <- newName "t"
   resId <- newName "res"
   resId2 <- newName "res"
@@ -342,6 +251,92 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
         : [])
 
 
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
+  whenDebugging $ dbgBLabel "Generating from (a) " decl
+  -- Get the Haskell type name of the base type
+  haskellType <- getTypeHaskellType typ
+  -- Make the safe decoder
+  decoder <- indenting $ getSafeDecoder typ
+  -- Assemble the various declarations from the Haskell type synonym
+  -- declaration, and the safe decoder steps transformer.
+  dbgResultM "Generated" $
+    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+
+xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
+  whenDebugging $ dbgBLabel "Generating from (b) " decl
+  error "REDO"
+  {-
+  haskellType <- getTypeHaskellType typ
+  decoder <- getSafeStringDecoder typ
+  let baseName = firstToUpper $ qName nam
+  (typeName, decs) <- indenting $
+    getComplexTypeElements baseName (decoder $ VarE eName) ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Representation of the @" ++ qName nam ++ "@ simple type"
+  dbgResult "Generated" $ TySynD typeName [] haskellType : decs
+  -}
+
+xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
+  whenDebugging $ dbgBLabel "Generating from (c) UnionDefn" decl
+  error "REDO"
+  {-
+  let baseName = qName name
+
+      makeConstr :: (QName, QName) -> Con
+      makeConstr (constructorName, tn) =
+        NormalC (mkName $ qName constructorName)
+                [(useBang, ConT $ mkName $ qName tn)]
+
+      safeDecoder :: Exp
+      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
+                              (app2Exp
+                                 fmapVarE
+                                 (ConE $ mkName $ qName c)
+                                 (AppE (VarE $ mkName $
+                                            "tryStringDecodeFor" ++ qName t)
+                                       (VarE xName)))
+                              (LamE [WildP] e))
+                          (qthNoValidContentInUnion baseName ln)
+                          pairs
+  (typeName, decs) <- indenting $
+    getSimpleTypeElements baseName (VarP xName) safeDecoder ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Representation of the @\\<" ++ baseName ++ ">@ union"
+  dbgResult "Generated" $
+      DataD [] typeName [] Nothing (map makeConstr pairs)
+            [DerivClause Nothing [eqConT, showConT]]
+      : decs
+  -}
+
+
+xsdDeclToHaskell decl@(ListDefn name elemTypeRef ln ifDoc) = do
+  whenDebugging $ dbgBLabel "Generating from (d) " decl
+  error "REDO"
+  {-
+
+  {-
+  let xmlName = qName name
+      baseStr = firstToUpper xmlName
+      elemStr = firstToUpper $ qName elemTypeRef
+      elemName = mkName elemStr
+      elementDecodeName = mkName $ "tryStringDecodeFor" ++ elemStr
+      decodeAs = applyMapM (VarE elementDecodeName) (spaceSepApp (VarE eName))
+  (typeName, decs) <- indenting $
+    getSimpleTypeElements baseStr (VarP eName) decodeAs ln ifDoc
+  pushDeclHaddock ifDoc typeName $
+    "Type associated with the @\\<" ++ xmlName ++ ">@ list type"
+  dbgResult "Generated" $
+    TySynD typeName [] (AppT ListT $ ConT elemName) : decs
+  -}
+
+  elemHaskellType <- getTypeHaskellType elemTypeRef
+  let haskellType = AppT ListT elemHaskellType
+  decoder <- getSafeDecoder name
+  dbgResultM "Generated" $
+    newAssemble name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+  -}
+
+
 xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (h) " decl
   decoder <- getSafeDecoder nam
@@ -396,10 +391,18 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ _) = do
   -}
 
 
-xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
-  whenDebugging $ do
-    dbgBLabel "Generating from (j) " decl
-  error "REDO"
+xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn ifDoc) = do
+  whenDebugging $ dbgBLabel "Generating from (j) " decl
+  -- Get the Haskell type name of the base type
+  haskellType <- getTypeHaskellType tqn
+  whenDebugging $ dbgBLabel "- haskellType " haskellType
+  -- Make the safe decoder
+  decoder <- indenting $ getSafeDecoder qn
+  -- Assemble the various declarations from the Haskell type synonym
+  -- declaration, and the safe decoder steps transformer.
+  dbgResultM "Generated" $
+    newAssemble qn (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+  -- error "REDO"
   {-
   let groupRoot = firstToUpper $ qName qn
       groupName = mkName groupRoot
@@ -441,19 +444,37 @@ xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn _ifDoc) = do
   -}
 
 
-xsdDeclToHaskell decl@(ChoiceDefn name fields ifLine _) = do
+xsdDeclToHaskell decl@(ChoiceDefn name fields _ifLine ifDoc) = do
+  whenDebugging $ do dbgBLabel "Generating from (k) " decl
+  -- let choiceRoot = firstToUpper $ qName name
+  --     choiceName = mkName choiceRoot
+  (constrDefs, constrs, stmtsMaker) <-
+    indenting $ fmap unzip3 $ mapM (makeChoiceConstructor name) fields
+  let dataD tn = DataD [] tn [] Nothing constrDefs
+                   [DerivClause Nothing [eqConT, showConT]]
   whenDebugging $ do
-    dbgBLabel "Generating from (k) " decl
-  error "REDO"
+    dbgBLabel "- constrDefs " constrDefs
+    dbgBLabel "- constrs " constrs
+    dbgBLabel "- stmtsMaker " $
+      map (\x -> x (mkName "SRC") (mkName "DEST")) stmtsMaker
+    dbgBLabel "- dataD " (dataD $ mkName "NAME")
+  localDest <- newName "dest"
+  let finishStmts :: Name -> (Exp, Transformer) -> Exp
+      finishStmts src (constr, stmtMaker) =
+        DoE Nothing $
+          stmtMaker src localDest
+          ++ [NoBindS $ applyReturn $ AppE constr $ VarE localDest]
+      decoder = \src dest ->
+        let toDests :: [Exp]
+            toDests = map (finishStmts src) $ zip constrs stmtsMaker
+        in [BindS (VarP dest) $ foldl1 replaceOnError toDests]
+  dbgResultM "Generated" $
+    newAssemble name (Just dataD) decoder ifDoc
+  -- error "REDO"
   {-
-  let choiceRoot = firstToUpper $ qName name
-      choiceName = mkName choiceRoot
-      tryDecodeChoice = mkName $ "tryDecodeAs" ++ choiceRoot
+  let tryDecodeChoice = mkName $ "tryDecodeAs" ++ choiceRoot
       decodeChoice = mkName $ "decodeAs" ++ choiceRoot
-  (constrDefs, constrs, tryFns) <-
-    fmap unzip3 $ mapM (makeChoiceConstructor name) fields
-  let typeDef =
-        DataD [] (mkName $ firstToUpper $ qName name) [] Nothing constrDefs []
+  let typeDef = DataD [] choiceName [] Nothing constrDefs []
       tryBody = makeTryDecoder (VarE xName) ctxtVarE constrs tryFns
   dbgResult "Generated" [
     typeDef,
@@ -548,8 +569,8 @@ getSafeDecoder qn = indenting $ do
           error "TODO"
         ChoiceDefn _ _ _ _ -> do
           error "TODO"
-        GroupDefn _ _ _ _ -> do
-          error "TODO"
+        GroupDefn _name typRef _ifLn _ifDoc -> do
+          getRefSafeDecoder typRef
         ListDefn listType _ _ _ -> do
           error "REDO"
           -- forSimpleType listType
@@ -561,7 +582,7 @@ getSafeDecoder qn = indenting $ do
           forSimpleTypeWith strDec
 
         forSimpleTypeWith :: Transformer -> XSDQ Transformer
-        forSimpleTypeWith f = do
+        forSimpleTypeWith strDec = do
           tmp1 <- newName "maybeContent"
           tmp2 <- newName "content"
           return $ \src dest -> [
@@ -577,7 +598,7 @@ getSafeDecoder qn = indenting $ do
               app3Exp simpleTypeDecoderVarE
                       (VarE tmp2) (qCrefMustBePresentIn (qName qn) Nothing)
                       (VarE src) -}
-                                ] ++ f tmp2 dest
+                                ] ++ strDec tmp2 dest
 
         getRefSafeDecoder :: Reference -> XSDQ (Transformer)
         getRefSafeDecoder (ElementRef nam lower upper _) = do
@@ -637,7 +658,15 @@ getSafeDecoder qn = indenting $ do
             (map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int]))
             [] []
 
-        -- | For building subelements.
+        -- | Helper function with accumulating parameters for
+        -- `makeSubBindings`.  Given a list of `Reference`s to
+        -- subelements, accumulates lists of (1) functions from the
+        -- `Name` of a source value to a list of TH `Stmt` statements
+        -- producing these bound values, and (2) the `Name`s of the
+        -- bound values.  The base case joins the list of functions by
+        -- assembling a new map from the concatenation of the results
+        -- of the individual functions, and reversing the list of
+        -- names.
         makeSubBindings' ::
           [Reference] -> [Name] -> [Name] -> [Name -> [Stmt]]
           -> XSDQ (Name -> [Stmt], [Name])
@@ -647,14 +676,19 @@ getSafeDecoder qn = indenting $ do
             ((\src -> concat $ reverse $ map (\x -> x src) accFns),
              reverse accNames)
 
+        -- For an `ElementRef` of type @qn@, first calculate the
+        -- single-element safe-decoder, and then pass it to
+        -- `makeSubelementBinder` to adjust for the given lower/upper
+        -- occurrence bounds.
         makeSubBindings' (r@(ElementRef qn lo hi _):rs) (n:ns) accNs accFns = do
           whenDebugging $ dbgBLabel "- makeSubBindings' for " r
-          f <- indenting $ getRefSafeDecoder r
+          singleDecoder <- indenting $ getRefSafeDecoder r
           whenDebugging $ do
             dbgLn $ outBlock $
               labelBlock "  getRefSafeDecoder gives " $
-                stringToBlock $ pprint $ f (mkName "SRC") (mkName "DEST")
-          f' <- indenting $ makeSubelementBinder qn f lo hi
+                stringToBlock $
+                  pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
+          f' <- indenting $ makeSubelementBinder qn singleDecoder lo hi
           whenDebugging $ do
             dbgLn $ outBlock $
               labelBlock "  makeSubelementBinder gives " $
@@ -662,6 +696,9 @@ getSafeDecoder qn = indenting $ do
           makeSubBindings' rs ns (n : accNs)
                            ((\src -> f' src n) : accFns)
 
+        -- For an `AttributeRef` to values of type @qn@, first build a
+        -- single-value decoder, and then adjust for the attrubte
+        -- usage.
         makeSubBindings' (r@(AttributeRef qn usage):rs) (n:ns) accNs accFns = do
           whenDebugging $ dbgBLabel "- makeSubBindings' for " r
           safeDec <- indenting $ getRefSafeDecoder r
@@ -673,7 +710,9 @@ getSafeDecoder qn = indenting $ do
             dbgBLabel "  - res " $ res (mkName "SRC")
           makeSubBindings' rs ns (n : accNs) (res : accFns)
 
-        makeSubBindings' (TypeRef _ _ _ _ _:_) _ _ _ = do
+        -- `TypeRef`s correspond to values such as groups which are
+        -- TODO
+        makeSubBindings' (r@(TypeRef _ _ _ _ _):_) _ _ _ = do
           error "TypeRef not allowed in complex sequence"
         makeSubBindings' _ [] _ _ =
           error "Internal error --- end of infinite list"
@@ -814,8 +853,14 @@ makeTryDecoder x ctxt (c:constr) (t:tryFns) =
           makeTryDecoder' x ctxt
             (exp `replaceOnError` (app2Exp fmapVarE c (app2Exp t x ctxt)))
             constr tryFns
+-}
+
 
-makeChoiceConstructor :: QName -> (QName, Reference) -> XSDQ (Con, Exp, Exp)
+-- | First in result triple: the `Con` spec for a `DataD` declaration.
+-- Second is the constructor as a TH `Exp`.  Third is the name of the
+-- decoder function --- but what if it's an XSD primitive type?
+makeChoiceConstructor ::
+  QName -> (QName, Reference) -> XSDQ (Con, Exp, Transformer)
 makeChoiceConstructor name (typeName, ref) = do
   let typeRoot = firstToUpper $ qName name
   case ref of
@@ -826,12 +871,16 @@ makeChoiceConstructor name (typeName, ref) = do
           -- (decName, _) = xsdNameToNameTranslation $ qName typeName
       decName <- getTypeHaskellName typeName
       useType <- containForBounds ifMin ifMax $ return $ ConT $ mkName decName
+      decoderFn <- getTypeDecoderFn typeName
       return (NormalC constrName [(useBang, useType)],
               ConE constrName,
-              VarE (mkName $ "tryDecodeAs" ++ decName))
+              decoderFn -- VarE (mkName $ "tryDecodeAs" ++ decName)
+             )
+              -- TODO --- must check for basic types here.  Isn't
+              -- there a function to return a LamE or this VarE here?
+              -- ==> Check out `getTypeDecoderFn`
 
-
-    TypeRef tyName ifMin ifMax _ _ -> do
+    TypeRef _tyName _ifMin _ifMax _ _ -> do
       boxed $ do
         dbgLn "TODO makeChoiceConstructor"
         dbgBLabel "NAME " name
@@ -841,8 +890,6 @@ makeChoiceConstructor name (typeName, ref) = do
 
     AttributeRef _ _ ->
       error "Not expected: makeChoiceConstructor for AttributeRef"
--}
-
 
 newAssemble ::
   QName -> Maybe (Name -> Dec) -> Transformer -> Maybe String -> XSDQ [Dec]

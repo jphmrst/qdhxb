@@ -9,7 +9,7 @@
   <xs:complexType name="choiceType">
     <xs:choice>
       <xs:element name="numa" type="xs:nonNegativeInteger"/>
-      <xs:element name="numz" type="xs:nonNegativeInteger"/>
+      <xs:element name="numz" type="xs:string"/>
     </xs:choice>
   </xs:complexType>
   <xs:element name="ch" type="choiceType"/>
