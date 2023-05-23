@@ -569,8 +569,10 @@ applyZomToSingle = AppE zomToSingleVarE
 mapVarE :: Exp
 mapVarE = VarE mapName
 
+concatName :: Name
 concatName = mkName "concat"
 
+concatVarE :: Exp
 concatVarE = VarE concatName
 
 -- | Quote applying the @concat@ function to the given TH `Exp`.

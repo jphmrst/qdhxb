@@ -19,10 +19,7 @@ where
 
 import Language.Haskell.TH
 import Text.XML.Light.Types (QName, qName)
-import QDHXB.Errs
 import QDHXB.Internal.Utils.TH
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 
 -- | Map from @source@ and @dest@ identifiers to a list of TH `Stmt`
@@ -54,7 +51,7 @@ retrievingCRefFor qn strDec = do
 -- "unbounded" rather than "default."
 scaleBlockMakerToBounds ::
   BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
-scaleBlockMakerToBounds k _ (Just 0) = do
+scaleBlockMakerToBounds _ _ (Just 0) = do
   whenDebugging $ dbgLn "- scaleBlockMakerToBounds none case"
   return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
 scaleBlockMakerToBounds k (Just 1) (Just 1) = do

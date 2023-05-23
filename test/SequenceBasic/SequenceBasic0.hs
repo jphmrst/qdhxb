@@ -15,4 +15,3 @@ testSequencebasic0 = inGroup "XSD seqbasic0" $ do
     (Seqbasic "xyz789" 59) @==
       (lift $ loadSeqbasic "test/SequenceBasic/seqbasic0a.xml")
   return ()
-
