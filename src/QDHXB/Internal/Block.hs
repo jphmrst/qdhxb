@@ -83,8 +83,14 @@ listToSingle src dest =
   [ LetS [
      ValD (VarP dest)
        (NormalB $
-         zomCaseSingle' (VarE src) uName (VarE uName)
-           (throwsError "Single element required, multiple found")) []
+         zomCaseSingle' (VarE src) uName (VarE uName) $
+             throwsErrorExp $
+               InfixE
+                 (Just $ LitE $
+                    StringL "Single element required, multiple found: ")
+                 (VarE $ mkName "++")
+                 (Just $ AppE (VarE $ mkName "show") (VarE src)))
+       []
      ]
   ]
   where uName = mkName "u"

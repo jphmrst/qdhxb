@@ -111,22 +111,27 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   decodedType <- getTypeHaskellType typ
   decoderFn <- getTypeDecoderFn typ
   tmp1 <- newName "t"
+  exceptProc <- newName "exc"
   resId <- newName "res"
   resId2 <- newName "res"
   paramName <- newName "file"
   let loadSteps = decoderFn tmp1 resId2 ++ [
         NoBindS $ applyReturn $ VarE resId2
         ]
-  loadBodySrc <- resultOrThrow $ DoE Nothing [
-    BindS (VarP resId) $ DoE Nothing loadSteps,
-    NoBindS (applyReturn $ VarE resId)
-    ]
+  loadBodySrc <- resultOrThrow $ VarE exceptProc
   let res = [
         SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
         FunD loadNam [Clause [VarP paramName]
-                      (NormalB $ DoE Nothing [
-                        BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
-                        NoBindS $ applyReturn loadBodySrc]) []]
+                      (NormalB $ DoE Nothing $
+                         [BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
+                          LetS [ValD (VarP exceptProc)
+                                     (NormalB $ DoE Nothing [
+                                         BindS (VarP resId) $
+                                           DoE Nothing loadSteps,
+                                         NoBindS (applyReturn $ VarE resId)
+                                         ]) []],
+                          NoBindS $ applyReturn loadBodySrc]
+                      ) []]
         ]
 
   pushDeclHaddock ifDoc loadNam
@@ -202,16 +207,19 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
 
-  puller <- [| pullAttrFrom $(return $ quoteStr $ qName nam) ctxt |]
+  paramName <- newName "content"
+  attrName <- newName "attr"
+  puller <- [| pullAttrFrom $(return $ quoteStr $ qName nam)
+                            $(return $ VarE paramName) |]
   -- let (haskellTyp, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   -- let coreDecoder = basicDecoder $ VarE xName
   haskellTyp <- getTypeHaskellType typ
   coreDecoder <- getSafeStringDecoder typ
-  paramName <- newName "content"
   let decoder = DoE Nothing [
-        LetS [ValD (VarP paramName) (NormalB puller) []],
+        LetS [SigD attrName (AppT maybeConT stringConT),
+              ValD (VarP attrName) (NormalB puller) []],
         NoBindS $
-          caseNothingJust' (VarE paramName)
+          caseNothingJust' (VarE attrName)
             (applyReturn nothingConE)
             xName (DoE Nothing $ coreDecoder xName resName ++ [
                       NoBindS $ applyReturn $ applyJust (VarE resName)
@@ -714,7 +722,7 @@ getSafeDecoder qn = indenting $ do
           return $ \ _ dest -> [ BindS (VarP dest) $ TupE [] ]
         makeSubelementBinder' _ puller indivF (Just 1) (Just 1) = do -- Single
           whenDebugging $ dbgLn "makeSubelementBinder' single case"
-          pull <- newName "pull"
+          pull <- newName "pullForSingle"
           single <- newName "single"
           return $ \src dest ->
             (LetS [SigD pull (AppT zomConT contentConT),
@@ -722,7 +730,7 @@ getSafeDecoder qn = indenting $ do
             : listToSingle pull single ++ indivF single dest
         makeSubelementBinder' _ puller indivF _ (Just 1) = do        -- Maybe
           whenDebugging $ dbgLn "makeSubelementBinder' maybe case"
-          pull <- newName "pull"
+          pull <- newName "pullForMaybe"
           tmp <- newName "subres"
           a <- newName "eachPulled"
           mapped <- newName "mapped"
@@ -736,7 +744,7 @@ getSafeDecoder qn = indenting $ do
             : listToMaybe mapped dest
         makeSubelementBinder' tqn puller indivF _ _ = do             -- List
           whenDebugging $ dbgLn "makeSubelementBinder' list case"
-          pull <- newName "pull"
+          pull <- newName "pullForList"
           asList <- newName "asList"
           tmp <- newName "postpull"
           hsType <- getTypeHaskellType tqn
