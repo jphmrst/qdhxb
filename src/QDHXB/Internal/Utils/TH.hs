@@ -61,7 +61,7 @@ module QDHXB.Internal.Utils.TH (
   quotedId, quotedReturnId,
 
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
-  zeroPat, onePat, manyPat, zomToListVarE,
+  zomConT, zeroPat, onePat, manyPat, zomToListVarE,
   applyZomToSingle, applyZomToMaybe, applyZomToList,
   zomCase, zomCaseSingle,
 
@@ -497,6 +497,16 @@ zomToListVarE = VarE zomToListName
 -- `QDHXB.Internal.Utils.ZeroOneMany.zomToList` to another `Exp`.
 applyZomToList :: Exp -> Exp
 applyZomToList = AppE zomToListVarE
+
+-- | TH `Name` for the `QDHXB.Internal.Utils.ZeroOneMany.ZeroOneMany`
+-- type.
+zomName :: Name
+zomName = mkName "QDHXB.Expansions.ZeroOneMany"
+
+-- | TH `Name` for the `QDHXB.Internal.Utils.ZeroOneMany.ZeroOneMany`
+-- type.
+zomConT :: Type
+zomConT = ConT zomName
 
 -- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`
 zomToMaybeName :: Name

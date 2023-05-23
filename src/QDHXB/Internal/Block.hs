@@ -11,7 +11,7 @@ module QDHXB.Internal.Block (
   -- * Basic block type
   BlockMaker,
   -- ** Combinators on `BlockMaker`s
-  retrievingCRefFor,
+  retrievingCRefFor, scaleBlockMakerToBounds,
   -- ** Some atomic `BlockMaker`s
   listToMaybe, listToSingle
   )
@@ -46,6 +46,32 @@ retrievingCRefFor qn strDec = do
                       qCrefMustBePresentIn (qName qn) Nothing)
           quotedReturnId (VarE tmp1))
     ] ++ strDec tmp2 dest
+
+scaleBlockMakerToBounds ::
+  BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
+scaleBlockMakerToBounds k _ (Just 0) = do
+  whenDebugging $ dbgLn "- scaleBlockMakerToBounds none case"
+  return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
+scaleBlockMakerToBounds k (Just 1) (Just 1) = do
+  whenDebugging $ dbgLn "- scaleBlockMakerToBounds single case"
+  return k
+scaleBlockMakerToBounds k _ (Just 1) = do
+  whenDebugging $ dbgLn "- scaleBlockMakerToBounds maybe case"
+  tmp <- newName "possible"
+  return $ \src dest ->
+    [BindS (VarP dest) $
+       (DoE Nothing $ k src tmp ++ [NoBindS $ applyReturn $ VarE tmp])
+         `replaceOnError` (applyReturn $ nothingConE)]
+scaleBlockMakerToBounds k _ _ = do
+  whenDebugging $ dbgLn "- scaleBlockMakerToBounds list case"
+  x <- newName "x"
+  local <- newName "local"
+  return $ \src dest ->
+    [BindS (VarP dest) $
+       applyMapM
+         (LamE [VarP x] $
+            DoE Nothing $ k x local ++ [NoBindS $ applyReturn $ VarE local])
+         (VarE src)]
 
 -- | Atomic `BlockMaker` which expects a list value at its source.  If
 -- the value is a singleton list, it writes the element at its
