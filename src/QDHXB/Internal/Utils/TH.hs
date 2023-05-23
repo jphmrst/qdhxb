@@ -63,7 +63,7 @@ module QDHXB.Internal.Utils.TH (
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zomConT, zeroPat, onePat, manyPat, zomToListVarE,
   applyZomToSingle, applyZomToMaybe, applyZomToList,
-  zomCase, zomCaseSingle,
+  zomCase, zomCaseSingle, zomCaseSingle',
 
   -- * @XMLLight@
   contentConT, applyPullContentFrom, applyPullCRefContent, applyLoadContent,
@@ -194,7 +194,7 @@ xsdNameToNameTranslation name = (name, applyReturn)
 -- quotation of the `QDHXB.Errs.HXBErr` to be raised when the original
 -- `Exp`ression returns `Nothing`.
 maybeToExceptExp :: Exp -> Exp -> Exp
-maybeToExceptExp s e = caseNothingJust e s $ applyReturn . VarE
+maybeToExceptExp s e = caseNothingJust' e s zName $ applyReturn $ VarE zName
 
 -- | TH `Name` for "Int"
 intName :: Name
@@ -532,12 +532,24 @@ zomCase e zeroExp oneN oneExp manyN manyExp =
     ]
 
 -- | Build a TH @case@ expression over a
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression.
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression
+-- which distinguishes the single case, and a miscellaneous catch-all.
 zomCaseSingle :: Exp -> Name -> Exp -> Name -> Exp -> Exp
 zomCaseSingle e oneN oneExp otherN otherExp =
   CaseE e [
     Match (onePat $ VarP oneN) (NormalB oneExp) [],
     Match (VarP otherN) (NormalB otherExp) []
+    ]
+
+-- | Build a TH @case@ expression over a
+-- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression
+-- which distinguishes the single case, and a wildcard catch-all for
+-- other cases.
+zomCaseSingle' :: Exp -> Name -> Exp -> Exp -> Exp
+zomCaseSingle' e oneN oneExp otherExp =
+  CaseE e [
+    Match (onePat $ VarP oneN) (NormalB oneExp) [],
+    Match (WildP) (NormalB otherExp) []
     ]
 
 -- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle`
@@ -844,8 +856,11 @@ caseListOneElse e oneN oneExp otherN otherExp =
 
 -- | Build a TH @case@ expression over `Either` values where we do not
 -- care about the `Name` of the bound variable.
-caseLeftRight :: Exp -> (Name -> Exp) -> (Name -> Exp) -> Exp
-caseLeftRight e elf erf = caseLeftRight' e zName (elf zName) yName (erf yName)
+caseLeftRight :: Quote m => Exp -> (Name -> Exp) -> (Name -> Exp) -> m Exp
+caseLeftRight e elf erf = do
+  z <- newName "z"
+  y <- newName "y"
+  return $ caseLeftRight' e z (elf z) y (erf y)
 
 -- | Build a TH @case@ expression over `Maybe` values with the given
 -- bound variable and result expression for respectively the `Nothing`
@@ -859,19 +874,21 @@ caseNothingJust' e en nj ej =
 
 -- | Build a TH @case@ expression over `Maybe` values where we do not
 -- care about the `Name` of the bound variable.
-caseNothingJust :: Exp -> Exp -> (Name -> Exp) -> Exp
-caseNothingJust e el erf = caseNothingJust' e el zName (erf zName)
+caseNothingJust :: Quote m => Exp -> Exp -> (Name -> Exp) -> m Exp
+caseNothingJust e el erf = do
+  z <- newName "z"
+  return $ caseNothingJust' e el z $ erf z
 
 -- | Given a TH `Exp` expression of type @Maybe a@, either returns a
 -- value of type @a@ or throws an `error` with the given `String`
-justOrThrow :: Exp -> Exp -> Exp
+justOrThrow :: Quote m => Exp -> Exp -> m Exp
 justOrThrow ex msg =
   caseNothingJust ex (throwsErrorExp msg) VarE
 
 -- | Given a TH `Exp` expression of type @Except String a@, either
 -- returns a value of type @a@ or throws an `error` with the given
 -- `String`
-resultOrThrow :: Exp -> Exp
+resultOrThrow :: Quote m => Exp -> m Exp
 resultOrThrow ex =
   caseLeftRight (applyRunExceptExp ex)
     (throwsErrorExp . applyBPP . (\x -> SigE x $ ConT hxberrName) . VarE)

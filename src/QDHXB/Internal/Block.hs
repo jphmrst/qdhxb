@@ -81,7 +81,7 @@ listToSingle src dest =
   [ LetS [
      ValD (VarP dest)
        (NormalB $
-         zomCaseSingle (VarE src) uName (VarE uName) uName
+         zomCaseSingle' (VarE src) uName (VarE uName)
            (throwsError "Single element required, multiple found")) []
      ]
   ]

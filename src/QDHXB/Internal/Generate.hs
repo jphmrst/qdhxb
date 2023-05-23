@@ -113,19 +113,20 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   tmp1 <- newName "t"
   resId <- newName "res"
   resId2 <- newName "res"
+  paramName <- newName "file"
   let loadSteps = decoderFn tmp1 resId2 ++ [
         NoBindS $ applyReturn $ VarE resId2
         ]
-      res = [
+  loadBodySrc <- resultOrThrow $ DoE Nothing [
+    BindS (VarP resId) $ DoE Nothing loadSteps,
+    NoBindS (applyReturn $ VarE resId)
+    ]
+  let res = [
         SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
-        FunD loadNam [Clause [VarP yName]
+        FunD loadNam [Clause [VarP paramName]
                       (NormalB $ DoE Nothing [
-                        BindS (VarP tmp1) (applyLoadContent $ VarE yName),
-                        NoBindS $ applyReturn $ resultOrThrow $
-                            (DoE Nothing [
-                                BindS (VarP resId) $ DoE Nothing loadSteps,
-                                NoBindS (applyReturn $ VarE resId)
-                                ])]) []]
+                        BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
+                        NoBindS $ applyReturn loadBodySrc]) []]
         ]
 
   pushDeclHaddock ifDoc loadNam
@@ -206,10 +207,11 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
   -- let coreDecoder = basicDecoder $ VarE xName
   haskellTyp <- getTypeHaskellType typ
   coreDecoder <- getSafeStringDecoder typ
+  paramName <- newName "content"
   let decoder = DoE Nothing [
-        LetS [ValD (VarP yName) (NormalB puller) []],
+        LetS [ValD (VarP paramName) (NormalB puller) []],
         NoBindS $
-          caseNothingJust' (VarE yName)
+          caseNothingJust' (VarE paramName)
             (applyReturn nothingConE)
             xName (DoE Nothing $ coreDecoder xName resName ++ [
                       NoBindS $ applyReturn $ applyJust (VarE resName)
@@ -227,6 +229,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
   pushDeclHaddock ifd rootTypeName $
     "Representation of the @\\<" ++ xmlName ++ ">@ attribute"
 
+  decBody <- resultOrThrow $ AppE (VarE safeDecNam) (VarE paramName)
   dbgResult "Generated" $ (
         TySynD rootTypeName [] haskellTyp
 
@@ -234,14 +237,11 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
         : SigD safeDecNam
                (fn1Type contentConT
                         (qHXBExcT (AppT maybeConT (ConT rootTypeName))))
-        : FunD safeDecNam [Clause [ctxtVarP] (NormalB decoder) []]
+        : FunD safeDecNam [Clause [VarP paramName] (NormalB decoder) []]
          -- Decoder
         : SigD decNam (fn1Type contentConT
                                (AppT maybeConT (ConT rootTypeName)))
-        : FunD decNam [Clause [ctxtVarP]
-                              (NormalB $ resultOrThrow $
-                                AppE (VarE safeDecNam)
-                                     ctxtVarE) []]
+        : FunD decNam [Clause [VarP paramName] (NormalB decBody) []]
 
         {-
         -- TODO Encoder
@@ -868,6 +868,7 @@ newAssemble base tyDec safeDec ifDoc = do
       decAsNam = mkName $ "decodeAs" ++ baseNameStr
       tryDecType = fn1Type contentConT (qHXBExcT typeType)
       decType = fn1Type contentConT typeType
+  paramName <- newName "ctnt"
 
   pushDeclHaddock ifDoc safeDecAsNam $
     "Attempt to decode an element represented as `"
@@ -878,18 +879,16 @@ newAssemble base tyDec safeDec ifDoc = do
     ++ "`, or fail with a top-level `error`"
 
   res <- newName "res"
+  decodeBody <- resultOrThrow $ AppE (VarE safeDecAsNam) (VarE paramName)
   let baseList = [
         SigD safeDecAsNam tryDecType,
-          FunD safeDecAsNam [Clause [VarP ctxtName]
+          FunD safeDecAsNam [Clause [VarP paramName]
                               (NormalB $ DoE Nothing $
-                                 safeDec ctxtName res ++ [
+                                 safeDec paramName res ++ [
                                   NoBindS $ applyReturn $ VarE res
                                   ]) []],
           SigD decAsNam decType,
-          FunD decAsNam [Clause [ctxtVarP]
-                          (NormalB $ resultOrThrow $
-                            AppE (VarE safeDecAsNam) ctxtVarE)
-                          []]
+          FunD decAsNam [Clause [VarP paramName] (NormalB decodeBody) []]
         ]
 
   case tyDec of
@@ -1210,6 +1209,8 @@ getTypeDecoderFn qn = do
         BuiltinDefn _ty _ _ efn -> do
           strmaybe <- newName "strmaybe"
           str <- newName "str"
+          strBody <- justOrThrow (VarE strmaybe)
+                       (LitE $ StringL "No CRef content for simple type")
           return $ \src dest -> [
             -- Built-ins are all simple types, so the first step is to
             -- extract the string contents.
@@ -1218,9 +1219,7 @@ getTypeDecoderFn qn = do
                      (NormalB $ applyPullCRefContent $ VarE src) [],
 
                 -- Second step is to extract the actual value, or fail.
-                ValD (VarP str)
-                     (NormalB $ justOrThrow (VarE strmaybe)
-                        (LitE $ StringL "No CRef content for simple type")) []
+                ValD (VarP str) (NormalB strBody) []
                 ],
 
             -- Finally convert this string into the typed value.
