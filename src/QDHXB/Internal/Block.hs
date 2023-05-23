@@ -31,8 +31,8 @@ type BlockMaker = Name -> Name -> [Stmt]
 
 -- | Given a `BlockMaker` which operates on a `String`, return a
 -- `BlockMaker` which fetches a `String` from the @CRef@ innards of a
--- piece of XML `Content`, and use it as the `String` for the
--- `BlockMaker`.
+-- piece of XML `Text.XML.Light.Types.Content`, and use it as the
+-- `String` for the `BlockMaker`.
 retrievingCRefFor :: QName -> BlockMaker -> XSDQ BlockMaker
 retrievingCRefFor qn strDec = do
   tmp1 <- newName "maybeContent"
@@ -47,6 +47,11 @@ retrievingCRefFor qn strDec = do
           quotedReturnId (VarE tmp1))
     ] ++ strDec tmp2 dest
 
+-- | Given a `BlockMaker` for a single instance of some artifact,
+-- produce a (possibly different, but possibly the same thing)
+-- `BlockMaker` which acts for a possible number of instances within
+-- the given bounds.  This function interprets `Nothing` in a bound as
+-- "unbounded" rather than "default."
 scaleBlockMakerToBounds ::
   BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
 scaleBlockMakerToBounds k _ (Just 0) = do

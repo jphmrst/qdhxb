@@ -123,38 +123,56 @@ postlabelBlock suffix = Block . helper . openBlock
         helper [x] = [x ++ suffix]
         helper (x:xs) = x : helper xs
 
+-- | Standalone function rendering a list as a vertical rendering of
+-- its elements.
 verticalBlockListFn :: Blockable c => [c] -> Block
 verticalBlockListFn = Block . concat . map (openBlock . block)
 
+-- | For some type @t@, declare @[t]@ to be rendered as a vertical
+-- rendering of its elements.  Will raise an error if @t@ is not
+-- `Blockable`.
 verticalBlockList :: Q Type -> Q [Dec]
 verticalBlockList name =
   [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
        where block = QDHXB.Internal.Utils.BPP.verticalBlockListFn|]
 
+-- | Standalone function rendering a list as a bulleted vertical
+-- rendering of its elements.
 bulletedVerticalBlockListFn :: Blockable c => [c] -> Block
 bulletedVerticalBlockListFn =
   Block . concat . map (openBlock . labelBlock "- " . block)
 
+-- | For some type @t@, declare @[t]@ to be rendered as a vertical
+-- bulleted list of elements.  Will raise an error if @t@ is not
+-- `Blockable`.
 bulletedVerticalBlockList :: Q Type -> Q [Dec]
 bulletedVerticalBlockList name =
   [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
        where block = QDHXB.Internal.Utils.BPP.bulletedVerticalBlockListFn|]
 
+-- | Standalone function rendering a pair with the first component
+-- directly above the second.
 verticalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
 verticalBlockablePairFn (a, b) = labelBlock "(" $ stackBlocks [
   postlabelBlock "," $ block a,
   postlabelBlock ")" $ block b
   ]
 
+-- | For some types @s@ and @t@, declare @(s,t)@ to be rendered
+-- vertically, one element atop the other.  Will raise an error if
+-- either @s@ or @t@ is not `Blockable`.
 verticalBlockablePair :: Q Type -> Q Type -> Q [Dec]
 verticalBlockablePair t1 t2 =
   [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
        where block = QDHXB.Internal.Utils.BPP.verticalBlockablePairFn|]
 
+-- | Standalone function rendering a pair on one line.
 horizontalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
 horizontalBlockablePairFn (a, b) = labelBlock "(" $
     (postlabelBlock "," $ block a) `follow` (postlabelBlock ")" $ block b)
 
+-- | For some types @s@ and @t@, declare @(s,t)@ to be rendered on one
+-- line.  Will raise an error if either @s@ or @t@ is not `Blockable`.
 horizontalBlockablePair :: Q Type -> Q Type -> Q [Dec]
 horizontalBlockablePair t1 t2 =
   [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
