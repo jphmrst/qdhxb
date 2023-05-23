@@ -74,7 +74,7 @@ import Control.Monad.Except
 -- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
--- import Text.XML.Light.Output (showQName)
+import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName)
 import QDHXB.Errs
 import QDHXB.Internal.Utils.TH
@@ -711,7 +711,7 @@ getSafeDecoder qn = indenting $ do
           QName -> BlockMaker -> Maybe Int -> Maybe Int
           -> XSDQ BlockMaker
         makeSubelementBinder sqn indivF lo hi = indenting $
-          makeSubelementBinder' sqn (applyPullContentFrom $ qName qn)
+          makeSubelementBinder' sqn (applyPullContentFrom $ qName sqn)
                                 indivF lo hi
 
         makeSubelementBinder' ::
@@ -720,14 +720,18 @@ getSafeDecoder qn = indenting $ do
         makeSubelementBinder' _ _ _ _ (Just 0) = do                  -- Unit
           whenDebugging $ dbgLn "makeSubelementBinder' unit case"
           return $ \ _ dest -> [ BindS (VarP dest) $ TupE [] ]
-        makeSubelementBinder' _ puller indivF (Just 1) (Just 1) = do -- Single
+        makeSubelementBinder' tqn puller indivF (Just 1) (Just 1) = do -- Single
           whenDebugging $ dbgLn "makeSubelementBinder' single case"
           pull <- newName "pullForSingle"
           single <- newName "single"
           return $ \src dest ->
             (LetS [SigD pull (AppT zomConT contentConT),
                    ValD (VarP pull) (NormalB $ puller $ VarE src) []])
-            : listToSingle pull single ++ indivF single dest
+            : listToSingle ("Single instance of "
+                            ++ showQName tqn ++ " subelement within "
+                            ++ showQName qn ++ " required, none/multiple found")
+                           pull single
+            ++ indivF single dest
         makeSubelementBinder' _ puller indivF _ (Just 1) = do        -- Maybe
           whenDebugging $ dbgLn "makeSubelementBinder' maybe case"
           pull <- newName "pullForMaybe"

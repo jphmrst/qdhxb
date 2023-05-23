@@ -78,18 +78,12 @@ scaleBlockMakerToBounds k _ _ = do
 -- | Atomic `BlockMaker` which expects a list value at its source.  If
 -- the value is a singleton list, it writes the element at its
 -- destination; otherwise it throws a run-time error.
-listToSingle :: BlockMaker
-listToSingle src dest =
+listToSingle :: String -> BlockMaker
+listToSingle msg src dest =
   [ LetS [
      ValD (VarP dest)
        (NormalB $
-         zomCaseSingle' (VarE src) uName (VarE uName) $
-             throwsErrorExp $
-               InfixE
-                 (Just $ LitE $
-                    StringL "Single element required, multiple found: ")
-                 (VarE $ mkName "++")
-                 (Just $ AppE (VarE $ mkName "show") (VarE src)))
+          zomCaseSingle' (VarE src) uName (VarE uName) $ throwsError msg)
        []
      ]
   ]

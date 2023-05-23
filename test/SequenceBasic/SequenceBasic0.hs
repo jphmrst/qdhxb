@@ -6,8 +6,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb useDebugging ["test/SequenceBasic/seqbasic0.xsd"]
--- qdhxb' ["test/SequenceBasic/seqbasic0.xsd"]
+-- qdhxb useDebugging ["test/SequenceBasic/seqbasic0.xsd"]
+qdhxb' ["test/SequenceBasic/seqbasic0.xsd"]
 
 testSequencebasic0 :: TLT IO ()
 testSequencebasic0 = inGroup "XSD seqbasic0" $ do

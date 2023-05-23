@@ -6,11 +6,14 @@
 <xsd:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
             targetNamespace="urn:groupbasic0"
             xmlns:gb="urn:groupbasic0">
-  <xs:sequence>
-    <xs:choice minOccurs="0" maxOccurs="unbounded">
-      <xs:element name="numa" type="xs:nonNegativeInteger"/>
-      <xs:element name="numz" type="xs:string"/>
-    </xs:choice>
-    <xs:element name="namestr" type="xs:string"/>
-  </xs:sequence>
+  <xs:complexType name="choiceType">
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="numa" type="xs:nonNegativeInteger"/>
+        <xs:element name="numz" type="xs:string"/>
+      </xs:choice>
+      <xs:element name="namestr" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="ch" type="choiceType"/>
 </xs:schema>
