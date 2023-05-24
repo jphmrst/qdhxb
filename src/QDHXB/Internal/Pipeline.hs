@@ -25,26 +25,48 @@ xmlToDecs (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) =
 xmlToDecs _ = error "Missing <?xml> element"
 
 elementToDecs :: Content -> XSDQ [Dec]
-elementToDecs (Elem (Element (QName "schema" _ _) attrs forms _)) = do
+elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
   pushNamespaces attrs
-  whenDebugging $ do
-    liftIO $ putStrLn "======================================== INPUT"
+  whenDebugging $ liftIO $ do
+    putStrLn "======================================== INPUT"
+    bLabelPrintln "Source: " e
+    putStrLn "----------------------------------------"
+    writeFile "last.out" $
+      "============================== SOURCE\n"
+      ++ bpp e
+
   schemaReps <- inputSchemaItems forms
   whenDebugging $ liftIO $ do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " schemaReps
     putStrLn "======================================== FLATTEN"
+    appendFile "last.out" $
+      "\n============================== NESTED INPUT\n"
+      ++ bpp schemaReps
+
   ir <- flattenSchemaItems schemaReps
   whenDebugging $ do
-    liftIO $ putStrLn "----------------------------------------"
-    liftIO $ bLabelPrintln "Final: " ir
-    liftIO $ putStrLn "======================================== GENERATE"
+    liftIO $ do
+      putStrLn "----------------------------------------"
+      bLabelPrintln "Final: " ir
+      putStrLn "======================================== GENERATE"
     debugXSDQ
-    liftIO $ putStrLn "----------------------------------------"
+    liftIO $ do
+      putStrLn "----------------------------------------"
+      appendFile "last.out" $
+        "\n============================== FLATTENED INPUT\n"
+        ++ bpp ir
+
   decls <- xsdDeclsToHaskell ir
   whenDebugging $ liftIO $ do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " decls
     putStrLn "======================================== end"
+    appendFile "last.out" $
+      "\n============================== OUTPUT\n"
+      ++ bpp decls
+      ++ "\n==============================\n"
+
   return decls
+
 elementToDecs _ = error "Unexpected form in elementToDecs"
