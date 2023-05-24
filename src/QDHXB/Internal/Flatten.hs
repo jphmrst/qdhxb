@@ -425,17 +425,17 @@ flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') l d) =
   flattenSingleAttributeRef nr t m l (pickOrCombine d d')
 flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) l d) =
   flattenAttributeGroupRef nameRef cs l d
-flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine ifDoc) = do
+flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine _) = do
   defns <- flattenSchemaItem c
-  return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
-flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
+  return (defns, ElementRef n (Just 1) (Just 1) ifLine)
+flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine _) = do
   defns <- flattenSchemaItem s
-  return (defns, TypeRef n Nothing Nothing ifLine ifDoc)
-flattenSchemaRef (GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
-  return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
+  return (defns, ElementRef n (Just 1) (Just 1) ifLine)
+flattenSchemaRef (GroupScheme (WithRef ref) _ifCtnts ifLn _) = do
+  return ([], ElementRef ref (Just 1) (Just 1) ifLn)
 flattenSchemaRef (GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   defns <- flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
-  return (defns, TypeRef name Nothing Nothing ifLn ifDoc)
+  return (defns, ElementRef name (Just 1) (Just 1) ifLn)
 flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "flattenSchemaRef of GroupScheme"
