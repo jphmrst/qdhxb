@@ -548,6 +548,15 @@ getNamespaces = liftStatetoXSDQ $ do
   QdxhbState _ _ _ _ _ nss _ _ <- get
   return nss
 
+-- |Return the stack of `Namespaces` currently known to the `XSDQ`
+-- state.
+getCurrentNamespaces :: XSDQ (Maybe Namespaces)
+getCurrentNamespaces = do
+  nss <- getNamespaces
+  return $ case nss of
+             [] -> Nothing
+             ns:_ -> Just ns
+
 -- |Return the current target namespace URI.
 getDefaultNamespace :: XSDQ (Maybe String)
 getDefaultNamespace = liftStatetoXSDQ $ do
@@ -562,7 +571,13 @@ getDefaultNamespace = liftStatetoXSDQ $ do
 inDefaultNamespace :: String -> XSDQ QName
 inDefaultNamespace s = do
   uri <- getDefaultNamespace
-  return $ QName s uri Nothing
+  ns <- getCurrentNamespaces
+  let prefix = case uri of
+                 Nothing -> Nothing
+                 Just us -> case ns of
+                   Nothing -> Nothing
+                   Just n -> lookupPrefixForURI us n
+  return $ QName s uri prefix
 
 -- |If the first argument does carry a `QName` then return it, else
 -- build a new fully contextually-qualified name.
