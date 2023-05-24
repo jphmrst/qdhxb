@@ -581,7 +581,7 @@ getSafeDecoder qn = indenting $ do
           ifTypeOf <- getElementType nam
           case ifTypeOf of
             Nothing -> error $
-              "No type stored for element \"" ++ show nam ++ "\""
+              "No type stored for element \"" ++ showQName nam ++ "\""
             Just typeOf -> do
               getSafeDecoder typeOf
         getRefSafeDecoder (AttributeRef ref usage) = do

@@ -14,13 +14,13 @@ testCB0 = do
   inGroup "XSD choice basics 0" $ do
     {-
     lift $ do
-      ch <- loadCh "test/ChoiceBasic/cb1a.xml"
+      ch <- loadCh "test/ChoiceBasic/cb0a.xml"
       putStrLn $ show ch
     -}
     inGroup "CB 1a" $ do
-      p <- lift $ loadCh "test/ChoiceBasic/cb1a.xml"
-      "Correctly decode <ch>2</ch> in cb1a.xml" ~: ChoiceTypeNuma 2 @==- p
+      p <- lift $ loadCh "test/ChoiceBasic/cb0a.xml"
+      "Correctly decode <ch>2</ch> in cb0a.xml" ~: ChoiceTypeNuma 2 @==- p
     inGroup "CB 1b" $ do
-      p <- lift $ loadCh "test/ChoiceBasic/cb1b.xml"
-      "Correctly decode <ch>zz</ch> in cb1b.xml" ~: ChoiceTypeNumz "zz" @==- p
+      p <- lift $ loadCh "test/ChoiceBasic/cb0b.xml"
+      "Correctly decode <ch>zz</ch> in cb0b.xml" ~: ChoiceTypeNumz "zz" @==- p
   return ()

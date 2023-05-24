@@ -221,6 +221,7 @@ flattenComplexTypeScheme (Choice ifName contents) _ats ifOuterName ln doc = do
   (defs, refs) <- flattenSchemaRefs contents
   let labelledRefs = zipWith getLabelledDisjunct refs contents
       defn = ChoiceDefn name labelledRefs ln doc
+  addElementType name name
   fileNewDefinition defn
   dbgResult "Flattened to" $
     defs ++ [defn]
