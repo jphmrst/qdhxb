@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/ChoiceBasic/choice-basic1.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/ChoiceBasic/choice-basic1.xsd"]
 qdhxb' ["test/ChoiceBasic/choice-basic1.xsd"]
 
 testCB1 :: TLT IO ()

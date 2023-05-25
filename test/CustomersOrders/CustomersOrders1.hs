@@ -8,7 +8,7 @@ import qualified QDHXB.Expansions
 
 {- Disabled until we can handle using the same name in different XML scopes. -}
 
--- qdhxb useDebugging ["test/CustomersOrders/customersorders.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/CustomersOrders/customersorders.xsd"]
 -- qdhxb' ["test/CustomersOrders/customersorders.xsd"]
 
 testCustomersOrders1 :: TLT IO ()

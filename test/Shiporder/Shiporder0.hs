@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/Shiporder/shiporder0.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/Shiporder/shiporder0.xsd"]
 -- qdhxb' ["test/Shiporder/shiporder0.xsd"]
 
 testShiporder0 :: TLT IO ()

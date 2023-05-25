@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/SizesAndList/sizesAndListInline.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/SizesAndList/sizesAndListInline.xsd"]
 -- qdhxb' ["test/SizesAndList/sizesAndListInline.xsd"]
 
 testSizesAndListInline :: TLT IO ()

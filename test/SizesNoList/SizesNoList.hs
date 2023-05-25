@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/SizesNoList/sizesNoList.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/SizesNoList/sizesNoList.xsd"]
 -- qdhxb' ["test/SizesNoList/sizesNoList.xsd"]
 
 testSizesNoList :: TLT IO ()

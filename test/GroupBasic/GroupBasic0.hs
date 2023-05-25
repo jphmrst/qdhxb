@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/GroupBasic/group-basic0.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic0.xsd"]
 -- qdhxb' ["test/GroupBasic/group-basic0.xsd"]
 
 testGB0 :: TLT IO ()

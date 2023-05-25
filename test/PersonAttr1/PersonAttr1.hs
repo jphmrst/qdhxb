@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/PersonAttr1/personattr1.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/PersonAttr1/personattr1.xsd"]
 -- qdhxb' ["test/PersonAttr1/personattr1.xsd"]
 
 testPersonAttr1 :: TLT IO ()

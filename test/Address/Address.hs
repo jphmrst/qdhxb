@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/Address/address.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/Address/address.xsd"]
 -- qdhxb' ["test/Address/address.xsd"]
 
 testAddress :: TLT IO ()

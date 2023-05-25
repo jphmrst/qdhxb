@@ -7,7 +7,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/Books/books-mod2.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/Books/books-mod2.xsd"]
 -- qdhxb' ["test/Books/books-mod2.xsd"]
 
 testBooksMod2 :: TLT IO ()

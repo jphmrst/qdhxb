@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/Initials/initials.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/Initials/initials.xsd"]
 qdhxb' ["test/Initials/initials.xsd"]
 
 testInitials :: TLT IO ()

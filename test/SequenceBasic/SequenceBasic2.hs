@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["test/SequenceBasic/seqbasic2.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/SequenceBasic/seqbasic2.xsd"]
 qdhxb' ["test/SequenceBasic/seqbasic2.xsd"]
 
 testSequencebasic2 :: TLT IO ()
