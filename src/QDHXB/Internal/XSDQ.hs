@@ -25,7 +25,6 @@ module QDHXB.Internal.XSDQ (
   installXsdPrimitives,
   -- * Configuration options
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
-  whenResetLog, whenLogging, whenCentralLogging, whenLocalLogging, putLog,
 
   -- * Managing namespaces
   pushNamespaces, popNamespaces,
@@ -36,6 +35,10 @@ module QDHXB.Internal.XSDQ (
   indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
   dbgResult, dbgResultM, debugXSDQ,
 
+  -- * Logging
+  resetLog, localLoggingStart, localLoggingEnd,
+  whenResetLog, whenLogging, whenCentralLogging, whenLocalLogging, putLog,
+
   -- * Miscellaneous
   NameStore, containForBounds)
 where
@@ -45,6 +48,7 @@ import Control.Monad.IO.Class
 import Control.Monad.Extra
 import Control.Monad.Except
 import Control.Monad.Trans.State.Lazy
+import Data.Time.Clock
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.Namespaces
@@ -759,12 +763,13 @@ ifCentralLogging m n = do
     Just _ -> m
     Nothing -> n
 
--- | Run statements when central logging is selected.
-whenCentralLogging :: XSDQ () -> XSDQ ()
-whenCentralLogging m = do
+-- | Run statements when central logging is selected.  The function
+-- should accept the name of the central log file as its argument.
+whenCentralLogging :: (String -> XSDQ ()) -> XSDQ ()
+whenCentralLogging fm = do
   st <- liftStatetoXSDQ get
   case stateGlobalLog st of
-    Just _ -> m
+    Just file -> fm file
     Nothing -> return ()
 
 -- | Run statements when per-XSD logging is selected.
@@ -772,8 +777,32 @@ whenLocalLogging :: XSDQ () -> XSDQ ()
 whenLocalLogging m = do
   st <- liftStatetoXSDQ get
   case stateFileLogMaker st of
-    Just _ -> m
+    Just f -> m
     Nothing -> return ()
+
+-- | Run statements when per-XSD logging is selected.
+localLoggingStart :: String -> XSDQ ()
+localLoggingStart xsd = do
+  (QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
+              resetsLog ifCentralLog _ifFileLog fileLogMaker) <-
+    liftStatetoXSDQ get
+  case fileLogMaker of
+    Just f -> do
+      let logfile = f xsd
+      liftStatetoXSDQ $ put $
+        QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
+                   resetsLog ifCentralLog (Just logfile) fileLogMaker
+    Nothing -> return ()
+
+-- | Run statements when per-XSD logging is selected.
+localLoggingEnd :: XSDQ ()
+localLoggingEnd = do
+  (QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
+              resetLog ifCentralLog _ifFileLog fileLogMaker) <-
+    liftStatetoXSDQ get
+  liftStatetoXSDQ $ put $ QdxhbState opts elemTypes attrTypes typeDefns dfts nss
+                                     names ind resetLog ifCentralLog
+                                     Nothing fileLogMaker
 
 -- | Write a `String` to any selected logging method.
 putLog :: String -> XSDQ ()
@@ -782,3 +811,12 @@ putLog s = do
   maybe (return ()) writer $ stateGlobalLog st
   maybe (return ()) writer $ stateLocalLog st
   where writer file = liftIO $ appendFile file s
+
+-- | Reset a log file.
+resetLog :: String -> XSDQ ()
+resetLog file = liftIO $ do
+  now <- getCurrentTime
+  writeFile file ""
+  appendFile file $
+    "QDHXB  -*- mode: text -*-\n"
+    ++ "Run at: " ++ show now ++ "\n"

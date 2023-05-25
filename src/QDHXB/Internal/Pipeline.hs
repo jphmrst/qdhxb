@@ -31,16 +31,16 @@ elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
     putStrLn "======================================== INPUT"
     bLabelPrintln "Source: " e
     putStrLn "----------------------------------------"
-    appendFile "last.out" $ "------------------------------ SOURCE\n" ++ bpp e
-      ++ "\n------------------------------ "
+  putLog $ "------------------------------ SOURCE\n" ++ bpp e
+    ++ "\n------------------------------ "
 
   schemaReps <- inputSchemaItems forms
   whenDebugging $ liftIO $ do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " schemaReps
     putStrLn "======================================== FLATTEN"
-    appendFile "last.out" $ "\nNESTED INPUT\n" ++ bpp schemaReps
-      ++ "\n------------------------------ "
+  putLog $ "\nNESTED INPUT\n" ++ bpp schemaReps
+    ++ "\n------------------------------ "
 
   ir <- flattenSchemaItems schemaReps
   whenDebugging $ do
@@ -51,16 +51,15 @@ elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
     debugXSDQ
     liftIO $ do
       putStrLn "----------------------------------------"
-      appendFile "last.out" $ "\nFLATTENED INPUT\n" ++ bpp ir
-        ++ "\n------------------------------ "
+  putLog $ "\nFLATTENED INPUT\n" ++ bpp ir
+    ++ "\n------------------------------ "
 
   decls <- xsdDeclsToHaskell ir
   whenDebugging $ liftIO $ do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " decls
     putStrLn "======================================== end"
-    appendFile "last.out" $ "\nOUTPUT\n" ++ bpp decls
-      ++ "\n==============================\n"
+  putLog $ "\nOUTPUT\n" ++ bpp decls ++ "\n==============================\n"
 
   return decls
 

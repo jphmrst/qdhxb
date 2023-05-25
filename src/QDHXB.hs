@@ -21,7 +21,9 @@ module QDHXB (
   -- @QDHXB.Options@ module.
   QDHXBOption,
   -- ** Structure of renamed types
-  useNewType, noUseNewType, useDebugging
+  useNewType, noUseNewType,
+  -- ** Debugging and logging
+  useDebugging, logByFile, logCentral
 
   ) where
 
