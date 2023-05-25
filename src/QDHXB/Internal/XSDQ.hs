@@ -25,7 +25,7 @@ module QDHXB.Internal.XSDQ (
   installXsdPrimitives,
   -- * Configuration options
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
-  ifResetLog, whenLogging, whenCentralLogging, whenLocalLogging, putLog,
+  whenResetLog, whenLogging, whenCentralLogging, whenLocalLogging, putLog,
 
   -- * Managing namespaces
   pushNamespaces, popNamespaces,
@@ -740,20 +740,26 @@ dbgResultM msg resM = do
   whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
   return res
 
-ifResetLog :: XSDQ () -> XSDQ ()
-ifResetLog m = do
+-- | Run statements when log files should be reset at each run.
+whenResetLog :: XSDQ () -> XSDQ ()
+whenResetLog m = do
   st <- liftStatetoXSDQ get
   if stateResetLog st then m else return ()
 
+-- | Run statements when any kind of logging is selected.
 whenLogging :: XSDQ () -> XSDQ ()
 whenLogging m = do
+  ifCentralLogging m $ whenLocalLogging m
+
+-- | Select statements based on whether central logging is selected.
+ifCentralLogging :: XSDQ () -> XSDQ () -> XSDQ ()
+ifCentralLogging m n = do
   st <- liftStatetoXSDQ get
   case stateGlobalLog st of
     Just _ -> m
-    Nothing -> case stateFileLogMaker st of
-      Just _ -> m
-      Nothing -> return ()
+    Nothing -> n
 
+-- | Run statements when central logging is selected.
 whenCentralLogging :: XSDQ () -> XSDQ ()
 whenCentralLogging m = do
   st <- liftStatetoXSDQ get
@@ -761,6 +767,7 @@ whenCentralLogging m = do
     Just _ -> m
     Nothing -> return ()
 
+-- | Run statements when per-XSD logging is selected.
 whenLocalLogging :: XSDQ () -> XSDQ ()
 whenLocalLogging m = do
   st <- liftStatetoXSDQ get
@@ -768,6 +775,7 @@ whenLocalLogging m = do
     Just _ -> m
     Nothing -> return ()
 
+-- | Write a `String` to any selected logging method.
 putLog :: String -> XSDQ ()
 putLog s = do
   st <- liftStatetoXSDQ get

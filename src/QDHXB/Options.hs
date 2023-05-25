@@ -114,11 +114,14 @@ useDebuggingDoc (QDHXBOptionSet nt dbg _ ifLogByFile
                                 resetLogs logFileMaker logCentralFile) =
   QDHXBOptionSet nt dbg True ifLogByFile resetLogs logFileMaker logCentralFile
 
+-- | Update the option set to specify whether per-XSD file logging
+-- should be selected.
 logByFile :: Bool -> QDHXBOption
 logByFile b (QDHXBOptionSet nt dbg dbgDoc _
                             resetLogs logFileMaker logCentralFile) =
   QDHXBOptionSet nt dbg dbgDoc b resetLogs logFileMaker logCentralFile
 
+-- | Update the option set to name a file for single-file logging.
 logCentral :: String -> QDHXBOption
 logCentral s (QDHXBOptionSet nt dbg dbgDoc ifLogByFile
                                  resetLogs logFileMaker _) =
