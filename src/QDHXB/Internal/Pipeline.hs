@@ -39,7 +39,7 @@ elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " schemaReps
     putStrLn "======================================== FLATTEN"
-  putLog $ "\nNESTED INPUT\n" ++ bpp schemaReps
+  putLog $ " NESTED INPUT\n" ++ bpp schemaReps
     ++ "\n------------------------------ "
 
   ir <- flattenSchemaItems schemaReps
@@ -51,15 +51,15 @@ elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
     debugXSDQ
     liftIO $ do
       putStrLn "----------------------------------------"
-  putLog $ "\nFLATTENED INPUT\n" ++ bpp ir
+  putLog $ " FLATTENED INPUT\n" ++ bpp ir
     ++ "\n------------------------------ "
 
   decls <- xsdDeclsToHaskell ir
   whenDebugging $ liftIO $ do
     putStrLn "----------------------------------------"
     bLabelPrintln "Final: " decls
-    putStrLn "======================================== end"
-  putLog $ "\nOUTPUT\n" ++ bpp decls ++ "\n==============================\n"
+    putStrLn "======================================== end "
+  putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
 
   return decls
 

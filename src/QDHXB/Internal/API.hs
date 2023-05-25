@@ -33,7 +33,7 @@ qdhxb' = qdhxb id
 loadFile :: String -> XSDQ [Dec]
 loadFile xsdFile = do
   localLoggingStart xsdFile
-  putLog $ "\n============================== " ++ xsdFile ++ "\n"
+  putLog $ "============================== " ++ xsdFile ++ "\n"
   xsd <- liftIO $ readFile' xsdFile
   let xml = parseXML xsd
   res <- xmlToDecs $ filter isElem xml

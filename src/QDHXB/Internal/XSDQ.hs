@@ -49,6 +49,7 @@ import Control.Monad.Extra
 import Control.Monad.Except
 import Control.Monad.Trans.State.Lazy
 import Data.Time.Clock
+import Data.Time.Format
 import Text.XML.Light.Types
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.Namespaces
@@ -789,6 +790,7 @@ localLoggingStart xsd = do
   case fileLogMaker of
     Just f -> do
       let logfile = f xsd
+      whenResetLog $ resetLog logfile
       liftStatetoXSDQ $ put $
         QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
                    resetsLog ifCentralLog (Just logfile) fileLogMaker
@@ -808,9 +810,10 @@ localLoggingEnd = do
 putLog :: String -> XSDQ ()
 putLog s = do
   st <- liftStatetoXSDQ get
-  maybe (return ()) writer $ stateGlobalLog st
-  maybe (return ()) writer $ stateLocalLog st
+  writeIf $ stateGlobalLog st
+  writeIf $ stateLocalLog st
   where writer file = liftIO $ appendFile file s
+        writeIf = maybe (return ()) writer
 
 -- | Reset a log file.
 resetLog :: String -> XSDQ ()
@@ -818,5 +821,6 @@ resetLog file = liftIO $ do
   now <- getCurrentTime
   writeFile file ""
   appendFile file $
-    "QDHXB  -*- mode: text -*-\n"
-    ++ "Run at: " ++ show now ++ "\n"
+    "QDHXB "
+    ++ formatTime defaultTimeLocale "%Y/%m/%d %T %Z" now
+    ++ " -*- mode: text -*-\n"
