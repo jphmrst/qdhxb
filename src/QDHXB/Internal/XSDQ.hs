@@ -80,10 +80,11 @@ data QdxhbState = QdxhbState {
   stateOptions :: QDHXBOptionSet,
   stateElementTypes :: (QNameStore QName),
   stateAttributeTypes :: (QNameStore QName),
+  stateAttributeGroups :: (QNameStore Definition),
   stateTypeDefinitions :: (QNameStore Definition),
   stateDefaults :: [Maybe String],
   stateNamespacesList :: [Namespaces],
-  _stateCapitalizedNames :: [String],
+  stateCapitalizedNames :: [String],
   stateIndentation :: String,
   stateResetLog :: Bool,
   stateGlobalLog :: (Maybe String),
@@ -92,56 +93,65 @@ data QdxhbState = QdxhbState {
   }
 
 instance Blockable QdxhbState where
-  block (QdxhbState opts elemTypes attrTypes typeDefns _dfts _nss _names ind
-                    resetLog ifCentralLog ifFileLog fileLogMaker) =
+  block st =
     stringToBlock "Current state"
-    `stack2` (labelBlock "- " $ block opts)
-    `stack2` (if null elemTypes
-               then stringToBlock "- No element types"
-                else (labelBlock "- Element types: " $
+    `stack2` (labelBlock "- " $ block $ stateOptions st)
+    `stack2` (let elemTypes = stateElementTypes st
+              in if null elemTypes
+                 then stringToBlock "- No element types"
+                 else (labelBlock "- Element types: " $
                         foldr1 stack2
                              (map (\(qn,defn) ->
                                       labelBlock (bpp qn ++ " -> ") $
                                         block defn)
                                 elemTypes)))
-    `stack2` (if null attrTypes
-               then stringToBlock "- No attribute types"
-                else (labelBlock "- Attribute types: " $
-                        foldr1 stack2
-                          (map (\(qn,defn) ->
+    `stack2` (let attrTypes = stateAttributeTypes st
+               in if null attrTypes
+                  then stringToBlock "- No attribute types"
+                  else (labelBlock "- Attribute types: " $
+                         foldr1 stack2
+                           (map (\(qn,defn) ->
                                   labelBlock (bpp qn ++ " -> ") $ block defn)
-                           attrTypes)))
-    `stack2` (if null typeDefns
-               then stringToBlock "- No type defs"
-                else (labelBlock "- Type defs: " $
+                             attrTypes)))
+    `stack2` (let typeDefns = stateTypeDefinitions st
+              in if null typeDefns
+                 then stringToBlock "- No type defs"
+                 else (labelBlock "- Type defs: " $
                         foldr1 stack2
                           (map (\(qn,defn) ->
                                   (labelBlock (bpp qn ++ " -> ") $ block defn)
                                   `stack2`
-                                  ((stringToBlock "  decoder ")
-                                   -- `follow`
-                                   -- (stringToBlock $ pprint $
-                                   --   stringDecoderOf qn defn $ VarE $ mkName "CTNT")
-                                  ))
+                                  ((stringToBlock "  decoder ")))
                              typeDefns)))
-    `stack2` (stringToBlock $ "- Indentation \"" ++ ind ++ "\"")
-    `stack2` (stringToBlock $ "- Resetting logs: " ++ show resetLog)
+    `stack2` (stringToBlock $ "- Indentation \"" ++ stateIndentation st ++ "\"")
+    `stack2` (stringToBlock $ "- Resetting logs: " ++ (show $ stateResetLog st))
     `stack2` (stringToBlock $ "- Central log \""
-              ++ maybe "(inactive)" id ifCentralLog ++ "\"")
+              ++ maybe "(inactive)" id (stateGlobalLog st) ++ "\"")
     `stack2` (stringToBlock $ "- Local log \""
-              ++ maybe "(inactive)" id ifFileLog ++ "\"")
+              ++ maybe "(inactive)" id (stateLocalLog st) ++ "\"")
     `stack2` (stringToBlock $ "- File logging "
-              ++ maybe "inactive" (const "active") fileLogMaker)
+              ++ maybe "inactive" (const "active") (stateFileLogMaker st))
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
 initialQdxhbState optsF = let opts = optsF defaultOptionSet
-                          in QdxhbState opts [] [] [] [] [] nameBodies ""
-                               (optResetLogging opts)
-                               (optLogCentralFile opts) Nothing
-                               (if optByFileLogging opts
-                                 then (Just $ optLogFileMaker opts)
-                                 else Nothing)
+                          in QdxhbState {
+  stateOptions = opts,
+  stateElementTypes = [],
+  stateAttributeTypes = [],
+  stateAttributeGroups = [],
+  stateTypeDefinitions = [],
+  stateDefaults = [],
+  stateNamespacesList = [],
+  stateCapitalizedNames = nameBodies,
+  stateIndentation = "",
+  stateResetLog = optResetLogging opts,
+  stateGlobalLog = optLogCentralFile opts,
+  stateLocalLog = Nothing,
+  stateFileLogMaker = if optByFileLogging opts
+                      then (Just $ optLogFileMaker opts)
+                      else Nothing
+  }
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -377,9 +387,8 @@ installXsdPrimitives ns pfx = do
 -- in the `XSDQ` state.
 addTypeDefn :: QName -> Definition -> XSDQ ()
 addTypeDefn name defn = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker<- get
-  put (QdxhbState opts elemTypes attrTypes ((name, defn) : typeDefns)
-                  dfts nss names ind resetLog gLog fLog flogMaker)
+  st <- get
+  put $ st { stateTypeDefinitions = ((name, defn) : stateTypeDefinitions st) }
 
 -- | Return the `Definition` of an XSD type from the tracking tables
 -- in the `XSDQ` state.
@@ -465,9 +474,8 @@ isComplexType name = do
 -- tracking tables in the `XSDQ` state.
 addElementType :: QName -> QName -> XSDQ ()
 addElementType name typ = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker <- get
-  put (QdxhbState opts ((name, typ) : elemTypes)
-                  attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker)
+  st <- get
+  put $ st { stateElementTypes = (name, typ) : stateElementTypes st }
 
 -- | Get the type name associated with an element tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
@@ -491,9 +499,8 @@ getElementTypeOrFail name = do
 -- tracking tables in the `XSDQ` state.
 addAttributeType :: QName -> QName -> XSDQ ()
 addAttributeType name typ = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker <- get
-  put (QdxhbState opts elemTypes ((name, typ) : attrTypes)
-                  typeDefns dfts nss names ind resetLog gLog fLog flogMaker)
+  st <- get
+  put $ st { stateAttributeTypes = (name, typ) : stateAttributeTypes st }
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
@@ -541,10 +548,10 @@ ifDebuggingDoc yes no = ifM getDebugging yes no
 pushNamespaces :: [Attr] -> XSDQ ()
 pushNamespaces attrs = do
   liftStatetoXSDQ $ do
-    QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker <- get
+    st <- get
     let (thisNS, thisDft) = decodeAttrsForNamespaces attrs
-    put $ QdxhbState opts elemTypes attrTypes typeDefns
-                     (thisDft : dfts) (thisNS : nss) names ind resetLog gLog fLog flogMaker
+    put $ st { stateDefaults = thisDft : stateDefaults st,
+               stateNamespacesList = thisNS : stateNamespacesList st }
   nss <- getNamespaces
 
   -- If we use the XSD namespace, then load in the builting type
@@ -565,11 +572,10 @@ pushNamespaces attrs = do
 -- of a file.
 popNamespaces :: XSDQ ()
 popNamespaces = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind resetLog gLog fLog flogMaker <- get
-  case nss of
+  st <- get
+  case stateNamespacesList st of
     [] -> return ()
-    (_:nss') -> put $ QdxhbState opts elemTypes attrTypes typeDefns
-                                 dfts nss' names ind resetLog gLog fLog flogMaker
+    (_:nss') -> put $ st { stateNamespacesList = nss' }
 
 -- |Return the stack of `Namespaces` currently known to the `XSDQ`
 -- state.
@@ -658,8 +664,11 @@ lookupFirst (_:xs) targ = lookupFirst xs targ
 -- uniqueness with respect to the names already in use.
 getNextCapName :: XSDQ String
 getNextCapName = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss (z:zs) ind resetLog gLog fLog flogMaker <- get
-  put (QdxhbState opts elemTypes attrTypes typeDefns dfts nss zs ind resetLog gLog fLog flogMaker)
+  st <- get
+  let (z, zs) = case stateCapitalizedNames st of
+                  x:xs -> (x, xs)
+                  [] -> error "Capitalized names should not run out"
+  put $ st { stateCapitalizedNames = zs }
   return $ "Z__" ++ z
 
 nameBodies :: [String]
@@ -677,8 +686,8 @@ getIndentation = liftStatetoXSDQ $ do
 
 setIndentation :: String -> XSDQ ()
 setIndentation ind = liftStatetoXSDQ $ do
-  QdxhbState opts elemTypes attrTypes typeDefns dfts nss zs _ resetLog gLog fLog flogMaker <- get
-  put (QdxhbState opts elemTypes attrTypes typeDefns dfts nss zs ind resetLog gLog fLog flogMaker)
+  st <- get
+  put $ st { stateIndentation = ind }
 
 -- |Add the given indentation string to each line of debugging emitted
 -- from the `XSDQ` argument.
@@ -778,33 +787,25 @@ whenLocalLogging :: XSDQ () -> XSDQ ()
 whenLocalLogging m = do
   st <- liftStatetoXSDQ get
   case stateFileLogMaker st of
-    Just f -> m
+    Just _ -> m
     Nothing -> return ()
 
 -- | Run statements when per-XSD logging is selected.
 localLoggingStart :: String -> XSDQ ()
 localLoggingStart xsd = do
-  (QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
-              resetsLog ifCentralLog _ifFileLog fileLogMaker) <-
-    liftStatetoXSDQ get
-  case fileLogMaker of
+  st <- liftStatetoXSDQ get
+  case stateFileLogMaker st of
     Just f -> do
       let logfile = f xsd
       whenResetLog $ resetLog logfile
-      liftStatetoXSDQ $ put $
-        QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
-                   resetsLog ifCentralLog (Just logfile) fileLogMaker
+      liftStatetoXSDQ $ put $ st { stateLocalLog = Just logfile }
     Nothing -> return ()
 
 -- | Run statements when per-XSD logging is selected.
 localLoggingEnd :: XSDQ ()
 localLoggingEnd = do
-  (QdxhbState opts elemTypes attrTypes typeDefns dfts nss names ind
-              resetLog ifCentralLog _ifFileLog fileLogMaker) <-
-    liftStatetoXSDQ get
-  liftStatetoXSDQ $ put $ QdxhbState opts elemTypes attrTypes typeDefns dfts nss
-                                     names ind resetLog ifCentralLog
-                                     Nothing fileLogMaker
+  st <- liftStatetoXSDQ get
+  liftStatetoXSDQ $ put $ st { stateLocalLog = Nothing }
 
 -- | Write a `String` to any selected logging method.
 putLog :: String -> XSDQ ()
