@@ -80,7 +80,7 @@ data QdxhbState = QdxhbState {
   stateOptions :: QDHXBOptionSet,
   stateElementTypes :: (QNameStore QName),
   stateAttributeTypes :: (QNameStore QName),
-  stateAttributeGroups :: (QNameStore Definition),
+  stateAttributeGroups :: (QNameStore AttributeDefn),
   stateTypeDefinitions :: (QNameStore Definition),
   stateDefaults :: [Maybe String],
   stateNamespacesList :: [Namespaces],
@@ -113,6 +113,14 @@ instance Blockable QdxhbState where
                            (map (\(qn,defn) ->
                                   labelBlock (bpp qn ++ " -> ") $ block defn)
                              attrTypes)))
+    `stack2` (let attrGroups = stateAttributeGroups st
+               in if null attrGroups
+                  then stringToBlock "- No attribute groups"
+                  else (labelBlock "- Attribute groups: " $
+                         foldr1 stack2
+                           (map (\(qn,defn) ->
+                                  labelBlock (bpp qn ++ " -> ") $ block defn)
+                             attrGroups)))
     `stack2` (let typeDefns = stateTypeDefinitions st
               in if null typeDefns
                  then stringToBlock "- No type defs"
@@ -207,7 +215,8 @@ fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition (AttributeDefn qn (SingleAttributeDefn ty _) _ _)  = do
   addAttributeType qn ty
-fileNewDefinition (AttributeDefn _ _ _ _)  = return () -- TODO for group?
+fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _)  = do
+  addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ListDefn qn _ _ _) = addTypeDefn qn d
@@ -501,6 +510,12 @@ addAttributeType :: QName -> QName -> XSDQ ()
 addAttributeType name typ = liftStatetoXSDQ $ do
   st <- get
   put $ st { stateAttributeTypes = (name, typ) : stateAttributeTypes st }
+
+-- | Register the name associated with an attribute group `Definition`.
+addAttributeGroup :: QName -> AttributeDefn -> XSDQ ()
+addAttributeGroup name defn = liftStatetoXSDQ $ do
+  st <- get
+  put $ st { stateAttributeGroups = (name, defn) : stateAttributeGroups st }
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
