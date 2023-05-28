@@ -140,12 +140,20 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   dbgResult "Generated" res
 
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn _ads) _ln _doc) = do
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoder nam
-  whenDebugging $ boxed $ dbgBLabel "DECODER " $
+  whenDebugging $ dbgBLabel "- decoder " $
     decoder (mkName "SRC") (mkName "DEST")
-  error "REDO"
+  hrefOut <- mapM getAttrOrGroupHaskellType ads
+  dbgResultM "Generated" $
+    newAssemble nam (Just $ \tn ->
+                        DataD [] tn [] Nothing [
+                          NormalC tn $ map (\x -> (useBang, x)) hrefOut
+                          ]
+                          [DerivClause Nothing [eqConT, showConT]])
+                    decoder doc
+  -- error "REDO"
   {-
   let xmlName = qName nam
       rootName = firstToUpper xmlName
@@ -210,8 +218,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecode" ++ rootName
 
-  -- TODO Move decoder generation to getSafeDecoder?  Then can
-  -- generate for AttributeGroups from the same framework?
+  -- TODO Much of this is in getSafeDecoder --- prune out  duplication
 
   paramName <- newName "content"
   attrName <- newName "attr"
@@ -465,7 +472,7 @@ xsdDeclToHaskell decl@(ChoiceDefn name fields _ifLine ifDoc) = do
   (constrDefs, _, _) <- indenting $
     fmap unzip3 $ mapM (makeChoiceConstructor name) fields
   let dataDef tn = DataD [] tn [] Nothing constrDefs
-                   [DerivClause Nothing [eqConT, showConT]]
+                     [DerivClause Nothing [eqConT, showConT]]
   decoder <- getSafeDecoder name
   whenDebugging $ do
     dbgBLabel "- constrDefs " constrDefs
@@ -524,7 +531,7 @@ getSafeDecoder qn = indenting $ do
 
         SequenceDefn nam refs _ln _doc -> do
           whenDebugging $ dbgLn "  so Sequence case"
-          (bindingsF, boundNames) <- indenting $ makeSubBindings refs
+          (bindingsF, boundNames) <- indenting $ makeSubexprLabeling refs
           let result :: BlockMaker
               result src dest =
                 bindingsF src
@@ -581,8 +588,8 @@ getSafeDecoder qn = indenting $ do
       case ifGroupDefn of
         Just (AttributeGroupDefn subqns) -> do
           whenDebugging $ dbgLn "- AttributeGroupDefn found"
-          typeAndConstrName <- getAttrGroupHaskellName qn
-          haskellType <- getAttrGroupHaskellType qn
+          typeAndConstrName <- fmap mkName $ getAttrOrGroupHaskellName qn
+          haskellType <- getAttrOrGroupHaskellType qn
           whenDebugging $ do
             dbgBLabel "- typeAndConstrName " typeAndConstrName
             dbgBLabel "- haskellType " haskellType
@@ -592,7 +599,23 @@ getSafeDecoder qn = indenting $ do
               stringToBlock "subdecoders"
               `stack2` (block $ map (\f -> f (mkName "SRC") (mkName "DEST"))
                                     subdecoders)
-          error "TODO"
+          (subBinder, subNames) <- labelBlockMakers subdecoders
+          whenDebugging $ do
+            dbgBLabel "- subBinder " $ subBinder $ mkName "SRC"
+            dbgBLabel "- subNames " $ show subNames
+          let res :: BlockMaker
+              res src dest = subBinder src ++ [
+                LetS [
+                    SigD dest (ConT typeAndConstrName),
+                    ValD (VarP dest)
+                      (NormalB $ foldl AppE (ConE typeAndConstrName) $
+                        map VarE subNames)
+                      []
+                    ]
+                ]
+          whenDebugging $ do
+            dbgBLabel "- result " $ res (mkName "SRC") (mkName "DEST")
+          return res
 
         Just (SingleAttributeDefn typ _usage) -> do
           throwError $ "Found SingleAttributeDefn in attribute group table for "
@@ -641,98 +664,111 @@ getSafeDecoder qn = indenting $ do
         forSimpleType ty = do
           strDec <- getSafeStringDecoder ty
           retrievingCRefFor qn strDec
-
-        -- | Given a list of `Reference`s to subelements, produce the
-        -- pair of (1) a map from the `Name` of a source value to a
-        -- list of TH `Stmt` statements producing these bound values,
-        -- and (2) the `Name`s of the bound values.
-        makeSubBindings :: [Reference] -> XSDQ (Name -> [Stmt], [Name])
-        makeSubBindings refs = do
-          blockMakers <- mapM referenceToBlockMaker refs
-          makeSubBindings' blockMakers
-            (map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int]))
-            [] []
 
 
-        -- | Helper function with accumulating parameters for
-        -- `makeSubBindings`.  Given a list of `Reference`s to
-        -- subelements, accumulates lists of (1) functions from the
-        -- `Name` of a source value to a list of TH `Stmt` statements
-        -- producing these bound values, and (2) the `Name`s of the
-        -- bound values.  The base case joins the list of functions by
-        -- assembling a new map from the concatenation of the results
-        -- of the individual functions, and reversing the list of
-        -- names.
-        makeSubBindings' ::
-          [BlockMaker] -> [Name] -> [Name] -> [Name -> [Stmt]]
-          -> XSDQ (Name -> [Stmt], [Name])
-        makeSubBindings' [] _ accNames accFns = do
-          whenDebugging $ dbgLn "- End of makeSubBindings'"
-          return
-            ((\src -> concat $ reverse $ map (\x -> x src) accFns),
-             reverse accNames)
+-- | Given a list of `Reference`s to subelements, produce the
+-- pair of (1) a map from the `Name` of a source value to a
+-- list of TH `Stmt` statements producing these bound values,
+-- and (2) the `Name`s of the bound values.
+makeSubexprLabeling :: [Reference] -> XSDQ (Name -> [Stmt], [Name])
+makeSubexprLabeling refs = do
+  blockMakers <- mapM referenceToBlockMaker refs
+  labelBlockMakers blockMakers
 
-        makeSubBindings' (bmk:bmks) (n:ns) accN accF =
-          makeSubBindings' bmks ns (n : accN) ((\src -> bmk src n) : accF)
+-- | Utility function for `makeSubexprLabeling` and other decoder
+-- generators for terms with subexpressions.  Given a list of
+-- `Reference`s to subelements, produces a pair of two values: (1) a
+-- function from the `Name` of a source value to a list of TH `Stmt`
+-- statements bindings names to the subexpressions, and (2) the
+-- `Name`s of the bound values.  The base case joins the list of
+-- functions by assembling a new map from the concatenation of the
+-- results of the individual functions, and reversing the list of
+-- names.
+labelBlockMakers :: [BlockMaker] -> XSDQ (Name -> [Stmt], [Name])
+labelBlockMakers blockMakers =
+  labelBlockMakers' blockMakers (map (\z -> "s" ++ show z) ([1..] :: [Int]))
+                    [] []
 
-        makeSubBindings' _ [] _ _ =
-          error "Internal error --- end of infinite list"
+-- | Utility function for `makeSubexprLabeling` and other decoder
+-- generators for terms with subexpressions.  Given a list of
+-- `Reference`s to subelements, produces two lists: (1) functions from
+-- the `Name` of a source value to a list of TH `Stmt` statements
+-- producing these bound values, and (2) the `Name`s of the bound
+-- values.  The base case joins the list of functions by assembling a
+-- new map from the concatenation of the results of the individual
+-- functions, and reversing the list of names.
+labelBlockMakers' ::
+  [BlockMaker] -> [String] -> [Name] -> [Name -> [Stmt]]
+  -> XSDQ (Name -> [Stmt], [Name])
+labelBlockMakers' [] _ accNames accFns = do
+  whenDebugging $ dbgLn "- End of labelBlockMakers'"
+  return
+    ((\src -> concat $ reverse $ map (\x -> x src) accFns),
+     reverse accNames)
 
-        {-
-        -- For an `ElementRef` of type @qn@, first calculate the
-        -- single-element safe-decoder, and then pass it to
-        -- `makeSubelementBinder` to adjust for the given lower/upper
-        -- occurrence bounds.
-        makeSubBindings' (r@(ElementRef eqn lo hi _):rs) (n:ns) accN accF = do
-          whenDebugging $ dbgBLabel "- makeSubBindings' for " r
-          singleDecoder <- indenting $ getRefSafeDecoder r
-          whenDebugging $ do
-            dbgLn $ outBlock $
-              labelBlock "  getRefSafeDecoder gives " $
-                stringToBlock $
-                  pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
-          f' <- indenting $ makeSubelementBinder eqn singleDecoder lo hi
-          whenDebugging $ do
-            dbgLn $ outBlock $
-              labelBlock "  makeSubelementBinder gives " $
-                stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
-          makeSubBindings' rs ns (n : accN) ((\src -> f' src n) : accF)
+labelBlockMakers' (bmk:bmks) (n:ns) accN accF = do
+  fresh <- newName n
+  labelBlockMakers' bmks ns (fresh : accN) ((\src -> bmk src fresh) : accF)
 
-        -- For an `AttributeRef` to values of type @qn@, first build a
-        -- single-value decoder, and then adjust for the attrubte
-        -- usage.
-        makeSubBindings' (r@(AttributeRef _ usage):rs) (n:ns) accNs accFns = do
-          whenDebugging $ dbgBLabel "- makeSubBindings' for " r
-          safeDec <- indenting $ getRefSafeDecoder r
-          f' <- indenting $ makeUsageBinder safeDec usage
-          let res src = f' src n
-          whenDebugging $ do
-            dbgBLabel "  - safeDec " $ safeDec (mkName "SRC") (mkName "DEST")
-            dbgBLabel "  - f' " $ f' (mkName "SRC") (mkName "DEST")
-            dbgBLabel "  - res " $ res (mkName "SRC")
-          makeSubBindings' rs ns (n : accNs) (res : accFns)
+labelBlockMakers' _ [] _ _ =
+  error "Internal error --- end of infinite list"
 
-        -- `TypeRef`s can occur e.g. when ChoiceDefn are lifted out to
-        -- flatten declarations.
-        makeSubBindings' (r@(TypeRef tqn lo hi _ _):rs) (n:ns) accNs accFns = do
-          whenDebugging $ dbgBLabel "- makeSubBindings' for " r
-          singleDecoder <- indenting $ getTypeDecoderFn tqn
-                                    -- getRefSafeDecoder r
-          whenDebugging $ do
-            dbgLn $ outBlock $
-              labelBlock "  getRefSafeDecoder gives " $
-                stringToBlock $
-                  pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
-          f' <- indenting $ makeSubelementBinder tqn singleDecoder lo hi
-          whenDebugging $ do
-            dbgLn $ outBlock $
-              labelBlock "  makeSubelementBinder gives " $
-                stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
-          makeSubBindings' rs ns (n : accNs)
-                           ((\src -> f' src n) : accFns)
-        -}
+{-
+-- For an `ElementRef` of type @qn@, first calculate the
+-- single-element safe-decoder, and then pass it to
+-- `makeSubelementBinder` to adjust for the given lower/upper
+-- occurrence bounds.
+labelBlockMakers' (r@(ElementRef eqn lo hi _):rs) (n:ns) accN accF = do
+  whenDebugging $ dbgBLabel "- labelBlockMakers' for " r
+  singleDecoder <- indenting $ getRefSafeDecoder r
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  getRefSafeDecoder gives " $
+        stringToBlock $
+          pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
+  f' <- indenting $ makeSubelementBinder eqn singleDecoder lo hi
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  makeSubelementBinder gives " $
+        stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
+  labelBlockMakers' rs ns (n : accN) ((\src -> f' src n) : accF)
+ -- For an `AttributeRef` to values of type @qn@, first build a
+-- single-value decoder, and then adjust for the attrubte
+-- usage.
+labelBlockMakers' (r@(AttributeRef _ usage):rs) (n:ns) accNs accFns = do
+  whenDebugging $ dbgBLabel "- labelBlockMakers' for " r
+  safeDec <- indenting $ getRefSafeDecoder r
+  f' <- indenting $ makeUsageBinder safeDec usage
+  let res src = f' src n
+  whenDebugging $ do
+    dbgBLabel "  - safeDec " $ safeDec (mkName "SRC") (mkName "DEST")
+    dbgBLabel "  - f' " $ f' (mkName "SRC") (mkName "DEST")
+    dbgBLabel "  - res " $ res (mkName "SRC")
+  labelBlockMakers' rs ns (n : accNs) (res : accFns)
+
+-- `TypeRef`s can occur e.g. when ChoiceDefn are lifted out to
+-- flatten declarations.
+labelBlockMakers' (r@(TypeRef tqn lo hi _ _):rs) (n:ns) accNs accFns = do
+  whenDebugging $ dbgBLabel "- labelBlockMakers' for " r
+  singleDecoder <- indenting $ getTypeDecoderFn tqn
+                            -- getRefSafeDecoder r
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  getRefSafeDecoder gives " $
+        stringToBlock $
+          pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
+  f' <- indenting $ makeSubelementBinder tqn singleDecoder lo hi
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  makeSubelementBinder gives " $
+        stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
+  labelBlockMakers' rs ns (n : accNs)
+                   ((\src -> f' src n) : accFns)
+-}
 
 
+-- | Construct the body of a @tryDecode@ function for the given
+-- `Reference`.
 getRefSafeDecoder :: Reference -> XSDQ BlockMaker
 
 getRefSafeDecoder (ElementRef nam _lower _upper _) = do
@@ -756,7 +792,6 @@ getRefSafeDecoder (TypeRef nam lower upper _ _) = do
   whenDebugging $ dbgLn "- getRefSafeDecoder TypeRef case"
   singleBlockMaker <- getSafeDecoder nam
   scaleBlockMakerToBounds singleBlockMaker lower upper
-
 
 getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker)
 getAttrRefSafeDecoder rf = do

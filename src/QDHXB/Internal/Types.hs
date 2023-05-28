@@ -71,7 +71,8 @@ data AttributeDefn =
       AttributeUsage -- ^ use mode: prohibited, optional (default), required
   | AttributeGroupDefn -- ^ Defining a group of attributes
       [QName] -- ^ names of included attributes and attribute groups
-       -- TODO Should be (QName, AttributeUsage)
+       -- TODO Should be (QName, AttributeUsage) --- and update uses
+       -- in module Generate (xsdDeclToHaskell, AttributeDefn case)
   deriving Show
 
 instance Blockable AttributeDefn where

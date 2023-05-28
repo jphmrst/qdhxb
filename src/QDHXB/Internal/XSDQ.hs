@@ -16,8 +16,9 @@ module QDHXB.Internal.XSDQ (
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
   addAttributeType, getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
+  getAttributeOrGroup,
   -- ** Attribute groups
-  getAttributeGroup, getAttrGroupHaskellName, getAttrGroupHaskellType,
+  getAttributeGroup, getAttrOrGroupHaskellName, getAttrOrGroupHaskellType,
   -- ** Types
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
@@ -436,14 +437,14 @@ getTypeHaskellType qn = do
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the `String` name of the corresponding
 -- Haskell type (and throw on error in the `XSDQ` monad otherwise).
-getAttrGroupHaskellName :: QName -> XSDQ String
-getAttrGroupHaskellName qn = return $ firstToUpper $ qName qn
+getAttrOrGroupHaskellName :: QName -> XSDQ String
+getAttrOrGroupHaskellName qn = return $ firstToUpper $ qName qn
 
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the the corresponding TH `Type` (and throw
 -- on error in the `XSDQ` monad otherwise).
-getAttrGroupHaskellType :: QName -> XSDQ Type
-getAttrGroupHaskellType = fmap (ConT . mkName) . getAttrGroupHaskellName
+getAttrOrGroupHaskellType :: QName -> XSDQ Type
+getAttrOrGroupHaskellType = fmap (ConT . mkName) . getAttrOrGroupHaskellName
 
 -- | Build the @"tryDecodeAs"@-prefixed name for the XSD type named by
 -- the argument `QName`.  __NOTE__: this function will not necessarily
@@ -546,12 +547,21 @@ getAttributeType name = do
       " but group definition found"
     Nothing -> throwError $ "No attribute information for " ++ qName name
 
--- | Return the `Definition` of an XSD type from the tracking tables
+-- | Return the `Definition` of an XSD attribute group from the tracking tables
 -- in the `XSDQ` state.
 getAttributeGroup :: QName -> XSDQ (Maybe AttributeDefn)
 getAttributeGroup name = liftStatetoXSDQ $ do
   st <- get
   return $ lookupFirst (stateAttributeGroups st) name
+
+-- | Return the `Definition` of an XSD attribute or attribute group
+-- from the tracking tables in the `XSDQ` state.
+getAttributeOrGroup :: QName -> XSDQ (Maybe AttributeDefn)
+getAttributeOrGroup name = do
+  ifSingle <- getAttributeDefn name
+  case ifSingle of
+    Just _ -> return ifSingle
+    Nothing -> getAttributeGroup name
 
 -- | Register the name associated with an attribute group
 -- `AttributeDefn`.
