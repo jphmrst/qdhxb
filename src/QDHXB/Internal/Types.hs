@@ -78,7 +78,8 @@ instance Blockable AttributeDefn where
   block (SingleAttributeDefn t m) = stringToBlock $
     "Single " ++ showQName t ++ " (" ++ show m ++ ")"
   block (AttributeGroupDefn ds) =
-    labelBlock "Attr. group " $ stackBlocks $ map (stringToBlock . showQName) ds
+    labelBlock "AttributeGroup " $ stackBlocks $
+      map (stringToBlock . showQName) ds
 
 -- | The actual definition of an XSD element.
 data Definition =

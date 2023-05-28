@@ -67,6 +67,7 @@ module QDHXB.Internal.Utils.TH (
 
   -- * @XMLLight@
   contentConT, applyPullContentFrom, applyPullCRefContent, applyLoadContent,
+  applyPullAttrFrom,
 
   -- * Functions used in TH expansions
   simpleTypeDecoderVarE, spaceSepApp,
@@ -726,6 +727,21 @@ pullCRefContentName = mkName "QDHXB.Expansions.pullCRefContent"
 -- expression as non-binding TH `Stmt`.
 applyPullCRefContent :: Exp -> Exp
 applyPullCRefContent = AppE $ VarE $ pullCRefContentName
+
+pullAttrFromName :: Name
+pullAttrFromName = mkName "QDHXB.Expansions.pullAttrFrom"
+
+pullAttrFromVarE :: Exp
+pullAttrFromVarE = VarE pullAttrFromName
+
+-- | Build an expression applying the
+-- `QDHXB.Internal.Utils.XMLLight.pullAttrFrom` function to two
+-- arguments.  The first argument is a `String` to be quoted
+-- literally; the second argument should denote an XML
+-- `Text.XML.Light.Types.Content` node.
+applyPullAttrFrom :: String -> Exp -> Exp
+applyPullAttrFrom attrName contentExp =
+  AppE (AppE pullAttrFromVarE $ LitE $ StringL attrName) contentExp
 
 -- | Given a TH `Exp`, return the TH `Exp` which applies the
 -- `Control.Monad.Except.throwError` function to the argument.

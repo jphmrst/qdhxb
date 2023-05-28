@@ -15,7 +15,9 @@ module QDHXB.Internal.XSDQ (
   -- ** Elements
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
-  addAttributeType, getAttributeType, getAttributeTypeOrFail,
+  addAttributeType, getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
+  -- ** Attribute groups
+  getAttributeGroup, getAttrGroupHaskellName, getAttrGroupHaskellType,
   -- ** Types
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
@@ -79,7 +81,7 @@ type QNameStore a = [(QName, a)]
 data QdxhbState = QdxhbState {
   stateOptions :: QDHXBOptionSet,
   stateElementTypes :: (QNameStore QName),
-  stateAttributeTypes :: (QNameStore QName),
+  stateAttributeTypes :: (QNameStore AttributeDefn),
   stateAttributeGroups :: (QNameStore AttributeDefn),
   stateTypeDefinitions :: (QNameStore Definition),
   stateDefaults :: [Maybe String],
@@ -213,8 +215,8 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
-fileNewDefinition (AttributeDefn qn (SingleAttributeDefn ty _) _ _)  = do
-  addAttributeType qn ty
+fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _) _ _)  = do
+  addAttributeType qn defn
 fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _)  = do
   addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
@@ -431,6 +433,18 @@ getTypeHaskellType qn = do
                             BuiltinDefn _ _ ht _ -> ht
                             _ -> ConT $ mkName $ firstToUpper $ qName qn
 
+-- | If the argument names an XSD attribute group known to the
+-- translator, then return the `String` name of the corresponding
+-- Haskell type (and throw on error in the `XSDQ` monad otherwise).
+getAttrGroupHaskellName :: QName -> XSDQ String
+getAttrGroupHaskellName qn = return $ firstToUpper $ qName qn
+
+-- | If the argument names an XSD attribute group known to the
+-- translator, then return the the corresponding TH `Type` (and throw
+-- on error in the `XSDQ` monad otherwise).
+getAttrGroupHaskellType :: QName -> XSDQ Type
+getAttrGroupHaskellType = fmap (ConT . mkName) . getAttrGroupHaskellName
+
 -- | Build the @"tryDecodeAs"@-prefixed name for the XSD type named by
 -- the argument `QName`.  __NOTE__: this function will not necessarily
 -- exist; it's just an operation on the `QName` contents.
@@ -506,24 +520,45 @@ getElementTypeOrFail name = do
 
 -- | Register the type name associated with an attribute tag with the
 -- tracking tables in the `XSDQ` state.
-addAttributeType :: QName -> QName -> XSDQ ()
+addAttributeType :: QName -> AttributeDefn -> XSDQ ()
 addAttributeType name typ = liftStatetoXSDQ $ do
   st <- get
   put $ st { stateAttributeTypes = (name, typ) : stateAttributeTypes st }
 
--- | Register the name associated with an attribute group `Definition`.
-addAttributeGroup :: QName -> AttributeDefn -> XSDQ ()
-addAttributeGroup name defn = liftStatetoXSDQ $ do
+-- | Get the type name associated with an attribute tag from the
+-- tracking tables in the `XSDQ` state, or `Nothing` if there is no
+-- such attribute name.
+getAttributeDefn :: QName -> XSDQ (Maybe AttributeDefn)
+getAttributeDefn name = liftStatetoXSDQ $ do
   st <- get
-  put $ st { stateAttributeGroups = (name, defn) : stateAttributeGroups st }
+  return $ lookupFirst (stateAttributeTypes st) name
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
 -- such attribute name.
 getAttributeType :: QName -> XSDQ (Maybe QName)
-getAttributeType name = liftStatetoXSDQ $ do
+getAttributeType name = do
+  defn <- getAttributeDefn name
+  case defn of
+    Just (SingleAttributeDefn t _) -> return $ Just t
+    Just (AttributeGroupDefn _) -> throwError $
+      "Single attribute type requested for " ++ qName name ++
+      " but group definition found"
+    Nothing -> throwError $ "No attribute information for " ++ qName name
+
+-- | Return the `Definition` of an XSD type from the tracking tables
+-- in the `XSDQ` state.
+getAttributeGroup :: QName -> XSDQ (Maybe AttributeDefn)
+getAttributeGroup name = liftStatetoXSDQ $ do
   st <- get
-  return $ lookupFirst (stateAttributeTypes st) name
+  return $ lookupFirst (stateAttributeGroups st) name
+
+-- | Register the name associated with an attribute group
+-- `AttributeDefn`.
+addAttributeGroup :: QName -> AttributeDefn -> XSDQ ()
+addAttributeGroup name defn = liftStatetoXSDQ $ do
+  st <- get
+  put $ st { stateAttributeGroups = (name, defn) : stateAttributeGroups st }
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, throwing an error if there is

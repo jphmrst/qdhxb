@@ -8,15 +8,20 @@ module QDHXB.Internal.Utils.BPP (
   -- * Top-level pretty-printer functions
   bpp, bpp', bprint, bprintLn, bLabelPrint, bLabelPrintln,
   -- * Main type and classes
-  Block(Block), Blockable, block,
-  stringToBlock,
+  Block(Block), Blockable,
+  -- ** Deriving new `Blockable` types
   verticalBlockList, bulletedVerticalBlockList,
   verticalBlockListFn, bulletedVerticalBlockListFn,
   verticalBlockablePair, verticalBlockablePairFn,
   horizontalBlockablePair, horizontalBlockablePairFn,
   horizontalPair, horizontalBlocksPair,
   -- * Operations on `Block`s
-  follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock, outBlock
+  -- ** Creating a blocks
+  block, stringToBlock,
+  -- ** Combining blocks
+  follow, indent, stack2, stackBlocks, labelBlock, postlabelBlock, outBlock,
+  -- ** Printing blocks directly
+  putBlockLn, putBlock
   ) where
 import Language.Haskell.TH
 import Data.List (intercalate)
@@ -57,6 +62,16 @@ instance Blockable Int    where block = stringToBlock . show
 instance Blockable c => Blockable (Maybe c) where
   block (Just x) = block x
   block Nothing  = stringToBlock "Nothing"
+
+-- | Print a `Blockable` value to standard output.
+putBlock :: Block -> IO ()
+putBlock = putStr . outBlock
+
+-- | Print a `Blockable` value to standard output.
+putBlockLn :: Block -> IO ()
+putBlockLn b = do
+  putBlock b
+  putStrLn ""
 
 -- | Print a `Blockable` value to standard output.
 bprint :: Blockable c => c -> IO ()
