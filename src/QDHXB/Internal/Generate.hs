@@ -157,20 +157,20 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   {-
   let xmlName = qName nam
       rootName = firstToUpper xmlName
-      baseStr = rootName ++ "AttrType"
+      baseStr = rootName -- ++ "AttrType"
       rootTypeName = mkName baseStr
       bangTypes = [ (useBang, AppT maybeConT $ ConT $ mkName $ firstToUpper $
-                                qName q ++ "AttrType")
+                                qName q -- ++ "AttrType")
                   | q <- ads ]
       decNam = mkName $ "decode" ++ rootName
-      safeDecNam = mkName $ "tryDecode" ++ rootName
+      safeDecNam = mkName $ "tryDecodeAs" ++ rootName
       localNames = take (length ads) $
         map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
       pairEnc (q, s) = do
         dec <- getSafeStringDecoder q
         return $ BindS (VarP s) $ dec ctxtVarE
         {-
-        let dec = mkName ("tryDecode" ++ firstToUpper (qName q))
+        let dec = mkName ("tryDecodeAs" ++ firstToUpper (qName q))
         in BindS (VarP s) (AppE (VarE dec) ctxtVarE)
         -}
   bpairs <- mapM pairEnc $ zip ads localNames
@@ -214,9 +214,9 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
   whenDebugging $ dbgBLabel "Generating from (g) " d
   let xmlName = qName nam
       rootName = firstToUpper xmlName
-      rootTypeName = mkName $ rootName ++ "AttrType"
+      rootTypeName = mkName $ rootName -- ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
-      safeDecNam = mkName $ "tryDecode" ++ rootName
+      safeDecNam = mkName $ "tryDecodeAs" ++ rootName
 
   -- TODO Much of this is in getSafeDecoder --- prune out  duplication
 
@@ -1292,7 +1292,7 @@ buildDecoderNameFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
 -- just operate on the name; there is no assurance that the name will
 -- actually exist.
 buildSafeDecoderNameFor :: String -> Exp
-buildSafeDecoderNameFor ref = VarE $ mkName $ "tryDecode" ++ firstToUpper ref
+buildSafeDecoderNameFor ref = VarE $ mkName $ "tryDecodeAs" ++ firstToUpper ref
 
 -- | Builds a list of two `Match`es for a `Maybe` expression, given
 -- the alternative expressions for `Nothing` and `Just` (the latter
@@ -1320,7 +1320,7 @@ xsdRefToBangTypeQ (ElementRef ref lower upper _ln) = do
 xsdRefToBangTypeQ (AttributeRef ref usage) =
   return (useBang,
           attrTypeForUsage usage $
-            ConT $ mkName $ firstToUpper $ qName ref ++ "AttrType")
+            ConT $ mkName $ firstToUpper $ qName ref {- ++ "AttrType" -} )
 
 xsdRefToBangTypeQ (TypeRef typeName lower upper _ _) = do
   coreType <- getTypeHaskellType typeName
