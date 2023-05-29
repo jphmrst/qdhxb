@@ -455,9 +455,9 @@ flattenAttributeGroupRef ::
   -> XSDQ ([Definition], Reference)
 flattenAttributeGroupRef n@(WithName name) contents l d = do
   refs <- flattenAttributeGroupItem n contents l d
-  return (refs, AttributeRef name Required)
+  return (refs, AttributeRef name Optional)
 flattenAttributeGroupRef (WithRef ref) [] _ln _d = do
-  return ([], AttributeRef ref Required)
+  return ([], AttributeRef ref Optional)
 flattenAttributeGroupRef nameRef contents _ln _d = do
   boxed $ do
     dbgLn "flattenAttributeGroupRef"

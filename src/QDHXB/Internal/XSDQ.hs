@@ -16,9 +16,9 @@ module QDHXB.Internal.XSDQ (
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
   addAttributeType, getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
-  getAttributeOrGroup,
+  getAttributeOrGroup, adjustTypeForUsage, getAttributeOrGroupTypeForUsage,
   -- ** Attribute groups
-  getAttributeGroup, getAttrOrGroupHaskellName, getAttrOrGroupHaskellType,
+  getAttributeGroup, buildAttrOrGroupHaskellName, buildAttrOrGroupHaskellType,
   -- ** Types
   addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
@@ -61,7 +61,7 @@ import QDHXB.Internal.Utils.TH (
   timeOfDayBasicDecoder, stringListBasicDecoder, stringBasicDecoder,
     intBasicDecoder, dayBasicDecoder, diffTimeBasicDecoder, floatBasicDecoder,
     doubleBasicDecoder, zonedTimeBasicDecoder, boolBasicDecoder,
-    qnameBasicDecoder,
+    qnameBasicDecoder, appMaybeType,
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType,
@@ -437,14 +437,14 @@ getTypeHaskellType qn = do
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the `String` name of the corresponding
 -- Haskell type (and throw on error in the `XSDQ` monad otherwise).
-getAttrOrGroupHaskellName :: QName -> XSDQ String
-getAttrOrGroupHaskellName qn = return $ firstToUpper $ qName qn
+buildAttrOrGroupHaskellName :: QName -> XSDQ String
+buildAttrOrGroupHaskellName qn = return $ firstToUpper $ qName qn
 
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the the corresponding TH `Type` (and throw
 -- on error in the `XSDQ` monad otherwise).
-getAttrOrGroupHaskellType :: QName -> XSDQ Type
-getAttrOrGroupHaskellType = fmap (ConT . mkName) . getAttrOrGroupHaskellName
+buildAttrOrGroupHaskellType :: QName -> XSDQ Type
+buildAttrOrGroupHaskellType = fmap (ConT . mkName) . buildAttrOrGroupHaskellName
 
 -- | Build the @"tryDecodeAs"@-prefixed name for the XSD type named by
 -- the argument `QName`.  __NOTE__: this function will not necessarily
@@ -554,6 +554,26 @@ getAttributeGroup name = liftStatetoXSDQ $ do
   st <- get
   return $ lookupFirst (stateAttributeGroups st) name
 
+-- | Given the base type for an attribute, return the type
+-- corresponding to a particular mode of usage for that attribute.
+adjustTypeForUsage :: AttributeUsage -> Type -> Type
+adjustTypeForUsage Forbidden _ = TupleT 0
+adjustTypeForUsage Optional t = appMaybeType t
+adjustTypeForUsage Required t = t
+
+-- | Return the Haskell type of an attribute or attribute group in the
+-- context of a particular usage declaration.
+getAttributeOrGroupTypeForUsage :: QName -> XSDQ Type
+getAttributeOrGroupTypeForUsage qn = do
+  ifDefn <- getAttributeOrGroup qn
+  case ifDefn of
+    Nothing -> throwError $ "No attribute or group " ++ show qn
+    Just defn -> do
+      typ <- buildAttrOrGroupHaskellType qn
+      return $ case defn of
+        SingleAttributeDefn _ usage -> adjustTypeForUsage usage typ
+        AttributeGroupDefn _subAttrs {- usage -} -> typ
+
 -- | Return the `Definition` of an XSD attribute or attribute group
 -- from the tracking tables in the `XSDQ` state.
 getAttributeOrGroup :: QName -> XSDQ (Maybe AttributeDefn)
@@ -564,7 +584,7 @@ getAttributeOrGroup name = do
     Nothing -> getAttributeGroup name
 
 -- | Register the name associated with an attribute group
--- `AttributeDefn`.
+-- @AttributeDefn@.
 addAttributeGroup :: QName -> AttributeDefn -> XSDQ ()
 addAttributeGroup name defn = liftStatetoXSDQ $ do
   st <- get

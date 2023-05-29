@@ -138,14 +138,13 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
     ("Load a @\\<" ++ origName ++ ">@ element from the given file")
 
   dbgResult "Generated" res
-
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoder nam
   whenDebugging $ dbgBLabel "- decoder " $
     decoder (mkName "SRC") (mkName "DEST")
-  hrefOut <- mapM getAttrOrGroupHaskellType ads
+  hrefOut <- mapM getAttributeOrGroupTypeForUsage ads
   dbgResultM "Generated" $
     newAssemble nam (Just $ \tn ->
                         DataD [] tn [] Nothing [
@@ -153,61 +152,6 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
                           ]
                           [DerivClause Nothing [eqConT, showConT]])
                     decoder doc
-  -- error "REDO"
-  {-
-  let xmlName = qName nam
-      rootName = firstToUpper xmlName
-      baseStr = rootName -- ++ "AttrType"
-      rootTypeName = mkName baseStr
-      bangTypes = [ (useBang, AppT maybeConT $ ConT $ mkName $ firstToUpper $
-                                qName q -- ++ "AttrType")
-                  | q <- ads ]
-      decNam = mkName $ "decode" ++ rootName
-      safeDecNam = mkName $ "tryDecodeAs" ++ rootName
-      localNames = take (length ads) $
-        map (\z -> mkName $ "s" ++ show z) ([1..] :: [Int])
-      pairEnc (q, s) = do
-        dec <- getSafeStringDecoder q
-        return $ BindS (VarP s) $ dec ctxtVarE
-        {-
-        let dec = mkName ("tryDecodeAs" ++ firstToUpper (qName q))
-        in BindS (VarP s) (AppE (VarE dec) ctxtVarE)
-        -}
-  bpairs <- mapM pairEnc $ zip ads localNames
-  let decoder = DoE Nothing $ bpairs ++ [NoBindS $ applyReturn $ applyJust $
-                                         foldl (\e n -> AppE e $ VarE n)
-                                          (ConE rootTypeName) localNames]
-
-  pushDeclHaddock ifDoc safeDecNam $
-    "Attempt to decode the attributes defined in the @\\<" ++ xmlName
-    ++ ">@ attribute group as a `" ++ baseStr
-    ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except`"
-    ++ " monad if extraction fails"
-  pushDeclHaddock ifDoc decNam $
-    "Decode the attributes defined in the @\\<" ++ xmlName
-    ++ ">@ attribute group as a `" ++ baseStr ++ "`"
-  pushDeclHaddock ifDoc rootTypeName $
-    "Representation of the attributes defined in the @\\<" ++ xmlName
-    ++ ">@ attribute group"
-
-  dbgResult "Generated" $ [
-    DataD [] rootTypeName [] Nothing [NormalC rootTypeName bangTypes]
-      [DerivClause Nothing [eqConT, showConT]],
-
-    -- Functions
-    SigD safeDecNam (fn1Type contentConT
-                      (qHXBExcT (AppT maybeConT (ConT rootTypeName)))),
-    FunD safeDecNam [Clause [ctxtVarP]
-                                (NormalB decoder)
-                                []],
-
-    -- Decoder
-    SigD decNam (fn1Type contentConT (AppT maybeConT (ConT rootTypeName))),
-    FunD decNam [Clause [ctxtVarP]
-                   (NormalB $ resultOrThrow $
-                      AppE (VarE safeDecNam) ctxtVarE) []]
-    ]
-  -}
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
@@ -524,7 +468,7 @@ getSafeDecoder qn = indenting $ do
   case ifDefn of
 
     Just defn -> do
-      whenDebugging $ dbgBLabel "- Found " defn
+      whenDebugging $ dbgBLabel "- Found type " defn
       case defn of
         BuiltinDefn ty _ _ _ -> do
           forSimpleType ty
@@ -588,12 +532,12 @@ getSafeDecoder qn = indenting $ do
       case ifGroupDefn of
         Just (AttributeGroupDefn subqns) -> do
           whenDebugging $ dbgLn "- AttributeGroupDefn found"
-          typeAndConstrName <- fmap mkName $ getAttrOrGroupHaskellName qn
-          haskellType <- getAttrOrGroupHaskellType qn
+          typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
+          haskellType <- buildAttrOrGroupHaskellType qn
           whenDebugging $ do
             dbgBLabel "- typeAndConstrName " typeAndConstrName
             dbgBLabel "- haskellType " haskellType
-          subdecoders <- mapM getSafeDecoder subqns
+          subdecoders <- mapM getSafeDecoderCall subqns
           whenDebugging $ do
             liftIO $ putBlockLn $ labelBlock "- " $
               stringToBlock "subdecoders"
@@ -606,10 +550,16 @@ getSafeDecoder qn = indenting $ do
           let res :: BlockMaker
               res src dest = subBinder src ++ [
                 LetS [
-                    SigD dest (ConT typeAndConstrName),
+                    SigD dest (appMaybeType $ ConT typeAndConstrName),
                     ValD (VarP dest)
-                      (NormalB $ foldl AppE (ConE typeAndConstrName) $
-                        map VarE subNames)
+                      (NormalB $ applyJust $
+                        -- Note above applyJust: right now the Maybe
+                        -- constructor is built-in.  We should capture
+                        -- the usage attribute in the
+                        -- AttributeGroupDefn, and proceed based on
+                        -- what it says.
+                        foldl AppE (ConE typeAndConstrName) $
+                          map VarE subNames)
                       []
                     ]
                 ]
@@ -665,6 +615,58 @@ getSafeDecoder qn = indenting $ do
           strDec <- getSafeStringDecoder ty
           retrievingCRefFor qn strDec
 
+
+-- | Return an invocation of a safe decoder expected to be defined
+-- elsewhere.
+getSafeDecoderCall :: QName -> XSDQ BlockMaker
+getSafeDecoderCall qn = do
+  return $
+    \src dest -> [
+      BindS (VarP dest) $ AppE (buildSafeDecoderExpFor $ qName qn) (VarE src)
+      ]
+
+-- | Calculate the Haskell type corresponding to a bound QName.
+-- Checks the usage in the declaration/assumes Optional for groups for
+-- now.
+decodersReturnType :: QName -> XSDQ (Maybe Type)
+decodersReturnType qn = indenting $ do
+  whenDebugging $ dbgBLabel "decodersReturnType for " qn
+  ifDefn <- getTypeDefn qn
+  case ifDefn of
+
+    Just defn -> do
+      whenDebugging $ dbgBLabel "- Found type " defn
+      fmap Just $ getTypeHaskellType qn
+
+    Nothing -> do
+      ifGroupDefn <- getAttributeGroup qn
+      case ifGroupDefn of
+        Just defn -> do
+          whenDebugging $ dbgBLabel "- Found attribute group " defn
+          case defn of
+            SingleAttributeDefn _ _ -> throwError $
+              "Expected AttributeGroupDefn but found SingleAttributeDefn"
+            AttributeGroupDefn _ -> do
+              -- Groups are always Optional for now, so wrap the base
+              -- type in `Maybe`.
+              fmap Just $ fmap appMaybeType $ buildAttrOrGroupHaskellType qn
+
+        Nothing -> do
+          ifSingleDefn <- getAttributeDefn qn
+          case ifSingleDefn of
+            Just defn -> do
+              whenDebugging $ dbgBLabel "- Found single attribute " defn
+              case defn of
+                AttributeGroupDefn _ -> throwError $
+                  "Expected SingleAttributeDefn but found AttributeGroupDefn"
+                SingleAttributeDefn _ usage -> do
+                  -- Groups are always Optional for now, so wrap the
+                  -- base type in `Just`.
+                  fmap Just $ fmap (attrTypeForUsage usage) $
+                    buildAttrOrGroupHaskellType qn
+
+            Nothing -> liftExcepttoXSDQ $ throwError $
+              "No type or attribute/group " ++ bpp qn ++ " found"
 
 -- | Given a list of `Reference`s to subelements, produce the
 -- pair of (1) a map from the `Name` of a source value to a
@@ -796,7 +798,7 @@ getRefSafeDecoder (TypeRef nam lower upper _ _) = do
 getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker)
 getAttrRefSafeDecoder rf = do
   whenDebugging $ dbgLn "getAttrRefSafeDecoder only case"
-  let safeDec = buildSafeDecoderNameFor rf
+  let safeDec = buildSafeDecoderExpFor rf
   whenDebugging $ dbgBLabel "  - safeDec " safeDec
   return $ \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
 
@@ -1024,13 +1026,23 @@ makeChoiceConstructor name (typeName, ref) = do
 newAssemble ::
   QName -> Maybe (Name -> Dec) -> BlockMaker -> Maybe String -> XSDQ [Dec]
 newAssemble base tyDec safeDec ifDoc = do
+
+  -- TODO --- Update the type extraction here.  Write a
+  -- "decodersReturnType base" function that checks the usage in the
+  -- declaration/assumes Optional for groups for now.
+
+  ifDecoderType <- decodersReturnType base
+  decoderType <- case ifDecoderType of
+    Nothing -> throwError $ "No return type for " ++ showQName base
+    Just x -> return x
+  whenDebugging $ dbgBLabel "decodersReturnType gives " decoderType
+
   let baseNameStr = firstToUpper $ qName base
       typeName = mkName baseNameStr
-      typeType = ConT typeName
       safeDecAsNam = mkName $ "tryDecodeAs" ++ baseNameStr
       decAsNam = mkName $ "decodeAs" ++ baseNameStr
-      tryDecType = fn1Type contentConT (qHXBExcT typeType)
-      decType = fn1Type contentConT typeType
+      tryDecType = fn1Type contentConT (qHXBExcT decoderType)
+      decType = fn1Type contentConT decoderType
   paramName <- newName "ctnt"
 
   pushDeclHaddock ifDoc safeDecAsNam $
@@ -1045,13 +1057,13 @@ newAssemble base tyDec safeDec ifDoc = do
   decodeBody <- resultOrThrow $ AppE (VarE safeDecAsNam) (VarE paramName)
   let baseList = [
         SigD safeDecAsNam tryDecType,
-          FunD safeDecAsNam [Clause [VarP paramName]
-                              (NormalB $ DoE Nothing $
-                                 safeDec paramName res ++ [
-                                  NoBindS $ applyReturn $ VarE res
-                                  ]) []],
-          SigD decAsNam decType,
-          FunD decAsNam [Clause [VarP paramName] (NormalB decodeBody) []]
+        FunD safeDecAsNam [Clause [VarP paramName]
+                            (NormalB $ DoE Nothing $
+                               safeDec paramName res ++ [
+                                NoBindS $ applyReturn $ VarE res
+                                ]) []],
+        SigD decAsNam decType,
+        FunD decAsNam [Clause [VarP paramName] (NormalB decodeBody) []]
         ]
 
   case tyDec of
@@ -1291,8 +1303,8 @@ buildDecoderNameFor ref = VarE $ mkName $ "decode" ++ firstToUpper ref
 -- decoder function `Exp`ression.  __Note__ that this function will
 -- just operate on the name; there is no assurance that the name will
 -- actually exist.
-buildSafeDecoderNameFor :: String -> Exp
-buildSafeDecoderNameFor ref = VarE $ mkName $ "tryDecodeAs" ++ firstToUpper ref
+buildSafeDecoderExpFor :: String -> Exp
+buildSafeDecoderExpFor ref = VarE $ mkName $ "tryDecodeAs" ++ firstToUpper ref
 
 -- | Builds a list of two `Match`es for a `Maybe` expression, given
 -- the alternative expressions for `Nothing` and `Just` (the latter
