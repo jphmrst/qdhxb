@@ -230,7 +230,7 @@ instance Blockable DataScheme where
   block (GroupScheme (WithRef ref) _ _ln _d) = stringToBlock $
     "Group reference " ++ qName ref
   block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
-    "Group unnamed no-ref " ++ show ts
+    "Group unnamed no-ref " ++ bpp ts
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
     "Unprocessed XML" ++ maybe "" quoteShowQName ifName
 
@@ -258,7 +258,7 @@ instance Blockable ComplexTypeScheme where
     `stack2` labelBlock "  - attributes " (block as)
   block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
   block (Extension base ds) =
-    (stringToBlock $ "Extension " ++ show base)
+    (stringToBlock $ "Extension " ++ showQName base)
     `stack2` indent "  " (block ds)
   block (Choice base ds) =
     (stringToBlock $ "Choice " ++ show base)

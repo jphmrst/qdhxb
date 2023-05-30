@@ -1,5 +1,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
+-- | Tests @<extension>@ of a local complex type base with additional
+-- subelements.
 module Address.Address where
 import Control.Monad.Trans.Class
 import Test.TLT

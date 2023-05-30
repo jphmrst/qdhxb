@@ -211,6 +211,8 @@ verticalBlockList [t|Definition|]
 verticalBlockablePair [t|QName|] [t|Reference|]
 verticalBlockList [t|(QName, Reference)|]
 verticalBlockablePair [t|QName|] [t|[Definition]|]
+verticalBlockablePair [t|[Definition]|] [t|Reference|]
+verticalBlockablePair [t|[Definition]|] [t|[Reference]|]
 verticalBlockList [t|(QName, [Definition])|]
 
 -- | Convert a `String` to an `AttributeUsage` value.
