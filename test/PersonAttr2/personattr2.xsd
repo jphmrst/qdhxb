@@ -6,8 +6,8 @@
   
   <xs:complexType name="personType">
     <xs:attributeGroup name="personattr">
-      <xs:attribute name="attr1" type="string"/>
-      <xs:attribute name="attr2" type="integer"/>
+      <xs:attribute name="attr1" type="xsd:string"/>
+      <xs:attribute name="attr2" type="xsd:integer"/>
     </xs:attributeGroup>
   </xs:complexType>
 

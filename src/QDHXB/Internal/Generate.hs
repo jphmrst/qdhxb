@@ -677,7 +677,7 @@ makeSubexprLabeling refs = do
   blockMakers <- mapM referenceToBlockMaker refs
   labelBlockMakers blockMakers
 
--- | Utility function for `makeSubexprLabeling` and other decoder
+-- | Utility function for @makeSubexprLabeling@ and other decoder
 -- generators for terms with subexpressions.  Given a list of
 -- `Reference`s to subelements, produces a pair of two values: (1) a
 -- function from the `Name` of a source value to a list of TH `Stmt`
@@ -691,7 +691,7 @@ labelBlockMakers blockMakers =
   labelBlockMakers' blockMakers (map (\z -> "s" ++ show z) ([1..] :: [Int]))
                     [] []
 
--- | Utility function for `makeSubexprLabeling` and other decoder
+-- | Utility function for @makeSubexprLabeling@ and other decoder
 -- generators for terms with subexpressions.  Given a list of
 -- `Reference`s to subelements, produces two lists: (1) functions from
 -- the `Name` of a source value to a list of TH `Stmt` statements
