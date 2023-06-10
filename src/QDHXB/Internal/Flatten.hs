@@ -436,16 +436,20 @@ flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') l d) = do
 flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) l d) = do
   whenDebugging $ dbgLn "[fSR -> flattenAttributeGroupRef]"
   flattenAttributeGroupRef nameRef cs l d
-flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine _) = do
+flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] CTS " c
   defns <- indenting $ flattenSchemaItem c
   dbgResult "Flattened [fSR.CTS] to" $
-    (defns, ElementRef n (Just 1) (Just 1) ifLine)
-flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine _) = do
+    (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
+flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] STS " s
   defns <- indenting $ flattenSchemaItem s
   dbgResult "Flattened [fSR.STS] to" $
-    (defns, ElementRef n (Just 1) (Just 1) ifLine)
+    (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
+--
+-- TODO Should the next two be TypeRef instead?  Probably; they are
+-- generating a type, specifying arbitrarily many elements.
+--
 flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn _) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WR " gs
   dbgResult "Flattened [fSR.GS-WR] to" $
@@ -600,9 +604,6 @@ flattenAttribute sa@(SingleAttribute (WithName n) (NameRef typ) mode d) = do
 flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
   whenDebugging $
     dbgBLabel "[fA] Single attribute with nested type " sa
-
-  -- MAYBE THIS SHOULDN'T BE CALLING [fSR] SINCE IT RETURNS AN ELEMENT-REF
-
   (defs, ref) <- indenting $ flattenSchemaRef ds
   whenDebugging $ do
     dbgLn $ "(Back in flattenAttribute)"
