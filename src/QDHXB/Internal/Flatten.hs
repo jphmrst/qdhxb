@@ -23,60 +23,60 @@ flattenSchemaItems = fmap concat . mapM flattenSchemaItem . filter nonSkip
 flattenSchemaItem :: DataScheme -> XSDQ [Definition]
 {-# INLINE flattenSchemaItem #-}
 flattenSchemaItem s = do
-  whenDebugging $ dbgBLabel "Flattening from " s
+  whenDebugging $ dbgBLabel "[fSI] from " s
   results <- indenting $ flattenSchemaItem' s
-  dbgResult "Result:" results
+  dbgResult "Result [fSI]:" results
 
 flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
 
 flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
                                   ifMin ifMax l ifDoc) = do
-  whenDebugging $ dbgLn "Relaying to flattenElementSchemeItem"
+  whenDebugging $ dbgLn "[fSI'] Relaying to flattenElementSchemeItem"
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (WithName nam) (NameRef typ) m d')
                     l d) = do
-  whenDebugging $ dbgLn "Flattening single attribute"
+  whenDebugging $ dbgLn "[fSI'] Flattening single attribute"
   let attrDefn =
         AttributeDefn nam (SingleAttributeDefn typ $ stringToAttributeUsage m)
                       l (pickOrCombine d d')
   fileNewDefinition attrDefn
-  dbgResult "Flattened to" [attrDefn]
+  dbgResult "Flattened [fSI'] to" [attrDefn]
 
 flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _)
                                     _l _d) = do
-  return $ error "Reference in attribute"
+  return $ error "[fSI'] Reference in attribute"
 
 flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) l d) = do
-  whenDebugging $ dbgLn "Relaying to flattenAttributeGroupItem for "
+  whenDebugging $ dbgLn "[fSI'] Relaying to flattenAttributeGroupItem for "
   flattenAttributeGroupItem nr cs l d
 
 flattenSchemaItem' (ComplexTypeScheme cts ats ifNam l d) = do
-  whenDebugging $ dbgLn "Relaying to flattenComplexTypeScheme"
+  whenDebugging $ dbgLn "[fSI'] Relaying to flattenComplexTypeScheme"
   flattenComplexTypeScheme cts ats ifNam l d
 
 flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Synonym base) ln d) = do
-  whenDebugging $ dbgBLabel "Flattening simple synonym " sts
+  whenDebugging $ dbgBLabel "[fSI'] Flattening simple synonym " sts
   indenting $ do
     let tyDefn = SimpleSynonymDefn nam base ln d
     fileNewDefinition tyDefn
-    dbgResult "Flattened to" [tyDefn]
+    dbgResult "Flattened [fSI'] to" [tyDefn]
 
 -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
 -- types here
 
 flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (SimpleRestriction base)
                                      ln d) = do
-  whenDebugging $ dbgBLabel "Flattening simple restriction " sts
+  whenDebugging $ dbgBLabel "[fSI'] Flattening simple restriction " sts
   indenting $ do
     let tyDefn = SimpleSynonymDefn nam base ln d
     addTypeDefn nam tyDefn
-    dbgResult "Simple restriction flattened to" $ [ tyDefn ]
+    dbgResult "Flattened [fSI'] to" $ [ tyDefn ]
 
 flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Union alts) ln d) = do
-  whenDebugging $ dbgBLabel "Flattening simple union " sts
+  whenDebugging $ dbgBLabel "[fSI'] Flattening simple union " sts
   indenting $ do
     let nameUnnamed :: QName -> DataScheme -> DataScheme
         nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
@@ -111,31 +111,32 @@ flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Union alts) ln d) = do
         defns = concat defnss
     let uDef = UnionDefn nam names ln d
     fileNewDefinition uDef
-    dbgResult "Flattened to" $ defns ++ [uDef]
+    dbgResult "Flattened [fSI'] to" $ defns ++ [uDef]
 
 
 flattenSchemaItem' s@(SimpleTypeScheme (Just nam)
                                        (List (Just elemTyp) Nothing) ln d) = do
   whenDebugging $
-    dbgBLabel "Flattening simple list with referenced element type " s
+    dbgBLabel "[fSI'] Flattening simple list with referenced element type " s
   indenting $ do
     let lDef = ListDefn nam elemTyp ln d
     fileNewDefinition lDef
-    dbgResult "Flattened to" [lDef]
+    dbgResult "Flattened [fSI'] to" [lDef]
 
 flattenSchemaItem' s@(SimpleTypeScheme (Just nam)
                                        (List Nothing (Just inlineTyp))
                                        ln d) = do
-  whenDebugging $ dbgBLabel "Flattening simple list with inline element " s
+  whenDebugging $
+    dbgBLabel "[fSI'] Flattening simple list with inline element " s
   indenting $ do
     (subdefs, subref) <- flattenSchemaRef inlineTyp
     let lDef = ListDefn nam (referenceQName subref) ln d
     fileNewDefinition lDef
-    dbgResult "Flattened to" $ subdefs ++ [lDef]
+    dbgResult "Flattened [fSI'] to" $ subdefs ++ [lDef]
 
 flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
   whenDebugging $
-    dbgBLabel "Flattening group scheme with name and present content " gs
+    dbgBLabel "[fSI'] Flattening group scheme with name and present content " gs
   let typeSchemeName = withSuffix "Group" name
   defs <- flattenComplexTypeScheme cts [] (Just typeSchemeName) ln doc
   {-
@@ -151,11 +152,11 @@ flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
   let defn = GroupDefn name
                (TypeRef typeSchemeName Nothing Nothing Nothing Nothing) ln doc
   fileNewDefinition defn
-  return $ defs ++ [defn]
+  dbgResult "Flattened [fSI'] to" $ defs ++ [defn]
 
 flattenSchemaItem' gs@(GroupScheme (WithRef ref) Nothing ln _doc) = do
   whenDebugging $
-    dbgBLabel "Flattening group scheme with reference and no content " gs
+    dbgBLabel "[fSI'] Flattening group scheme with reference and no content " gs
   boxed $ do
     dbgLn "TODO flattenSchemaItem' group with ref, no contents"
     dbgLn $ "REF " ++ qName ref
@@ -166,7 +167,7 @@ flattenSchemaItem' gs@(GroupScheme (WithRef ref) Nothing ln _doc) = do
     ++ maybe "(no XSD line num)" show ln
 
 flattenSchemaItem' s = do
-  whenDebugging $ dbgLn "flattenSchemaItem' missed case"
+  whenDebugging $ dbgLn "[fSI'] missed case"
   boxed $ do
     dbgLn "TODO flattenSchemaItem' missed case"
     dbgBLabel "ARG " s
@@ -176,7 +177,7 @@ flattenAttributeGroupItem ::
   NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
 flattenAttributeGroupItem (WithName n) cs l d = do
-  whenDebugging $ dbgLn "Flattening attribute group"
+  whenDebugging $ dbgLn "[fAGI] Flattening attribute group item"
   let names = map grabName cs
   defs <- indenting $ flattenAttributes cs
   let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
@@ -185,7 +186,7 @@ flattenAttributeGroupItem (WithName n) cs l d = do
   return res
 flattenAttributeGroupItem nameRef contents ln _d = do
   boxed $ do
-    dbgLn "TODO flattenAttributeGroupItem missed case"
+    dbgLn "TODO [fAGI] missed case"
     dbgBLabel "NAMEREF " nameRef
     dbgBLabel "CONTENTS " contents
     dbgLn $ "LN " ++ show ln
@@ -198,7 +199,7 @@ flattenComplexTypeScheme ::
   -> XSDQ [Definition]
 
 flattenComplexTypeScheme c@(Composing cts ats0) ats (Just nam) l d = do
-  whenDebugging $ dbgBLabel "Flattening complex composition " c
+  whenDebugging $ dbgBLabel "[fCTS] Complex composition " c
   (defs, refs) <- indenting $
     musterComplexSequenceComponents (filter nonSkip cts) (ats0 ++ ats) nam
       -- TODO DOC possible to add a docstring here?
@@ -209,23 +210,23 @@ flattenComplexTypeScheme c@(Composing cts ats0) ats (Just nam) l d = do
   --   recheck <- isKnownType nam
   --   dbgLn $ "- Have set " ++ qName nam
   --            ++ " to be known; rechecked as " ++ show recheck
-  dbgResult "Flattened to" $ defs ++ [ tyDefn ]
+  dbgResult "Flattened [fCTS] to" $ defs ++ [ tyDefn ]
 
 flattenComplexTypeScheme c@(ComplexRestriction base) _ats (Just nam) l d = do
-  whenDebugging $ dbgBLabel "Flattening complex restriction " c
+  whenDebugging $ dbgBLabel "[fCTS] Complex restriction " c
   let defn = ComplexSynonymDefn nam base l d
   fileNewDefinition defn
-  dbgResult "Flattened to" $ [defn]
+  dbgResult "Flattened [fCTS] to" $ [defn]
 
 flattenComplexTypeScheme e@(Extension base ds) _ats (Just nam) l d = do
-  whenDebugging $ dbgBLabel "Flattening complex extension " e
+  whenDebugging $ dbgBLabel "[fCTS] Complex extension " e
   (defs, refs) <- indenting $ flattenSchemaRefs ds
   let defn = ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
   fileNewDefinition defn
-  dbgResult "Flattened to" $ defs ++ [defn]
+  dbgResult "Flattened [fCTS] to" $ defs ++ [defn]
 
 flattenComplexTypeScheme c@(Choice ifName contents) _ats ifOuterName ln doc = do
-  whenDebugging $ dbgBLabel "Flattening choice " c
+  whenDebugging $ dbgBLabel "[fCTS] Choice " c
   let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuterName)
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents
@@ -233,14 +234,14 @@ flattenComplexTypeScheme c@(Choice ifName contents) _ats ifOuterName ln doc = do
       defn = ChoiceDefn name labelledRefs ln doc
   addElementType name name
   fileNewDefinition defn
-  dbgResult "Flattened to" $
+  dbgResult "Flattened [fCTS] to" $
     defs ++ [defn]
 
 flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
                          ats ifName l d = do
   (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
   whenDebugging $ boxed $ do
-    dbgLn "TODO flattenComplexTypeScheme Group case"
+    dbgLn "TODO [fCTS] Group/WithName case"
     dbgLn "Group:"
     dbgBLabel ". WithName N " n
     dbgBLabel ". CTNT " $ ctnt
@@ -252,27 +253,29 @@ flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
     dbgBLabel "FLATCTNT " $ flatCtnt
   let defn = GroupDefn n ctntRef l d
   fileNewDefinition defn
-  dbgResult "Flattened to" $ flatCtnt ++ [defn]
+  dbgResult "Flattened [fCTS] to" $ flatCtnt ++ [defn]
 
 flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
                          ats (Just name) l d = do
+  whenDebugging $ dbgLn "[fCTS] Group/WithRef case"
   (defs, refs) <- indenting $ musterAttributesForComplexSequence [] [
     TypeRef r ifMin ifMax l d
     ] ats
   let tyDefn = SequenceDefn name refs l d
   fileNewDefinition tyDefn
-  dbgResult "Flattened to" $ defs ++ [tyDefn]
+  dbgResult "Flattened [fCTS] to" $ defs ++ [tyDefn]
 
   {-
   -- First version --- but (1) this is the defn of a complex type
   -- which includes a group defn, not the defn of a group, and (2)
   -- ignores attributes.
-  whenDebugging $ dbgLn "flattenComplexTypeScheme Group by reference"
-  dbgResult "Flattened to" [GroupDefn name (TypeRef r ifMin ifMax l d) l d]
+  whenDebugging $ dbgLn "[fCTS] Group by reference"
+  dbgResult "Flattened [fCTS] to" [GroupDefn name (TypeRef r ifMin ifMax l d) l d]
   -}
 
 flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
                          ats (Just name) l d = do
+  whenDebugging $ dbgLn "[fCTS] Group/WithNeither case"
   (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
   boxed $ do
     dbgLn "TODO flattenComplexTypeScheme Group case"
@@ -286,11 +289,11 @@ flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
     dbgBLabel "FLATCTNT " $ flatCtnt
   let defn = GroupDefn name ctntRef l d
   fileNewDefinition defn
-  dbgResult "Flattened to" $ flatCtnt ++ [defn]
+  dbgResult "Flattened [fCTS] to" $ flatCtnt ++ [defn]
 
 flattenComplexTypeScheme cts ats ifName ln _ = do
   boxed $ do
-    dbgLn "TODO flattenComplexTypeScheme missed case"
+    dbgLn "TODO [fCTS] flattenComplexTypeScheme missed case"
     dbgBLabel "CTS " cts
     dbgBLabel "ATS " ats
     dbgBLabel "IFNAME " ifName
@@ -306,20 +309,21 @@ flattenElementSchemeItem ::
   -> (Maybe Int) -> (Maybe Int) -> (Maybe Line) -> Maybe String
   -> XSDQ [Definition]
 flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
-  whenDebugging $ dbgLn "Flattening element scheme with name/type"
+  whenDebugging $ dbgLn "[fESI] With name/type"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
 flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ _ _ ln ifDoc = do
-  whenDebugging $ dbgLn "Flattening element scheme enclosing skip"
+  whenDebugging $ dbgLn "[fESI] Enclosing skip"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
 flattenElementSchemeItem (Just (SimpleTypeScheme _ ts ln d))
                           ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
-  whenDebugging $ dbgLn "Flattening element scheme enclosing simple type scheme"
+  whenDebugging $ dbgLn "[fESI] Enclosing simple type scheme"
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln d
   let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
-  dbgResult "Flattened to " $ flatTS ++ [elemDefn]
+  dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
 flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs ifCTSName l d))
                           ifElementName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+  whenDebugging $ dbgLn "[fESI] Enclosing complex type scheme"
   let typeName = maybe nam id ifCTSName
   let ifTypeName = maybe ifElementName Just ifCTSName
   whenDebugging $
@@ -327,7 +331,7 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs ifCTSName l d))
   flatTS <- flattenSchemaItem' $ ComplexTypeScheme ts attrs ifTypeName l d
   let elemDefn = ElementDefn nam typeName l ifDoc
   fileNewDefinition elemDefn
-  dbgResult "Flattened to " $ flatTS ++ [elemDefn]
+  dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
   {-
 flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
                           ifName ifType ifRef ifMin ifMax _ifLn _ifDoc = do
@@ -345,7 +349,7 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
 -}
 flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
   boxed $ do
-    dbgLn "flattenElementSchemeItem"
+    dbgLn "[fESI] flattenElementSchemeItem"
     dbgBLabel "CONTENT " content
     dbgBLabel "IFNAME " ifName
     dbgBLabel "IFTYPE " ifType
@@ -357,10 +361,10 @@ flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
 flattenWithNameTypeOnly ::
   QName -> QName -> Maybe Line -> Maybe String -> XSDQ [Definition]
 flattenWithNameTypeOnly nam typ ln ifDoc = do
-  whenDebugging $ dbgLn "Flattening element scheme with name/type"
+  whenDebugging $ dbgLn "flattenWithNameTypeOnly"
   let elemDefn = ElementDefn nam typ ln ifDoc
   fileNewDefinition elemDefn
-  dbgResult "Flattened to " [ elemDefn ]
+  dbgResult "Flattened [fWNTO] to " [ elemDefn ]
 
 
 musterComplexSequenceComponents ::
@@ -388,7 +392,7 @@ musterAttributesForComplexSequence defs refs ats = do
     dbgBLabel "- REFS " refs
     dbgBLabel "- ATS " ats
   (atsDefs, atsRefs) <- indenting $ flattenSchemaAttributeRefs ats
-  dbgResult "musterAttributesForComplexSequence returns " $
+  dbgResult "Result [mAFCS]:" $
     (defs ++ atsDefs, atsRefs ++ refs)
 
 grabName :: AttributeScheme -> QName
@@ -402,17 +406,20 @@ grabName a = error $ "No useable name in " ++ show a
 flattenSchemaAttributeRefs ::
   [AttributeScheme] -> XSDQ ([Definition], [Reference])
 flattenSchemaAttributeRefs ass = do
-  whenDebugging $ dbgLn "flattenSchemaAttributeRefs processing each"
+  whenDebugging $
+    dbgLn "[flattenSchemaAttributeRefs] processing each by [fSchAR]"
   defsRefs <- indenting $ mapM flattenSchemaAttributeRef ass
   whenDebugging $ dbgLn "returned from (mapM flattenSchemaAttributeRef)"
-  dbgResult "flattenSchemaAttributeRefs returns " $
+  dbgResult "Result [fSAR]:" $
     applyFst concat $ unzip defsRefs
 
 flattenSchemaAttributeRef ::
   AttributeScheme -> XSDQ ([Definition], Reference)
-flattenSchemaAttributeRef (SingleAttribute nr t m d) =
+flattenSchemaAttributeRef r@(SingleAttribute nr t m d) = do
+  whenDebugging $ dbgBLabel "[fSchAR -> fSngAR] " r
   flattenSingleAttributeRef nr t m Nothing d
-flattenSchemaAttributeRef (AttributeGroup nameRef cs d) =
+flattenSchemaAttributeRef r@(AttributeGroup nameRef cs d) = do
+  whenDebugging $ dbgBLabel "[fSchAR -> fAGR] " r
   flattenAttributeGroupRef nameRef cs Nothing d
 
 flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
@@ -421,43 +428,43 @@ flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
                                 ifLower ifUpper ln ifDoc) = do
-  whenDebugging $ dbgLn "flattenSchemaRef >> flattenElementSchemeRef"
+  whenDebugging $ dbgLn "[fSR -> flattenElementSchemeRef]"
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
 flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') l d) = do
-  whenDebugging $ dbgLn "flattenSchemaRef >> flattenSingleAttributeRef"
+  whenDebugging $ dbgLn "[fSR -> flattenSingleAttributeRef]"
   flattenSingleAttributeRef nr t m l (pickOrCombine d d')
 flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) l d) = do
-  whenDebugging $ dbgLn "flattenSchemaRef >> flattenAttributeGroupRef"
+  whenDebugging $ dbgLn "[fSR -> flattenAttributeGroupRef]"
   flattenAttributeGroupRef nameRef cs l d
 flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine _) = do
-  whenDebugging $ dbgBLabel "flattenSchemaRef (CTS) " c
+  whenDebugging $ dbgBLabel "[fSR] CTS " c
   defns <- indenting $ flattenSchemaItem c
-  dbgResult "SchemaRef flattened to" $
+  dbgResult "Flattened [fSR.CTS] to" $
     (defns, ElementRef n (Just 1) (Just 1) ifLine)
 flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine _) = do
-  whenDebugging $ dbgBLabel "flattenSchemaRef (STS) " s
+  whenDebugging $ dbgBLabel "[fSR] STS " s
   defns <- indenting $ flattenSchemaItem s
-  dbgResult "SchemaRef flattened to" $
+  dbgResult "Flattened [fSR.STS] to" $
     (defns, ElementRef n (Just 1) (Just 1) ifLine)
 flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn _) = do
-  whenDebugging $ dbgBLabel "flattenSchemaRef (GS-WR) " gs
-  dbgResult "SchemaRef flattened to" $
+  whenDebugging $ dbgBLabel "[fSR] GS-WR " gs
+  dbgResult "Flattened [fSR.GS-WR] to" $
     ([], ElementRef ref (Just 1) (Just 1) ifLn)
 flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
-  whenDebugging $ dbgBLabel "flattenSchemaRef (GS-WN) " gs
+  whenDebugging $ dbgBLabel "[fSR] GS-WN " gs
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
-  dbgResult "SchemaRef flattened to" $
+  dbgResult "Flattened [fSR.GS-WN] to" $
     (defns, ElementRef name (Just 1) (Just 1) ifLn)
 flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
-    dbgLn "flattenSchemaRef of GroupScheme"
+    dbgLn "[fSR] GroupScheme"
     dbgBLabel "CTS " cts
     dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
   error $ "TODO flattenSchemaRef > GroupScheme with neither name nor reference"
   -- return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
 flattenSchemaRef s = do
   boxed $ do
-    dbgLn "flattenSchemaRef"
+    dbgLn "[fSR] flattenSchemaRef"
     dbgBLabel "arg " s
   error $ "TODO flattenSchemaRef > additional case:"
 
@@ -465,13 +472,13 @@ flattenAttributeGroupRef ::
   NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
 flattenAttributeGroupRef n@(WithName name) contents l d = do
-  refs <- flattenAttributeGroupItem n contents l d
-  dbgResult ("AttributeGroupRef WithName " ++ showQName name
-              ++ " flattened to") $
+  whenDebugging $ dbgLn "[fAGR] WithName "
+  refs <- indenting $ flattenAttributeGroupItem n contents l d
+  dbgResult (showQName name ++ " [fAGR] flattened to") $
     (refs, AttributeRef name Optional)
 flattenAttributeGroupRef (WithRef ref) [] _ln _d = do
-  dbgResult ("AttributeGroupRef WithRef " ++ showQName ref
-              ++ " flattened to") $
+  whenDebugging $ dbgLn "[fAGR] WithRef "
+  dbgResult (showQName ref ++ " [fAGR] flattened to") $
     ([], AttributeRef ref Optional)
 flattenAttributeGroupRef nameRef contents _ln _d = do
   boxed $ do
@@ -485,28 +492,26 @@ flattenSingleAttributeRef ::
   NameOrRefOpt -> QNameOr -> String -> Maybe Line -> Maybe String
   -> XSDQ ([Definition], Reference)
 flattenSingleAttributeRef (WithRef ref) Neither useStr _ _ = do
+  whenDebugging $ dbgLn "[fSAR] WithRef+Neither "
   let res = AttributeRef ref (stringToAttributeUsage useStr)
-  dbgResult ("SingleAttributeRef WithRef " ++ showQName ref
-              ++ " flattened to") $
-    ([], res)
+  dbgResult (showQName ref ++ " [fSAR] flattened to") ([], res)
 flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
+  whenDebugging $ dbgLn "[fSAR] WithRef+NameRef "
   let defn = AttributeDefn nam
                (SingleAttributeDefn t $ stringToAttributeUsage m) l d
       ref = AttributeRef nam (stringToAttributeUsage m)
   fileNewDefinition defn
-  dbgResult ("SingleAttributeRef WithName " ++ showQName nam
-              ++ " flattened to") $
-    ([defn], ref)
+  dbgResult (showQName nam ++ " [fSAR] flattened to") ([defn], ref)
 flattenSingleAttributeRef (WithName nam) (Nested t) m _ _ = do
   boxed $ do
-    dbgLn "new Nested case"
+    dbgLn "[fSAR] new nested case"
     dbgBLabel "NAM " nam
     dbgBLabel "T " t
     dbgLn $ "MODE " ++ m
   error "TODO new Nested case"
 flattenSingleAttributeRef nameRef maybeType mode _ _ = do
   boxed $ do
-    dbgLn "flattenSingleAttributeRef"
+    dbgLn "[fSAR] flattenSingleAttributeRef"
     dbgBLabel "NAMEREF " nameRef
     dbgBLabel "IFTYPE " maybeType
     dbgLn $ "MODE " ++ mode
@@ -519,15 +524,16 @@ flattenElementSchemeRef ::
   -> XSDQ ([Definition], Reference)
 -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
 flattenElementSchemeRef Nothing Nothing Nothing (Just r) lower upper ln _ifDoc = do
+  whenDebugging $ dbgLn "[fESR] all Nothing"
   let result = ElementRef r lower upper ln
   whenDebugging $ do
     dbgLn $ "Flattening element schema with reference only"
     dbgBLabel "  to " result
-  dbgResult ("Ref to " ++ showQName r ++ " flattened to") $
-    ([], result)
+  dbgResult ("Ref to " ++ showQName r ++ " flattened [fESR] to") ([], result)
 flattenElementSchemeRef Nothing (Just n)
                         (Just t@(QName resolvedName _resolvedURI _))
                         Nothing lo up ln ifDoc = do
+  whenDebugging $ dbgLn "[fESR] first Nothing"
   isKnown <- isKnownType t
   whenDebugging $ dbgLn $
     "- Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
@@ -539,8 +545,8 @@ flattenElementSchemeRef Nothing (Just n)
                         -- dbgBLabel "       " e
                         dbgBLabel "    to " defn
                         dbgBLabel "       " ref
-                      dbgResult ("Name reference to " ++ showQName n
-                                  ++ " flattened to") $
+                      dbgResult
+                        ("Name ref " ++ showQName n ++ " flattened [fESR] to")
                         ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t ln ifDoc
                  defn2 = ElementDefn n n ln ifDoc
@@ -553,10 +559,11 @@ flattenElementSchemeRef Nothing (Just n)
                dbgBLabel "    to " defn1
                dbgBLabel "       " defn2
                dbgBLabel "       " ref
-             dbgResult ("Reference to " ++ showQName n ++ " flattened to") $
+             dbgResult ("Ref to " ++ showQName n ++ " flattened [fESR] to")
                ([defn1, defn2], ref))
 flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
                         n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
+  whenDebugging $ dbgLn "[fESR] t and r and Nothing"
   prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
   let ref = ElementRef nam lower upper ln
   whenDebugging $ do
@@ -564,9 +571,10 @@ flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
     dbgBLabel "       " s
     dbgBLabel "    to " prev
     dbgBLabel "       " ref
-  dbgResult "Element schema flattened to" $ (prev, ref)
+  dbgResult "Flattened [fESR] to" (prev, ref)
 flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ _ = do
   boxed $ do
+    whenDebugging $ dbgLn "[fESR] flattenElementSchemeRef"
     dbgBLabel "CONTENTS " ctnts
     dbgLn $ "IFNAME " ++ show maybeName
     dbgLn $ "IFTYPE " ++ show maybeType
@@ -582,18 +590,22 @@ flattenAttributes = fmap concat . mapM flattenAttribute
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
 flattenAttribute sa@(SingleAttribute (WithName n) (NameRef typ) mode d) = do
   whenDebugging $
-    dbgBLabel "Flattening single attribute with type reference " sa
+    dbgBLabel "[fA] single attribute with type reference " sa
   indenting $ do
     let defn = AttributeDefn n (SingleAttributeDefn typ $
                                   stringToAttributeUsage mode)
                              Nothing d
     fileNewDefinition defn
-    dbgResult "Flattened to" $ [defn]
+    dbgResult "Flattened [fA] to" $ [defn]
 flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
   whenDebugging $
-    dbgBLabel "Flattening single attribute with nested type " sa
-  (defs, ref) <- flattenSchemaRef ds
+    dbgBLabel "[fA] Single attribute with nested type " sa
+
+  -- MAYBE THIS SHOULDN'T BE CALLING [fSR] SINCE IT RETURNS AN ELEMENT-REF
+
+  (defs, ref) <- indenting $ flattenSchemaRef ds
   whenDebugging $ do
+    dbgLn $ "(Back in flattenAttribute)"
     dbgBLabel "- defs " defs
     dbgBLabel "- ref " ref
   case ref of
@@ -604,7 +616,7 @@ flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
                    (SingleAttributeDefn qn $ stringToAttributeUsage mode)
                    Nothing d
       fileNewDefinition defn
-      dbgResult "Flattened to" $ defs ++ [defn]
+      dbgResult "Flattened [fA] to" $ defs ++ [defn]
     TypeRef qn Nothing Nothing _ _ -> do
       whenDebugging $
         dbgLn $ "Case for TypeRef " ++ showQName qn ++ ", no bounds"
@@ -612,7 +624,7 @@ flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
                    (SingleAttributeDefn qn $ stringToAttributeUsage mode)
                    Nothing d
       fileNewDefinition defn
-      dbgResult "Flattened to" $ defs ++ [defn]
+      dbgResult "Flattened [fA] to" $ defs ++ [defn]
     TypeRef qn mn (Just 1) _ _ -> do
       whenDebugging $ do
         dbgLn $
@@ -641,13 +653,13 @@ flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
            " for attribute " ++ showQName n ++ " not allowed"
 flattenAttribute ag@(AttributeGroup (WithName n) schemes d) = do
   whenDebugging $
-    dbgBLabel "Flattening attribute group with name reference " ag
+    dbgBLabel "[fA] Attribute group with name reference " ag
   indenting $ do
     let names = map grabName schemes
         defn = AttributeDefn n (AttributeGroupDefn names) Nothing d
     fileNewDefinition defn
     sub <- fmap concat $ mapM flattenAttribute schemes
-    dbgResult "Group flattened to" $ sub ++ [defn]
+    dbgResult "Flattened [fA] to" $ sub ++ [defn]
 flattenAttribute a = do
   boxed $ do
     dbgLn "flattenAttribute "
