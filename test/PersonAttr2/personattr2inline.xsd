@@ -13,7 +13,7 @@
           </xs:restriction>
         </xs:simpleType>
       </xs:attribute>
-      <xs:attribute name="attr2" type="integer"/>
+      <xs:attribute name="attr2" type="xs:integer"/>
     </xs:attributeGroup>
   </xs:complexType>
 
