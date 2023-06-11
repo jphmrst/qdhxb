@@ -113,14 +113,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   decoderFn <- getTypeDecoderFn typ
   tmp1 <- newName "t"
   exceptProc <- newName "exc"
-  resId <- newName "res"
-  resId2 <- newName "res"
   extRes <- newName "extRes"
   paramName <- newName "file"
   cparamName <- newName "content"
-  let loadSteps = decoderFn tmp1 resId2 ++ [
-        NoBindS $ applyReturn $ VarE resId2
-        ]
   loadBodySrc <- resultOrThrow $ VarE exceptProc
   let res = [
         SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
