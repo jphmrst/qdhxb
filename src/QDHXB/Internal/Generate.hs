@@ -126,6 +126,11 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
                                 ]) []]
       ]
 
+  -- TODO Now add a version of EXTRACTOR for pulling a list (or a
+  -- ZeroOneMany?) of them out of the subelements of a piece of
+  -- Content.  This can be then used in other places like Sequence
+  -- which a check of obeying occurs constraints.
+
   loader <- do
     let loadNam = mkName $ "load" ++ baseName
     exceptProc <- newName "exc"
