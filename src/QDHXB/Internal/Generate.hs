@@ -108,32 +108,41 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
       baseName = firstToUpper $ origName
       -- tryLoadNam = mkName $ "tryLoad" ++ baseName
       loadNam = mkName $ "load" ++ baseName
+      extractElemNam = mkName $ "extractElement" ++ baseName
   decodedType <- getTypeHaskellType typ
   decoderFn <- getTypeDecoderFn typ
   tmp1 <- newName "t"
   exceptProc <- newName "exc"
   resId <- newName "res"
   resId2 <- newName "res"
+  extRes <- newName "extRes"
   paramName <- newName "file"
+  cparamName <- newName "content"
   let loadSteps = decoderFn tmp1 resId2 ++ [
         NoBindS $ applyReturn $ VarE resId2
         ]
   loadBodySrc <- resultOrThrow $ VarE exceptProc
   let res = [
+        SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
+        FunD extractElemNam [Clause [VarP cparamName]
+                             (NormalB $ DoE Nothing $
+                              decoderFn cparamName extRes ++ [
+                                 NoBindS $ applyReturn $ VarE extRes
+                                 ]) []],
         SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
         FunD loadNam [Clause [VarP paramName]
                       (NormalB $ DoE Nothing $
                          [BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
                           LetS [ValD (VarP exceptProc)
-                                     (NormalB $ DoE Nothing [
-                                         BindS (VarP resId) $
-                                           DoE Nothing loadSteps,
-                                         NoBindS (applyReturn $ VarE resId)
-                                         ]) []],
+                                     (NormalB $
+                                     AppE (VarE extractElemNam) (VarE tmp1)) []],
                           NoBindS $ applyReturn loadBodySrc]
                       ) []]
         ]
 
+  pushDeclHaddock ifDoc extractElemNam
+    ("Decode the given piece of @Content@ as a @\\<"
+     ++ origName ++ ">@ element")
   pushDeclHaddock ifDoc loadNam
     ("Load a @\\<" ++ origName ++ ">@ element from the given file")
 
