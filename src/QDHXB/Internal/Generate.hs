@@ -104,26 +104,37 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (e) " decl
     dbgBLabel "- typ " typ
-  let origName = qName nam
+  let extractElemNam = mkName $ "extractElement" ++ baseName
+      origName = qName nam
       baseName = firstToUpper $ origName
       -- tryLoadNam = mkName $ "tryLoad" ++ baseName
-      loadNam = mkName $ "load" ++ baseName
-      extractElemNam = mkName $ "extractElement" ++ baseName
   decodedType <- getTypeHaskellType typ
   decoderFn <- getTypeDecoderFn typ
-  tmp1 <- newName "t"
-  exceptProc <- newName "exc"
-  extRes <- newName "extRes"
-  paramName <- newName "file"
-  cparamName <- newName "content"
-  loadBodySrc <- resultOrThrow $ VarE exceptProc
-  let res = [
-        SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
-        FunD extractElemNam [Clause [VarP cparamName]
-                             (NormalB $ DoE Nothing $
+
+  extractor <- do
+    cparamName <- newName "content"
+    extRes <- newName "extRes"
+    pushDeclHaddock ifDoc extractElemNam
+      ("Decode the given piece of @Content@ as a @\\<"
+       ++ origName ++ ">@ element")
+    return [
+      SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
+      FunD extractElemNam [Clause [VarP cparamName]
+                            (NormalB $ DoE Nothing $
                               decoderFn cparamName extRes ++ [
-                                 NoBindS $ applyReturn $ VarE extRes
-                                 ]) []],
+                                NoBindS $ applyReturn $ VarE extRes
+                                ]) []]
+      ]
+
+  loader <- do
+    let loadNam = mkName $ "load" ++ baseName
+    exceptProc <- newName "exc"
+    loadBodySrc <- resultOrThrow $ VarE exceptProc
+    tmp1 <- newName "t"
+    paramName <- newName "file"
+    pushDeclHaddock ifDoc loadNam
+      ("Load a @\\<" ++ origName ++ ">@ element from the given file")
+    return [
         SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
         FunD loadNam [Clause [VarP paramName]
                       (NormalB $ DoE Nothing $
@@ -135,13 +146,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
                       ) []]
         ]
 
-  pushDeclHaddock ifDoc extractElemNam
-    ("Decode the given piece of @Content@ as a @\\<"
-     ++ origName ++ ">@ element")
-  pushDeclHaddock ifDoc loadNam
-    ("Load a @\\<" ++ origName ++ ">@ element from the given file")
-
-  dbgResult "Generated" res
+  dbgResult "Generated" $ extractor ++ loader
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
