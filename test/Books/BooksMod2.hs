@@ -7,6 +7,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Bad lookup of defined type
 -- qdhxb (useDebugging . logByFile True) ["test/Books/books-mod2.xsd"]
 -- qdhxb' ["test/Books/books-mod2.xsd"]
 

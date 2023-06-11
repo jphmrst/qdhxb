@@ -6,6 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Reached REDO in generated code
 -- qdhxb (useDebugging . logByFile True) ["test/Shiporder/shiporder2.xsd"]
 -- qdhxb' ["test/Shiporder/shiporder2.xsd"]
 

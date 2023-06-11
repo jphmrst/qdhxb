@@ -8,6 +8,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Reaches REDO in Generate
 -- qdhxb (useDebugging . logByFile True) ["test/Address/address.xsd"]
 -- qdhxb' ["test/Address/address.xsd"]
 

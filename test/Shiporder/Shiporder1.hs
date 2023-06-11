@@ -6,6 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Type errors in generated code
 -- qdhxb (useDebugging . logByFile True) ["test/Shiporder/shiporder1.xsd"]
 -- qdhxb' ["test/Shiporder/shiporder1.xsd"]
 

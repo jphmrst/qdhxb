@@ -6,6 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Type error in generated code
 -- qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic1.xsd"]
 -- qdhxb' ["test/GroupBasic/group-basic1.xsd"]
 
