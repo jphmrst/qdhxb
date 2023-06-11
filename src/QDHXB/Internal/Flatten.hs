@@ -446,19 +446,15 @@ flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
   defns <- indenting $ flattenSchemaItem s
   dbgResult "Flattened [fSR.STS] to" $
     (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
---
--- TODO Should the next two be TypeRef instead?  Probably; they are
--- generating a type, specifying arbitrarily many elements.
---
-flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn _) = do
+flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WR " gs
   dbgResult "Flattened [fSR.GS-WR] to" $
-    ([], ElementRef ref (Just 1) (Just 1) ifLn)
+    ([], TypeRef ref (Just 1) (Just 1) ifLn ifDoc)
 flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WN " gs
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   dbgResult "Flattened [fSR.GS-WN] to" $
-    (defns, ElementRef name (Just 1) (Just 1) ifLn)
+    (defns, TypeRef name (Just 1) (Just 1) ifLn ifDoc)
 flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "[fSR] GroupScheme"
