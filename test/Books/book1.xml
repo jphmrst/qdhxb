@@ -1,0 +1,10 @@
+<!-- From https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms764613(v=vs.85) -->
+<?xml version="1.0"?>
+   <book id="bk001">
+      <author>Writer</author>
+      <title>The First Book</title>
+      <genre>Fiction</genre>
+      <price>44.95</price>
+      <pub_date>2000-10-01</pub_date>
+      <review>An amazing story of nothing.</review>
+   </book>

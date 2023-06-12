@@ -1,0 +1,11 @@
+<!-- From https://learn.microsoft.com/en-us/previous-versions/windows/desktop/ms764613(v=vs.85) -->
+<?xml version="1.0"?>
+   <book id="bk002">
+      <author>Poet</author>
+      <title>The Poet's First Poem</title>
+      <genre>Poem</genre>
+      <price>24.95</price>
+      <pub_date>2005-11-09</pub_date>
+      <!-- Added above line to conform to XSD spec. -->
+      <review>Least poetic poems.</review>
+   </book>

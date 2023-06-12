@@ -4,6 +4,7 @@ import Shiporder.Shiporder0 (testShiporder0)
 import Shiporder.Shiporder1 (testShiporder1)
 import Shiporder.Shiporder2 (testShiporder2)
 import Books.Books1 (testBooks1)
+import Books.BookMod0 (testBookMod0)
 import Books.BooksMod0 (testBooksMod0)
 import Books.BooksMod1 (testBooksMod1)
 import Books.BooksMod2 (testBooksMod2)
@@ -42,6 +43,7 @@ main = do
     testShiporder1
     testShiporder2
     testBooks1
+    testBookMod0
     testBooksMod0
     testBooksMod1
     testBooksMod2
