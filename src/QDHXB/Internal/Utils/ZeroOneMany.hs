@@ -3,7 +3,7 @@
 module QDHXB.Internal.Utils.ZeroOneMany (
     ZeroOneMany(Zero, One, Many),
     zomToMaybe, zomToSingle, zomToList, listToZom,
-    zappend, lzappend, zomfilter, zommap, zomintercalate
+    zappend, lzappend, zomfilter, zommap, zommapM, zomintercalate
     )
 where
 import Data.List (intercalate)
@@ -82,6 +82,12 @@ zommap :: (a -> b) -> ZeroOneMany a -> ZeroOneMany b
 zommap _ Zero = Zero
 zommap f (One m) = One $ f m
 zommap f (Many ms) = Many $ map f ms
+
+-- | Version of `mapM` for `ZeroOneMany` collections.
+zommapM :: Monad m => (a -> m b) -> ZeroOneMany a -> m (ZeroOneMany b)
+zommapM _ Zero = return Zero
+zommapM f (One m) = fmap One $ f m
+zommapM f (Many ms) = fmap Many $ mapM f ms
 
 -- | Version of `intercalate` for `ZeroOneMany` instead of a list of
 -- lists.

@@ -4,7 +4,7 @@ module QDHXB.Expansions (
   readMaybe, mapM,
   simpleTypeDecoder,
   Content,
-  ZeroOneMany(Zero, One, Many), zomToList,
+  ZeroOneMany(Zero, One, Many), zomToList, zommapM,
   Except, throwError, catchError, runExcept, runExceptT,
   spaceSep, pullAttrFrom,
   Day, TimeOfDay, DiffTime, ZonedTime,

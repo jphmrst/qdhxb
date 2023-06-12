@@ -599,13 +599,13 @@ encodeSimpleTypeByRestriction -- Note ignoring ats
   ifDoc <- getAnnotationDocFrom cs
   case pullAttr "base" ats' of
     Just base -> do
-      dbgLn $ "- base " ++ base
+      whenDebugging $ dbgLn $ "- base " ++ base
       baseQName <- decodePrefixedName base
-      dbgBLabel "- baseQName " baseQName
+      whenDebugging $ dbgBLabel "- baseQName " baseQName
       let useName = maybe (Just $ withPrefix (outer ++ "Restr") baseQName)
                           (const ifName) ifName
                     -- TODO --- make sure this is in target namespace
-      dbgBLabel "- useName " useName
+      whenDebugging $ dbgBLabel "- useName " useName
       dbgResult "Encoding result" $
         SimpleTypeScheme useName (SimpleRestriction baseQName) ln ifDoc
     Nothing -> error "restriction without base"

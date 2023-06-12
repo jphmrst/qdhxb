@@ -41,10 +41,11 @@ module QDHXB.Internal.Utils.TH (
   justConE, justMatchId, justPat, applyJust,
   -- ** `Data.List`
   mapVarE, caseListZeroOneMany, caseListOneElse, applyConcat, applyFmapConcat,
+  applyListType,
   -- ** `IO`
   ioConT,
   -- ** `Functor` and `Contol.Monad.Monad`
-  fmapVarE, applyMap, applyMapM, applyFmap,
+  fmapVarE, applyMap, applyMap1, applyMapM, applyFmap,
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon, applyRunExcept,
   -- *** With `Control.Monad.Except.runAccept`
@@ -63,7 +64,7 @@ module QDHXB.Internal.Utils.TH (
   -- * `QDHXB.Internal.Utils.ZeroOneMany`
   zomConT, zeroPat, onePat, manyPat, zomToListVarE,
   applyZomToSingle, applyZomToMaybe, applyZomToList,
-  zomCase, zomCaseSingle, zomCaseSingle',
+  zomCase, zomCaseSingle, zomCaseSingle', applyZommapM,
 
   -- * @XMLLight@
   contentConT, applyPullContentFrom, applyPullCRefContent, applyLoadContent,
@@ -637,6 +638,10 @@ applyMaybe ifNothing ifJust e =
 appMaybeType :: Type -> Type
 appMaybeType t = AppT maybeConT t
 
+-- | Given a `Type`, wrap it as a list type.
+applyListType :: Type -> Type
+applyListType t = AppT ListT t
+
 -- | TH `Type` for `Show`
 showConT :: Type
 showConT = ConT showName
@@ -946,15 +951,32 @@ spaceSepApp = AppE (VarE spaceSepName)
 mapMName :: Name
 mapMName = mkName "QDHXB.Expansions.mapM"
 
--- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
--- `Control.Monad.mapM` function.
+-- | `Name` for the `QDHXB.Expansions.zommapM` re-export of the
+-- `QDHXB.Internal.Utils.ZeroOneMany.zommapM` function.
+zommapMName :: Name
+zommapMName = mkName "QDHXB.Expansions.zommapM"
+
+-- | Create an `Exp`ression from a full application of the
+-- `QDHXB.Expansions.mapM` re-export of the `Control.Monad.mapM`
+-- function.
 applyMapM :: Exp -> Exp -> Exp
 applyMapM f = AppE (AppE (VarE mapMName) f)
 
--- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
--- `Control.Monad.mapM` function.
+-- | Create an `Exp`ression from a full application of the
+-- `QDHXB.Expansions.zommapM` re-export of the
+-- `QDHXB.Internal.Utils.ZeroOneMany.zommapM` function.
+applyZommapM :: Exp -> Exp -> Exp
+applyZommapM f = AppE (AppE (VarE zommapMName) f)
+
+-- | Create an `Exp`ression from a full application of the `map`
+-- function.
 applyMap :: Exp -> Exp -> Exp
 applyMap f = AppE (AppE (VarE mapName) f)
+
+-- | Create an `Exp`ression from a partial application of the `map`
+-- function to a single argument only.
+applyMap1 :: Exp -> Exp
+applyMap1 f = AppE (VarE mapName) f
 
 -- | `Name` for the `QDHXB.Expansions.mapM` re-export of the
 -- `Control.Monad.mapM` function.

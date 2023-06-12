@@ -104,9 +104,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (e) " decl
     dbgBLabel "- typ " typ
-  let extractElemNam = mkName $ "extractElement" ++ baseName
-      origName = qName nam
+  let origName = qName nam
       baseName = firstToUpper $ origName
+      extractElemNam = mkName $ "extractElement" ++ baseName
       -- tryLoadNam = mkName $ "tryLoad" ++ baseName
   decodedType <- getTypeHaskellType typ
   decoderFn <- getTypeDecoderFn typ
@@ -124,6 +124,22 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
                               decoderFn cparamName extRes ++ [
                                 NoBindS $ applyReturn $ VarE extRes
                                 ]) []]
+      ]
+
+  subextractor <- do
+    let extractSubElemsNam = mkName $ "extractSubElements" ++ baseName
+    cparamName <- newName "content"
+    pushDeclHaddock ifDoc extractElemNam
+      ("Decode @\\<" ++ origName
+       ++ ">@ subelements of a given piece of @Content@.")
+    return [
+      SigD extractSubElemsNam (fn1Type contentConT
+                               (qHXBExcT $ AppT zomConT decodedType)),
+      FunD extractSubElemsNam [
+          Clause [VarP cparamName]
+            (NormalB $
+              (applyZommapM (VarE extractElemNam)
+                (applyPullContentFrom origName $ VarE cparamName))) []]
       ]
 
   -- TODO Now add a version of EXTRACTOR for pulling a list (or a
@@ -151,7 +167,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
                       ) []]
         ]
 
-  dbgResult "Generated" $ extractor ++ loader
+  dbgResult "Generated" $ extractor ++ subextractor ++ loader
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
