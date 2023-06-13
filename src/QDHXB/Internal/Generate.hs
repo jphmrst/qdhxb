@@ -568,11 +568,8 @@ getSafeDecoder qn = indenting $ do
           whenDebugging $ do
             dbgBLabel "- typeAndConstrName " typeAndConstrName
             dbgBLabel "- haskellType " haskellType
-          whenDebugging $ do
-            dbgBLabel "- Mapping getSafeDecoderCall onto " $ show subqns
-          subdecoders <- indenting $
-            mapM (\(thisQN, _thisUsage) -> do
-                     getSafeDecoderCall thisQN) subqns
+          whenDebugging $ dbgPt "Mapping getSafeDecoderCall onto group items"
+          subdecoders <- indenting $ mapM getSafeDecoderCall subqns
           whenDebugging $ do
             dbgLn "- subdecoders"
             indenting $ forM_ subdecoders $ \sd ->
@@ -652,14 +649,27 @@ getSafeDecoder qn = indenting $ do
 
 -- | Return an invocation of a safe decoder expected to be defined
 -- elsewhere.
-getSafeDecoderCall :: QName -> XSDQ BlockMaker
-getSafeDecoderCall qn = do
-  let result = \src dest -> [
+getSafeDecoderCall :: (QName, AttributeUsage) -> XSDQ BlockMaker
+getSafeDecoderCall (qn, usage) = do
+  whenDebugging $
+    dbgPt $ "getSafeDecoderCall on " ++ showQName qn ++ " used " ++ show usage
+  let base :: BlockMaker
+      base = \src dest -> [
         BindS (VarP dest) $ AppE (buildSafeDecoderExpFor $ qName qn) (VarE src)
         ]
-  whenDebugging $ do
-    dbgBLabel ("- getSafeDecoderCall for " ++ showQName qn) $
-      result (mkName "SRC") (mkName "DEST")
+
+  result <- case usage of
+    Optional -> return base
+    Required ->  do
+      tmp <- newName "ifVal"
+      core <- justOrThrow (VarE tmp) (LitE $ StringL "Value required")
+      return $ \src dest ->
+        base src tmp ++ [LetS [ValD (VarP dest) (NormalB core) []]]
+    Forbidden -> return $ \_ dest ->
+      [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
+
+  whenDebugging $
+    dbgBLabel ("  gives") $ result (mkName "SRC") (mkName "DEST")
   return result
 
 

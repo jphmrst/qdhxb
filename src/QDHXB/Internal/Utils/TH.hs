@@ -25,38 +25,54 @@ module QDHXB.Internal.Utils.TH (
   caseLeftRight, caseLeftRight',
   caseNothingJust, caseNothingJust',
   qLambdaWithArg, qLambdaCtntArg,
+
   -- ** Primitive types
   stringConT, quoteStr,
+
   -- ** Primitive functions
   errorVarE, throwsError, throwsErrorExp,
+
   -- ** `Eq`
   eqConT,
+
   -- ** `Read` and `Show`
   showConT, showVarE, readVarE,
+
   -- ** `Maybe`
   maybeConT, appMaybeType, applyMaybe, justOrThrow,
+
   -- *** With `Nothing`
   nothingConE, nothingPat,
+
   -- *** With `Just`
   justConE, justMatchId, justPat, applyJust,
+
   -- ** `Data.List`
   mapVarE, caseListZeroOneMany, caseListOneElse, applyConcat, applyFmapConcat,
   applyListType,
+
   -- ** `IO`
   ioConT,
+
   -- ** `Functor` and `Contol.Monad.Monad`
   fmapVarE, applyMap, applyMap1, applyMapM, applyFmap,
+
   -- ** Utilities for building expressions with `Control.Monad.Except.Except`
   exceptConT, applyExceptCon, applyRunExcept,
+
   -- *** With `Control.Monad.Except.runAccept`
   runExceptVarE, applyRunExceptExp, applyRunExceptTExp, resultOrThrow,
+
   -- *** With `Control.Monad.Except.throwError`
   throwVarE, applyThrowStmt, applyThrowStrStmt,
   applyThrowExp, applyThrowStrExp,
+
   -- *** With `Control.Monad.Except.catchError`
   catchErrorVarE, applyCatchErrorExp, replaceOnError, withShowAndThrowHandler,
+
   -- *** Monadic statements
   throwsExc, returnExp, applyReturn,
+
   -- ** Miscellaneous expression builders
   fn1Type, fn2Type, app2Exp, app3Exp, app4Exp,
   quotedId, quotedReturnId,
