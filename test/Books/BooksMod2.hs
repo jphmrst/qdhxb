@@ -7,13 +7,11 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Bad lookup of defined type
 -- qdhxb (useDebugging . logByFile True) ["test/Books/books-mod2.xsd"]
--- qdhxb' ["test/Books/books-mod2.xsd"]
+qdhxb' ["test/Books/books-mod2.xsd"]
 
 testBooksMod2 :: TLT IO ()
 testBooksMod2 = inGroup "XSD books 2 --- int attr" $ do
-  {-
   inGroup "Scalars" $ do
     "Sample in booksInt.xml" ~:
       BooksForm [
@@ -23,5 +21,4 @@ testBooksMod2 = inGroup "XSD books 2 --- int attr" $ do
                  24.95 (read "2005-11-09") "Least poetic poems."
                 ]
         @== (lift $ loadBooks "test/Books/booksInt.xml")
-  -}
   return ()
