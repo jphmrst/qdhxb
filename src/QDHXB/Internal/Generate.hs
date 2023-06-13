@@ -569,9 +569,9 @@ getSafeDecoder qn = indenting $ do
             dbgBLabel "- typeAndConstrName " typeAndConstrName
             dbgBLabel "- haskellType " haskellType
           whenDebugging $ do
-            dbgBLabel "- Mapping getSafeDecoderCall onto " subqns
+            dbgBLabel "- Mapping getSafeDecoderCall onto " $ show subqns
           subdecoders <- indenting $
-            mapM (\thisQN -> do
+            mapM (\(thisQN, _thisUsage) -> do
                      getSafeDecoderCall thisQN) subqns
           whenDebugging $ do
             dbgLn "- subdecoders"
@@ -1104,7 +1104,7 @@ newAssemble base tyDec safeDec ifDoc = do
     ++ "`, or fail with a top-level `error`"
 
   res <- newName "res"
-  let decodeBody = AppE (VarE safeDecAsNam) (VarE paramName)
+  decodeBody <- resultOrThrow $ AppE (VarE safeDecAsNam) (VarE paramName)
   whenDebugging $ dbgBLabel "- decodeBody " decodeBody
   let baseList = [
         SigD safeDecAsNam tryDecType,

@@ -563,8 +563,8 @@ adjustTypeForUsage Required t = t
 
 -- | Return the Haskell type of an attribute or attribute group in the
 -- context of a particular usage declaration.
-getAttributeOrGroupTypeForUsage :: QName -> XSDQ Type
-getAttributeOrGroupTypeForUsage qn = do
+getAttributeOrGroupTypeForUsage :: (QName, AttributeUsage) -> XSDQ Type
+getAttributeOrGroupTypeForUsage (qn, _usage) = do
   whenDebugging $ dbgBLabel "[gAoGTfU @XSDQ] for " qn
   ifDefn <- getAttributeOrGroup qn
   case ifDefn of

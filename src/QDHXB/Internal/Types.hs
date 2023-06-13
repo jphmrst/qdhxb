@@ -79,7 +79,7 @@ data AttributeDefn =
       QName   -- ^ ifType
       AttributeUsage -- ^ use mode: prohibited, optional (default), required
   | AttributeGroupDefn -- ^ Defining a group of attributes
-      [QName] -- ^ Names of included attributes and
+      [(QName, AttributeUsage)] -- ^ Names of included attributes and
                                 -- attribute groups, with how each is
                                 -- required within this group
                                 --
@@ -94,8 +94,10 @@ instance Blockable AttributeDefn where
   block (SingleAttributeDefn t m) = stringToBlock $
     "Single " ++ showQName t ++ " (" ++ show m ++ ")"
   block (AttributeGroupDefn ds) =
-    labelBlock "AttributeGroup " $ stackBlocks $
-      map (stringToBlock . showQName) ds
+    labelBlock "AttributeGroup " $ stackBlocks $ map usagePairBlock ds
+    where usagePairBlock :: (QName, AttributeUsage) -> Block
+          usagePairBlock (qn, u) =
+            labelBlock (showQName qn ++ " used ") $ block u
 
 -- | The actual definition of an XSD element.
 data Definition =

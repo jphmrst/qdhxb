@@ -178,7 +178,7 @@ flattenAttributeGroupItem ::
   -> XSDQ [Definition]
 flattenAttributeGroupItem (WithName n) cs l d = do
   whenDebugging $ dbgLn "[fAGI] Flattening attribute group item"
-  let names = map grabName cs
+  let names = map grabNameAndUsage cs
   defs <- indenting $ flattenAttributes cs
   let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
   fileNewDefinition attrDefn
@@ -395,13 +395,16 @@ musterAttributesForComplexSequence defs refs ats = do
   dbgResult "Result [mAFCS]:" $
     (defs ++ atsDefs, atsRefs ++ refs)
 
-grabName :: AttributeScheme -> QName
-grabName (SingleAttribute (WithName n) _ _ _) = n
-grabName (SingleAttribute (WithRef n) _ _ _) = n
-grabName (SingleAttribute WithNeither (NameRef t) _ _) = t
-grabName (AttributeGroup (WithName n) _ _) = n
-grabName (AttributeGroup (WithRef n) _ _) = n
-grabName a = error $ "No useable name in " ++ show a
+grabNameAndUsage :: AttributeScheme -> (QName, AttributeUsage)
+grabNameAndUsage (SingleAttribute (WithName n) _ useStr _) =
+  (n, stringToAttributeUsage useStr)
+grabNameAndUsage (SingleAttribute (WithRef n) _ useStr _) =
+  (n, stringToAttributeUsage useStr)
+grabNameAndUsage (SingleAttribute WithNeither (NameRef t) useStr _) =
+  (t, stringToAttributeUsage useStr)
+grabNameAndUsage (AttributeGroup (WithName n) _ _) = (n, Optional)
+grabNameAndUsage (AttributeGroup (WithRef n) _ _) = (n, Optional)
+grabNameAndUsage a = error $ "No useable name in " ++ show a
 
 flattenSchemaAttributeRefs ::
   [AttributeScheme] -> XSDQ ([Definition], [Reference])
@@ -652,7 +655,7 @@ flattenAttribute ag@(AttributeGroup (WithName n) schemes d) = do
   whenDebugging $
     dbgBLabel "[fA] Attribute group with name reference " ag
   indenting $ do
-    let names = map grabName schemes
+    let names = map grabNameAndUsage schemes
         defn = AttributeDefn n (AttributeGroupDefn names) Nothing d
     fileNewDefinition defn
     sub <- fmap concat $ mapM flattenAttribute schemes
