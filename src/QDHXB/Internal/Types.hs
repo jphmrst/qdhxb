@@ -56,6 +56,15 @@ instance Blockable Reference where
 data AttributeUsage = Forbidden | Optional | Required
   deriving (Eq, Show)
 
+instance Blockable AttributeUsage where
+  block u = stringToBlock $ case u of
+                              Forbidden -> "Forbidden"
+                              Optional -> "Optional"
+                              Required -> "Required"
+
+-- Must follow definition of `AttributeUsage`, to keep
+-- mutually-recursive definitions together wrt Template Haskell
+-- divisions
 verticalBlockList [t|Reference|]
 
 -- | Return the `QName` of the entity described in a `Reference`.
@@ -70,9 +79,15 @@ data AttributeDefn =
       QName   -- ^ ifType
       AttributeUsage -- ^ use mode: prohibited, optional (default), required
   | AttributeGroupDefn -- ^ Defining a group of attributes
-      [QName] -- ^ names of included attributes and attribute groups
-       -- TODO Should be (QName, AttributeUsage) --- and update uses
-       -- in module Generate (xsdDeclToHaskell, AttributeDefn case)
+      [QName] -- ^ Names of included attributes and
+                                -- attribute groups, with how each is
+                                -- required within this group
+                                --
+                                -- TODO Should be (QName,
+                                -- AttributeUsage) --- and update uses
+                                -- in module Generate
+                                -- (xsdDeclToHaskell, AttributeDefn
+                                -- case)
   deriving Show
 
 instance Blockable AttributeDefn where

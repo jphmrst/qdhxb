@@ -35,8 +35,8 @@ module QDHXB.Internal.XSDQ (
   decodePrefixedName, getURIprefix, getNextCapName,
 
   -- * Debugging output
-  indenting, indentingWith, dbgLn, dbgPt, dbgBLabel, dbgBLabelPt, boxed,
-  dbgResult, dbgResultM, debugXSDQ,
+  indenting, indentingWith, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
+  boxed, dbgResult, dbgResultM, debugXSDQ,
 
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
@@ -565,14 +565,20 @@ adjustTypeForUsage Required t = t
 -- context of a particular usage declaration.
 getAttributeOrGroupTypeForUsage :: QName -> XSDQ Type
 getAttributeOrGroupTypeForUsage qn = do
+  whenDebugging $ dbgBLabel "[gAoGTfU @XSDQ] for " qn
   ifDefn <- getAttributeOrGroup qn
   case ifDefn of
     Nothing -> throwError $ "No attribute or group " ++ show qn
     Just defn -> do
-      typ <- buildAttrOrGroupHaskellType qn
-      return $ case defn of
-        SingleAttributeDefn _ usage -> adjustTypeForUsage usage typ
-        AttributeGroupDefn _subAttrs {- usage -} -> typ
+      typ <- indenting $ buildAttrOrGroupHaskellType qn
+      whenDebugging $ dbgBLabel "- typ " typ
+      case defn of
+        SingleAttributeDefn _ usage -> do
+          whenDebugging $ dbgBLabel "- defn Single attr with usage " usage
+          dbgResult "Returns type:" $ adjustTypeForUsage usage typ
+        AttributeGroupDefn _subAttrs {- usage -} -> do
+          whenDebugging $ dbgLn "- defn Attr group, assuming Optional"
+          dbgResult "Returns type as-is:" $ typ
 
 -- | Return the `Definition` of an XSD attribute or attribute group
 -- from the tracking tables in the `XSDQ` state.
@@ -789,6 +795,10 @@ dbgLn :: String -> XSDQ ()
 dbgLn s = do
   ind <- getIndentation
   liftIO $ putStrLn $ ind ++ s
+
+-- |Output the given line in the current level of indentation.
+dbgBlock :: Block -> XSDQ ()
+dbgBlock b = dbgLn $ outBlock b
 
 -- |Output the given line as a bulleted item in the current level of
 -- indentation.
