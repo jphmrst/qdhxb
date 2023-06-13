@@ -6,9 +6,9 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic0.xsd"]
--- qdhxb' ["test/GroupBasic/group-basic0.xsd"]
 -- TODO Type error in generated code
+qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic0.xsd"]
+-- qdhxb' ["test/GroupBasic/group-basic0.xsd"]
 
 testGB0 :: TLT IO ()
 testGB0 = inGroup "Group basic 0" $ do
