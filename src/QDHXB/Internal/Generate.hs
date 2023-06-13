@@ -857,10 +857,13 @@ referenceToBlockMaker r@(ElementRef eqn lo hi _) = do
       labelBlock "  getRefSafeDecoder gives " $
         stringToBlock $
           pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
-  f' <- makeSubelementBinder eqn singleDecoder lo hi
+  ifTqn <- getElementType eqn
+  let tqn = maybe (error $ "No element type for " ++ bpp eqn) id ifTqn
+  hsType <- getTypeHaskellType tqn
+  f' <- refBlockMakerForBounds eqn hsType singleDecoder lo hi
   whenDebugging $ do
     dbgLn $ outBlock $
-      labelBlock "  makeSubelementBinder gives " $
+      labelBlock "  refBlockMakerForBounds gives " $
         stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
   return f'
 
@@ -882,28 +885,29 @@ referenceToBlockMaker r@(TypeRef tqn lo hi _ _) = do
       labelBlock "  getRefSafeDecoder gives " $
         stringToBlock $
           pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
-  f' <- indenting $ makeSubelementBinder tqn singleDecoder lo hi
+  hsType <- getTypeHaskellType tqn
+  f' <- indenting $ refBlockMakerForBounds tqn hsType singleDecoder lo hi
   whenDebugging $ do
     dbgLn $ outBlock $
-      labelBlock "  makeSubelementBinder gives " $
+      labelBlock "  refBlockMakerForBounds gives " $
         stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
   return f'
 
+refBlockMakerForBounds ::
+  QName -> Type -> BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
+refBlockMakerForBounds sqn hsTyp indivF lo hi = indenting $
+  refBlockMakerForBounds' sqn hsTyp (applyPullContentFrom $ qName sqn)
+                          indivF lo hi
 
-makeSubelementBinder ::
-  QName -> BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
-makeSubelementBinder sqn indivF lo hi = indenting $
-  makeSubelementBinder' sqn (applyPullContentFrom $ qName sqn) indivF lo hi
-
-makeSubelementBinder' ::
-  QName -> (Exp -> Exp) -> (BlockMaker) -> Maybe Int -> Maybe Int
+refBlockMakerForBounds' ::
+  QName -> Type -> (Exp -> Exp) -> (BlockMaker) -> Maybe Int -> Maybe Int
   -> XSDQ (BlockMaker)
-makeSubelementBinder' _ _ _ _ (Just 0) = do                  -- Unit
-  whenDebugging $ dbgLn "makeSubelementBinder' unit case"
+refBlockMakerForBounds' _ _ _ _ _ (Just 0) = do                  -- Unit
+  whenDebugging $ dbgLn "refBlockMakerForBounds' unit case"
   return $ \ _ dest -> [ BindS (VarP dest) $ TupE [] ]
 
-makeSubelementBinder' tqn puller indivF (Just 1) (Just 1) = do -- Single
-  whenDebugging $ dbgLn "makeSubelementBinder' single case"
+refBlockMakerForBounds' tqn _ puller indivF (Just 1) (Just 1) = do -- Single
+  whenDebugging $ dbgLn "refBlockMakerForBounds' single case"
   pull <- newName "pullForSingle"
   single <- newName "single"
   return $ \src dest ->
@@ -915,8 +919,8 @@ makeSubelementBinder' tqn puller indivF (Just 1) (Just 1) = do -- Single
                    pull single
     ++ indivF single dest
 
-makeSubelementBinder' _ puller indivF _ (Just 1) = do        -- Maybe
-  whenDebugging $ dbgLn "makeSubelementBinder' maybe case"
+refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
+  whenDebugging $ dbgLn "refBlockMakerForBounds' maybe case"
   pull <- newName "pullForMaybe"
   tmp <- newName "subres"
   a <- newName "eachPulled"
@@ -930,13 +934,13 @@ makeSubelementBinder' _ puller indivF _ (Just 1) = do        -- Maybe
                         NoBindS $ applyReturn $ VarE tmp]) $ VarE pull)
     : listToMaybe mapped dest
 
-makeSubelementBinder' tqn puller indivF _ _ = do             -- List
-  whenDebugging $ dbgLn "makeSubelementBinder' list case"
+refBlockMakerForBounds' tqn hsType puller indivF _ _ = do             -- List
+  whenDebugging $ dbgLn "refBlockMakerForBounds' list case"
   pull <- newName "pullForList"
   asList <- newName "asList"
   tmp <- newName "postpull"
-  hsType <- getTypeHaskellType tqn
   a <- newName "a"
+  whenDebugging $ dbgBLabel "- hsType" hsType
   return $ \src dest -> [
     LetS [SigD pull (AppT zomConT contentConT),
           ValD (VarP pull) (NormalB $ puller $ VarE src) []],
