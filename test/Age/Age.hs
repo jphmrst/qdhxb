@@ -6,9 +6,9 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-qdhxb (useDebugging . logByFile True) ["test/Age/age.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/Age/age.xsd"]
 -- qdhxb (logByFile True) ["test/Age/age.xsd"]
--- qdhxb' ["test/Age/age.xsd"]
+qdhxb' ["test/Age/age.xsd"]
 
 testAge :: TLT IO ()
 testAge = inGroup "XSD age" $ do
