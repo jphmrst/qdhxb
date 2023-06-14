@@ -138,7 +138,7 @@ instance Blockable QdxhbState where
     `stack2` (let groupDefns = stateGroupDefinitions st
               in if null groupDefns
                  then stringToBlock "- No group defs"
-                 else (labelBlock "- Type defs: " $
+                 else (labelBlock "- Group defs: " $
                         foldr1 stack2
                           (map (\(qn,defn) ->
                                   (labelBlock (bpp qn ++ " -> ") $ block defn)

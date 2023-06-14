@@ -263,7 +263,7 @@ flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
                          ats (Just name) l d = do
   whenDebugging $ dbgLn "[fCTS] Group/WithRef case"
   (defs, refs) <- indenting $ musterAttributesForComplexSequence [] [
-    TypeRef r ifMin ifMax l d
+    GroupRef r ifMin ifMax l d
     ] ats
   let tyDefn = SequenceDefn name refs l d
   fileNewDefinition tyDefn
