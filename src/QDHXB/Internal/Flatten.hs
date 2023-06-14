@@ -448,11 +448,12 @@ flattenSchemaRef c@(ComplexTypeScheme _ _ (Just n) ifLine ifDoc) = do
   defns <- indenting $ flattenSchemaItem c
   dbgResult "Flattened [fSR.CTS] to" $
     (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
-flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
+flattenSchemaRef s@(SimpleTypeScheme (Just n) _ ifLine ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] STS " s
   defns <- indenting $ flattenSchemaItem s
   dbgResult "Flattened [fSR.STS] to" $
     (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
+
 flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WR " gs
   dbgResult "Flattened [fSR.GS-WR] to" $
@@ -462,13 +463,30 @@ flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   dbgResult "Flattened [fSR.GS-WN] to" $
     (defns, GroupRef name (Just 1) (Just 1) ifLn ifDoc)
+
+flattenSchemaRef gs@(ChoiceScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
+  whenDebugging $ dbgBLabel "[fSR] CS-WR " gs
+  dbgResult "Flattened [fSR.CS-WR, just converting to type reference] to" $
+    ([], TypeRef ref (Just 1) (Just 1) ifLn ifDoc)
+flattenSchemaRef gs@(ChoiceScheme (WithName name) (Just sub) ifLn ifDoc) = do
+  whenDebugging $ dbgBLabel "[fSR] CS-WN " gs
+  defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
+  dbgResult "Flattened [fSR.GS-WN] to" $
+    (defns, TypeRef name (Just 1) (Just 1) ifLn ifDoc)
+
 flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "[fSR] GroupScheme"
     dbgBLabel "CTS " cts
     dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
-  error $ "TODO flattenSchemaRef > GroupScheme with neither name nor reference"
-  -- return ([], TypeRef ref Nothing Nothing ifLn ifDoc)
+  error $ "TODO flattenSchemaRef > GroupScheme with no name/reference"
+flattenSchemaRef (ChoiceScheme WithNeither (Just cts) ifLn _ifDoc) = do
+  boxed $ do
+    dbgLn "[fSR] ChoiceScheme"
+    dbgBLabel "CTS " cts
+    dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
+  error $ "TODO flattenSchemaRef > ChoiceScheme with no name/reference"
+
 flattenSchemaRef s = do
   boxed $ do
     dbgLn "[fSR] flattenSchemaRef"
