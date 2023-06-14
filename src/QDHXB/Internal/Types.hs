@@ -33,6 +33,12 @@ data Reference =
       (Maybe Int)    -- ^ Upper bound of occurences.
       (Maybe Line)    -- ^ Source code line.
       (Maybe String)   -- ^ Documentation of the referenced type.
+  | GroupRef       -- ^ Reference to a group.
+      QName        -- ^ Name of the group.
+      (Maybe Int)   -- ^ Lower bound of occurences.
+      (Maybe Int)    -- ^ Upper bound of occurences.
+      (Maybe Line)    -- ^ Source code line.
+      (Maybe String)   -- ^ Documentation of the referenced type.
 {-
   | ComplexTypeRef String
   -- ^ The name of a complex type.
@@ -48,6 +54,10 @@ instance Blockable Reference where
     "AttributeRef " ++ showQName name ++ " usage=" ++ show usage
   block (TypeRef name ifLower ifUpper _ _) = stringToBlock $
     "TypeRef " ++ showQName name
+    ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
+    ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
+  block (GroupRef name ifLower ifUpper _ _) = stringToBlock $
+    "GroupRef " ++ showQName name
     ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
     ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
 

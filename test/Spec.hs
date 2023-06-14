@@ -19,6 +19,8 @@ import PersonAttr1.PersonAttr1 (testPersonAttr1)
 import PersonAttr2.PersonAttr2 (testPersonAttr2)
 import PersonAttr2.PersonAttr2Inline (testPersonAttr2Inline)
 import PersonAttr2r.PersonAttr2r (testPersonAttr2r)
+import GroupBasic.MinGroup0 (testMinGroup0)
+import GroupBasic.MinGroup1 (testMinGroup1)
 import GroupBasic.GroupBasic0 (testGB0)
 import GroupBasic.GroupBasic1 (testGB1)
 import ChoiceBasic.ChoiceBasic0 (testCB0)
@@ -57,6 +59,8 @@ main = do
     testPersonAttr2
     testPersonAttr2Inline
     testPersonAttr2r
+    testMinGroup0
+    testMinGroup1
     testGB0
     testGB1
     testCB0

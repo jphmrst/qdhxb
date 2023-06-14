@@ -129,6 +129,10 @@ data DataScheme =
                 (Maybe ComplexTypeScheme) -- ^ contents
                 (Maybe Line) -- ^ ifLine
                 (Maybe String) -- ^ ifDocumentation
+  | ChoiceScheme NameOrRefOpt -- ^ name or reference, or possibly neither
+                 (Maybe ComplexTypeScheme) -- ^ contents
+                 (Maybe Line) -- ^ ifLine
+                 (Maybe String) -- ^ ifDocumentation
   | UnprocessedXML (Maybe QName) -- ^ name
                    (Maybe Line) -- ^ ifLine
                    (Maybe String) -- ^ ifDocumentation
@@ -140,6 +144,7 @@ data DataScheme =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
 --  block (GroupScheme base ref typeScheme ifLine ifDoc) =
+--  block (ChoiceScheme base ref typeScheme ifLine ifDoc) =
 --  block (UnprocessedXML ifName ifLine ifDoc) =
 
 
@@ -183,6 +188,9 @@ labelOf (UnprocessedXML n _ _) = n
 labelOf (GroupScheme (WithName n) _n _l _d) = Just n
 labelOf (GroupScheme (WithRef n) _n _l _d) = Just n
 labelOf (GroupScheme WithNeither _n _l _d) = Nothing
+labelOf (ChoiceScheme (WithName n) _n _l _d) = Just n
+labelOf (ChoiceScheme (WithRef n) _n _l _d) = Just n
+labelOf (ChoiceScheme WithNeither _n _l _d) = Nothing
 
 -- | Predicate returning `False` on `Skip` values
 nonSkip :: DataScheme -> Bool
@@ -231,6 +239,15 @@ instance Blockable DataScheme where
     "Group reference " ++ qName ref
   block (GroupScheme WithNeither ts _ln _d) = stringToBlock $
     "Group unnamed no-ref " ++ bpp ts
+
+  block (ChoiceScheme (WithName nam) ts _ln _d) =
+    stringToBlock ("Choice " ++ showQName nam ++ " with contents")
+    `stack2` (labelBlock "  " $ block ts)
+  block (ChoiceScheme (WithRef ref) _ _ln _d) = stringToBlock $
+    "Choice reference " ++ qName ref
+  block (ChoiceScheme WithNeither ts _ln _d) = stringToBlock $
+    "Choice unnamed no-ref " ++ bpp ts
+
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
     "Unprocessed XML" ++ maybe "" quoteShowQName ifName
 

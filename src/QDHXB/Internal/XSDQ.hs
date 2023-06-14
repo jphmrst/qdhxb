@@ -20,7 +20,7 @@ module QDHXB.Internal.XSDQ (
   -- ** Attribute groups
   getAttributeGroup, buildAttrOrGroupHaskellName, buildAttrOrGroupHaskellType,
   -- ** Types
-  addTypeDefn, getTypeDefn, isKnownType,
+  addGroupDefn, getGroupDefn, addTypeDefn, getTypeDefn, isKnownType,
   ifKnownType, isSimpleType, isComplexType,
   getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
@@ -85,6 +85,7 @@ data QdxhbState = QdxhbState {
   stateAttributeTypes :: (QNameStore AttributeDefn),
   stateAttributeGroups :: (QNameStore AttributeDefn),
   stateTypeDefinitions :: (QNameStore Definition),
+  stateGroupDefinitions :: (QNameStore Definition),
   stateDefaults :: [Maybe String],
   stateNamespacesList :: [Namespaces],
   stateCapitalizedNames :: [String],
@@ -134,6 +135,16 @@ instance Blockable QdxhbState where
                                   `stack2`
                                   ((stringToBlock "  decoder ")))
                              typeDefns)))
+    `stack2` (let groupDefns = stateGroupDefinitions st
+              in if null groupDefns
+                 then stringToBlock "- No group defs"
+                 else (labelBlock "- Type defs: " $
+                        foldr1 stack2
+                          (map (\(qn,defn) ->
+                                  (labelBlock (bpp qn ++ " -> ") $ block defn)
+                                  `stack2`
+                                  ((stringToBlock "  decoder ")))
+                             groupDefns)))
     `stack2` (stringToBlock $ "- Indentation \"" ++ stateIndentation st ++ "\"")
     `stack2` (stringToBlock $ "- Resetting logs: " ++ (show $ stateResetLog st))
     `stack2` (stringToBlock $ "- Central log \""
@@ -152,6 +163,7 @@ initialQdxhbState optsF = let opts = optsF defaultOptionSet
   stateAttributeTypes = [],
   stateAttributeGroups = [],
   stateTypeDefinitions = [],
+  stateGroupDefinitions = [],
   stateDefaults = [],
   stateNamespacesList = [],
   stateCapitalizedNames = nameBodies,
@@ -233,7 +245,7 @@ fileNewDefinition (ElementDefn n t _ _)  = do
 fileNewDefinition d@(ComplexSynonymDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ChoiceDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ExtensionDefn qn _ _ _ _) = addTypeDefn qn d
-fileNewDefinition d@(GroupDefn qn _ _ _) = addTypeDefn qn d
+fileNewDefinition d@(GroupDefn qn _ _ _) = addGroupDefn qn d
 fileNewDefinition d@(BuiltinDefn qn _ _ _) = do
   whenDebugging $ do
     ind <- getIndentation
@@ -408,6 +420,20 @@ getTypeDefn :: QName -> XSDQ (Maybe Definition)
 getTypeDefn name = liftStatetoXSDQ $ do
   st <- get
   return $ lookupFirst (stateTypeDefinitions st) name
+
+-- | Register the `Definition` of an XSD group with the tracking tables
+-- in the `XSDQ` state.
+addGroupDefn :: QName -> Definition -> XSDQ ()
+addGroupDefn name defn = liftStatetoXSDQ $ do
+  st <- get
+  put $ st { stateGroupDefinitions = ((name, defn) : stateGroupDefinitions st) }
+
+-- | Return the `Definition` of an XSD group from the tracking tables
+-- in the `XSDQ` state.
+getGroupDefn :: QName -> XSDQ (Maybe Definition)
+getGroupDefn name = liftStatetoXSDQ $ do
+  st <- get
+  return $ lookupFirst (stateGroupDefinitions st) name
 
 -- | If the argument names an XSD type known to the translator, then
 -- return the `String` name of the corresponding Haskell type (and

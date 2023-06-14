@@ -137,7 +137,7 @@ flattenSchemaItem' s@(SimpleTypeScheme (Just nam)
 flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
   whenDebugging $
     dbgBLabel "[fSI'] Flattening group scheme with name and present content " gs
-  let typeSchemeName = withSuffix "Group" name
+  let typeSchemeName = withSuffix "GroupContent" name
   defs <- flattenComplexTypeScheme cts [] (Just typeSchemeName) ln doc
   {-
   boxed $ do
@@ -149,10 +149,14 @@ flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
     dbgLn $ "LN " ++ show ln
   error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
   -}
+
+  -- TODO The bounds are hardcoded here, but should be detected in the
+  -- Input and carried forward.
   let defn = GroupDefn name
-               (TypeRef typeSchemeName Nothing Nothing Nothing Nothing) ln doc
+               (TypeRef typeSchemeName (Just 1) (Just 1) Nothing Nothing) ln doc
   fileNewDefinition defn
-  dbgResult "Flattened [fSI'] to" $ defs ++ [defn]
+
+  dbgResult "Flattened [fSI'] to" $ defs {- ++ [defn] -}
 
 flattenSchemaItem' gs@(GroupScheme (WithRef ref) Nothing ln _doc) = do
   whenDebugging $
@@ -452,12 +456,12 @@ flattenSchemaRef s@(SimpleTypeScheme (Just n) _details ifLine ifDoc) = do
 flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WR " gs
   dbgResult "Flattened [fSR.GS-WR] to" $
-    ([], TypeRef ref (Just 1) (Just 1) ifLn ifDoc)
+    ([], GroupRef ref (Just 1) (Just 1) ifLn ifDoc)
 flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] GS-WN " gs
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   dbgResult "Flattened [fSR.GS-WN] to" $
-    (defns, TypeRef name (Just 1) (Just 1) ifLn ifDoc)
+    (defns, GroupRef name (Just 1) (Just 1) ifLn ifDoc)
 flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "[fSR] GroupScheme"

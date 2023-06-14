@@ -7,7 +7,7 @@ import QDHXB
 import qualified QDHXB.Expansions
 
 -- TODO Type error in generated code
-qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic0.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/GroupBasic/group-basic0.xsd"]
 -- qdhxb' ["test/GroupBasic/group-basic0.xsd"]
 
 testGB0 :: TLT IO ()

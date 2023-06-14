@@ -411,7 +411,7 @@ inputElement (QName "choice" _ _) ats ctnts outer ifLn ifDoc = do
     dbgBLabel "-- ats " ats
     dbgBLabel "-- ctnts " $ filter isElem ctnts
   ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
-  dbgResult "Choice encoding" $ GroupScheme nameRef (Just ts) ifLn ifDoc
+  dbgResult "Choice encoding" $ ChoiceScheme nameRef (Just ts) ifLn ifDoc
 
 inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <any> scheme:"

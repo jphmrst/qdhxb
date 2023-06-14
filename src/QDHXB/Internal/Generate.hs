@@ -389,8 +389,11 @@ xsdDeclToHaskell decl@(ExtensionDefn _qn _base _refs _ _) = do
   -}
 
 
-xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn ifDoc) = do
+xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (j) " decl
+  throwError
+    "Should not encounter GroupDefn in flattened code, for XSDQ state only"
+  {-
   -- Get the Haskell type name of the base type
   haskellType <- getTypeHaskellType tqn
   whenDebugging $ dbgBLabel "- haskellType " haskellType
@@ -400,45 +403,6 @@ xsdDeclToHaskell decl@(GroupDefn qn (TypeRef tqn _ _ _ _) _ifLn ifDoc) = do
   -- declaration, and the safe decoder steps transformer.
   dbgResultM "Generated" $
     newAssemble qn (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
-  -- error "REDO"
-  {-
-  let groupRoot = firstToUpper $ qName qn
-      groupName = mkName groupRoot
-      tryDecodeGroup = mkName $ "tryDecodeAs" ++ groupRoot
-      decodeGroup = mkName $ "decodeAs" ++ groupRoot
-  let typeRoot = firstToUpper $ qName tqn
-      typeName = mkName typeRoot
-      tryDecodeType = mkName $ "tryDecodeAs" ++ typeRoot
-      decodeType = mkName $ "decodeAs" ++ typeRoot
-
-  decoderBody <- getSafeStringDecoder tqn
-
-  dbgResult "Generated" [
-    -- Type declaration
-    TySynD groupName [] (ConT typeName),
-
-    -- Safe decoder
-    SigD tryDecodeGroup (fn1Type contentConT
-                                 (qHXBExcT (ConT groupName))),
-    FunD tryDecodeGroup
-      [Clause [ctxtVarP] (NormalB $ decoderBody ctxtVarE) []],
-
-    -- Decoder
-    SigD decodeGroup (fn1Type contentConT (ConT groupName)),
-    FunD decodeGroup [
-        Clause [ctxtVarP] (NormalB $ resultOrThrow $
-                            AppE (VarE tryDecodeGroup) ctxtVarE) []
-        ]
-
-     {-
-    -- TODO Encoder
-     : SigD encNam encType
-     : FunD encNam [Clause [] (NormalB $ AppE errorVarE
-                                              (quoteStr "TODO")) []]
-     -}
-
-    ]
-  -- error "xsdDeclToHaskell > GroupDefn case"
   -}
 
 
@@ -500,7 +464,7 @@ getSafeDecoder qn = indenting $ do
 
     Just defn -> do
       whenDebugging $ dbgBLabel "- Found type " defn
-      case defn of
+      indenting $ case defn of
         BuiltinDefn ty _ _ _ -> do
           forSimpleType ty
 
@@ -537,8 +501,14 @@ getSafeDecoder qn = indenting $ do
                 in [BindS (VarP dest) $ foldl1 replaceOnError toDests]
           return decoder
 
-        GroupDefn _name typRef _ifLn _ifDoc -> do
-          getRefSafeDecoder typRef
+        GroupDefn _name (TypeRef nam _lo _up _ln _doc) _ifLn _ifDoc -> do
+          whenDebugging $
+            dbgBLabel "- Using getSafeDecoderCall with Required for " nam
+          getSafeDecoderCall (nam, Required)
+        GroupDefn _name (ElementRef _ _ _ _) _ifLn _ifDoc -> do
+          error "ElementRef not allowed in GroupDefn"
+        GroupDefn _name (AttributeRef _ _) _ifLn _ifDoc -> do
+          error "AttributeRef not allowed in GroupDefn"
 
         ElementDefn _ _ty _ _ -> do
           error "REDO"
@@ -847,6 +817,18 @@ getRefSafeDecoder (TypeRef nam lower upper _ _) = do
   singleBlockMaker <- getSafeDecoder nam
   scaleBlockMakerToBounds singleBlockMaker lower upper
 
+getRefSafeDecoder (GroupRef nam lower upper _ _) = do
+  whenDebugging $ dbgLn $
+    "- getRefSafeDecoder GroupRef case for " ++ showQName nam
+  defn <- getGroupDefn nam
+  case defn of
+    Just (GroupDefn _ (TypeRef typ _ _ _ _) _ _) -> do
+      singleBlockMaker <- getSafeDecoder typ
+      scaleBlockMakerToBounds singleBlockMaker lower upper
+    _ -> do throwError $
+              "QDHXB: group reference " ++ showQName nam
+              ++ " to non-group definition"
+
 getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker)
 getAttrRefSafeDecoder rf = do
   whenDebugging $ dbgLn "getAttrRefSafeDecoder only case"
@@ -915,6 +897,34 @@ referenceToBlockMaker r@(TypeRef tqn lo hi _ _) = do
         stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
   return f'
 
+referenceToBlockMaker r@(GroupRef rqn lo hi _ _) = do
+  whenDebugging $ dbgBLabel "referenceToBlockMaker for" r
+  defn <- getGroupDefn rqn
+  case defn of
+    Just (GroupDefn _ (TypeRef gtyp _ _ _ _) _ _) -> do
+      singleBlockMaker <- getSafeDecoder gtyp
+      scaleBlockMakerToBounds singleBlockMaker lo hi
+    _ -> throwError $
+           "QDHXB: group reference " ++ showQName rqn
+           ++ " to non-group definition"
+
+  {-
+  singleDecoder <- indenting $ getTypeDecoderFn tqn
+                            -- getRefSafeDecoder r
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  getRefSafeDecoder gives " $
+        stringToBlock $
+          pprint $ singleDecoder (mkName "SRC") (mkName "DEST")
+  hsType <- getTypeHaskellType tqn
+  f' <- indenting $ refBlockMakerForBounds tqn hsType singleDecoder lo hi
+  whenDebugging $ do
+    dbgLn $ outBlock $
+      labelBlock "  refBlockMakerForBounds gives " $
+        stringToBlock $ pprint $ f' (mkName "SRC") (mkName "DEST")
+  return f'
+  -}
+
 refBlockMakerForBounds ::
   QName -> Type -> BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
 refBlockMakerForBounds sqn hsTyp indivF lo hi = indenting $
@@ -956,7 +966,7 @@ refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
                         NoBindS $ applyReturn $ VarE tmp]) $ VarE pull)
     : listToMaybe mapped dest
 
-refBlockMakerForBounds' tqn hsType puller indivF _ _ = do             -- List
+refBlockMakerForBounds' _tqn hsType puller indivF _ _ = do             -- List
   whenDebugging $ dbgLn "refBlockMakerForBounds' list case"
   pull <- newName "pullForList"
   asList <- newName "asList"
@@ -1044,8 +1054,8 @@ makeTryDecoder x ctxt (c:constr) (t:tryFns) =
 
 
 -- | First in result triple: the `Con` spec for a `DataD` declaration.
--- Second is the constructor as a TH `Exp`.  Third is the name of the
--- decoder function --- but what if it's an XSD primitive type?
+-- Second is the constructor as a TH `Exp`.  Third is the `BlockMaker`
+-- for the decoder function.
 makeChoiceConstructor ::
   QName -> (QName, Reference) -> XSDQ (Con, Exp, BlockMaker)
 makeChoiceConstructor name (typeName, ref) = do
@@ -1067,13 +1077,21 @@ makeChoiceConstructor name (typeName, ref) = do
               -- there a function to return a LamE or this VarE here?
               -- ==> Check out `getTypeDecoderFn`
 
-    TypeRef _tyName _ifMin _ifMax _ _ -> do
+    GroupRef _grName _ifMin _ifMax _ _ -> do
       boxed $ do
-        dbgLn "TODO makeChoiceConstructor"
+        dbgLn "TODO makeChoiceConstructor - GroupRef case"
         dbgBLabel "NAME " name
         dbgBLabel "TYPENAME " typeName
         dbgBLabel "REF " ref
       error "TODO makeChoiceConstructor (b)"
+
+    TypeRef _tyName _ifMin _ifMax _ _ -> do
+      boxed $ do
+        dbgLn "TODO makeChoiceConstructor - TypeRef case"
+        dbgBLabel "NAME " name
+        dbgBLabel "TYPENAME " typeName
+        dbgBLabel "REF " ref
+      error "TODO makeChoiceConstructor (c)"
 
     AttributeRef _ _ ->
       error "Not expected: makeChoiceConstructor for AttributeRef"
@@ -1399,6 +1417,23 @@ xsdRefToBangTypeQ (TypeRef typeName lower upper _ _) = do
   coreType <- getTypeHaskellType typeName
   typ <- containForBounds lower upper $ return coreType
   return (useBang, typ)
+
+xsdRefToBangTypeQ (GroupRef groupName lower upper _ _) = do
+  defn <- getGroupDefn groupName
+  case defn of
+    Just (GroupDefn _ (TypeRef typeName _ _ _ _) _ _) -> do
+      coreType <- getTypeHaskellType typeName
+      typ <- containForBounds lower upper $ return coreType
+      return (useBang, typ)
+    _ -> do throwError $
+              "QDHXB: group reference " ++ showQName groupName
+              ++ " to non-group definition"
+
+  {-
+  coreType <- getTypeHaskellType typeName
+  typ <- containForBounds lower upper $ return coreType
+  return (useBang, typ)
+  -}
 
 attrTypeForUsage :: AttributeUsage -> Type -> Type
 attrTypeForUsage Forbidden _ = TupleT 0
