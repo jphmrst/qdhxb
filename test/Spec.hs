@@ -45,6 +45,7 @@ main = do
     testSequencebasic2
     testShiporderMini1
     testShiporderMini2
+    testShiporderMini3
     testShiporder0
     testShiporder1
     testShiporder2

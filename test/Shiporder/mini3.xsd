@@ -1,0 +1,18 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="top">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="alpha" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="beta" type="xs:string"/>
+              <xs:element name="gamma" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
