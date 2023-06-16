@@ -1,6 +1,7 @@
 import Test.TLT
 -- import Control.Monad.IO.Class
 import Shiporder.Mini1 (testShiporderMini1)
+import Shiporder.Mini2 (testShiporderMini2)
 import Shiporder.Shiporder0 (testShiporder0)
 import Shiporder.Shiporder1 (testShiporder1)
 import Shiporder.Shiporder2 (testShiporder2)
@@ -43,6 +44,7 @@ main = do
     testSequencebasic1
     testSequencebasic2
     testShiporderMini1
+    testShiporderMini2
     testShiporder0
     testShiporder1
     testShiporder2
