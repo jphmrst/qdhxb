@@ -36,7 +36,8 @@ module QDHXB.Internal.XSDQ (
 
   -- * Debugging output
   indenting, indentingWith, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
-  boxed, dbgResult, dbgResultM, debugXSDQ,
+  boxed, debugXSDQ,
+  dbgResult, dbgResultSrcDest, dbgResultFn1, dbgResultFn2, dbgResultM,
 
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
@@ -64,7 +65,7 @@ import QDHXB.Internal.Utils.TH (
     qnameBasicDecoder, appMaybeType,
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
-    stringListType, qnameType,
+    stringListType, qnameType, srcName, destName,
     firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Options
@@ -859,6 +860,33 @@ dbgResult :: Blockable a => String -> a -> XSDQ a
 dbgResult msg res = do
   whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
   return res
+
+-- |Given a result which is a function of one argument to be returned
+-- from a computation, emit debugging information about it if
+-- debugging mode is on.
+dbgResultFn1 :: Blockable b => String -> a -> (a -> b) -> XSDQ (a -> b)
+{-# INLINE dbgResultFn1 #-}
+dbgResultFn1 msg arg res = do
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res arg
+  return res
+
+-- |Given a result which is a function of two arguments to be returned
+-- from a computation, emit debugging information about it if
+-- debugging mode is on.
+dbgResultFn2 ::
+  Blockable c => String -> a -> b -> (a -> b -> c) -> XSDQ (a -> b -> c)
+{-# INLINE dbgResultFn2 #-}
+dbgResultFn2 msg n1 n2 res = do
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res n1 n2
+  return res
+
+-- |Given a computation result which is a function of two arguments
+-- corresponding to source and destination, emit debugging information
+-- about it if debugging mode is on.
+dbgResultSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
+{-# INLINE dbgResultSrcDest #-}
+dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
 
 -- |Given a monadic computation which will return the result to be
 -- returned from another computation, emit debugging information about

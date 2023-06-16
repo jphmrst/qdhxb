@@ -92,6 +92,7 @@ module QDHXB.Internal.Utils.TH (
   -- * Local names
   xName, yName, zName, resName,
   xVarE, yVarE, aName, eName, ctxtName, ctxtVarE, ctxtVarP,
+  srcName, destName,
 
   -- * Other
   firstToUpper, todoStr, useBang)
@@ -1166,6 +1167,14 @@ applyPullContentFrom s = AppE $ AppE pullContentFromVarE $ LitE $ StringL s
 
 loadContentName :: Name
 loadContentName = mkName "QDHXB.Expansions.__loadContent"
+
+-- | For debugging of function results, the name @SRC@.
+srcName :: Name
+srcName = mkName "SRC"
+
+-- | For debugging of function results, the name @DEST@.
+destName :: Name
+destName = mkName "DEST"
 
 -- | Build a TH `Exp` which applies the
 -- `QDHXB.Expansions.__loadContent` function to the argument denoted
