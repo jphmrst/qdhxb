@@ -1,0 +1,21 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<xs:element name="toptag">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element name="uncle" type="xs:string"/>
+      <xs:element name="parent">
+        <xs:complexType>
+          <xs:sequence>
+            <xs:element name="alpha" type="xs:string"/>
+            <xs:element name="beta" type="xs:string"/>
+          </xs:sequence>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+</xs:element>
+
+</xs:schema>
