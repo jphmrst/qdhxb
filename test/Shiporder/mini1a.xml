@@ -1,0 +1,12 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+<toptag>
+  <uncle>sam</uncle>
+  <parent>
+    <alpha>a1</alpha>
+    <beta>b2</beta>
+  </parent>
+</toptag>
+  
+    
