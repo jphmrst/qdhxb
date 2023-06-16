@@ -979,13 +979,16 @@ refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
   pullMaybe <- newName "maybeOne"
   tmp <- newName "subres"
   a <- newName "eachPulled"
+  finalCase <- caseNothingJust (VarE pullMaybe)
+    (applyReturn nothingConE)
+    (\nam -> DoE Nothing $
+      indivF nam tmp ++ [
+        NoBindS $ applyReturn $ applyJust $ VarE tmp])
   let result = \src dest ->
         LetS [SigD pull (AppT zomConT contentConT),
               ValD (VarP pull) (NormalB $ puller $ VarE src) []]
         : listToMaybe pull pullMaybe
-        ++ [BindS (VarP dest) $ applyFmap (LamE [VarP a] $ DoE Nothing $
-                       indivF a tmp ++ [
-                          NoBindS $ applyReturn $ VarE tmp]) $ VarE pullMaybe]
+        ++ [BindS (VarP dest) finalCase]
   whenDebugging $ dbgBLabel "- result " $ result (mkName "SRC") (mkName "DEST")
   return result
 

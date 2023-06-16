@@ -2,6 +2,7 @@ import Test.TLT
 -- import Control.Monad.IO.Class
 import Shiporder.Mini1 (testShiporderMini1)
 import Shiporder.Mini2 (testShiporderMini2)
+import Shiporder.Mini3 (testShiporderMini3)
 import Shiporder.Shiporder0 (testShiporder0)
 import Shiporder.Shiporder1 (testShiporder1)
 import Shiporder.Shiporder2 (testShiporder2)
