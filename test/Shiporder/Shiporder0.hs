@@ -6,13 +6,11 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Type error in generated code
 -- qdhxb (useDebugging . logByFile True) ["test/Shiporder/shiporder0.xsd"]
--- qdhxb' ["test/Shiporder/shiporder0.xsd"]
+qdhxb' ["test/Shiporder/shiporder0.xsd"]
 
 testShiporder0 :: TLT IO ()
 testShiporder0 = inGroup "XSD shiporder0" $ do
-  {-
   inGroup "Scalars" $ do
     "Correctly decode <orderperson> text in shiporder0a.xml" ~:
       "John Smith" @== (lift $ loadOrderperson "test/Shiporder/shiporder0a.xml")
@@ -31,5 +29,4 @@ testShiporder0 = inGroup "XSD shiporder0" $ do
              Item "Hide your heart" Nothing 1 9.9
            ])
          @==- p
-  -}
   return ()
