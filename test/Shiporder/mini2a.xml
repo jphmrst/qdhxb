@@ -1,0 +1,9 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+<top>
+  <alpha>
+    <beta>BBbb</beta>
+    <gamma>GGgg</gamma>
+  </alpha>
+</top>
