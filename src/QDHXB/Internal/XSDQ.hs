@@ -37,7 +37,9 @@ module QDHXB.Internal.XSDQ (
   -- * Debugging output
   indenting, indentingWith, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
   boxed, debugXSDQ,
-  dbgResult, dbgResultSrcDest, dbgResultFn1, dbgResultFn2, dbgResultM,
+  dbgResult, dbgResultSrcDest,
+  dbgBLabelFn1, dbgBLabelFn2, dbgBLabelSrcDest,
+  dbgResultFn1, dbgResultFn2, dbgResultM,
 
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
@@ -852,6 +854,31 @@ boxed s = do
   res <- indentingWith "| " s
   dbgLn "+--------"
   return res
+
+-- |Given a result which is a function of one argument to be returned
+-- from a computation, emit debugging information about it if
+-- debugging mode is on.
+dbgBLabelFn1 :: Blockable b => String -> a -> (a -> b) -> XSDQ ()
+{-# INLINE dbgBLabelFn1 #-}
+dbgBLabelFn1 msg arg res =
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res arg
+
+-- |Given a result which is a function of two arguments to be returned
+-- from a computation, emit debugging information about it if
+-- debugging mode is on.
+dbgBLabelFn2 ::
+  Blockable c => String -> a -> b -> (a -> b -> c) -> XSDQ ()
+{-# INLINE dbgBLabelFn2 #-}
+dbgBLabelFn2 msg n1 n2 res =
+  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res n1 n2
+
+-- |Given a computation result which is a function of two arguments
+-- corresponding to source and destination, emit debugging information
+-- about it if debugging mode is on.
+dbgBLabelSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ ()
+{-# INLINE dbgBLabelSrcDest #-}
+dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
 
 -- |Given a result to be returned from a computation, emit debugging
 -- information about it if debugging mode is on.

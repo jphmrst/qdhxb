@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Reached REDO in Generate
+-- TODO Reached REDO for Union in Generate
 -- qdhxb (useDebugging . logByFile True) ["test/SizesAndList/sizesAndList.xsd"]
 -- qdhxb' ["test/SizesAndList/sizesAndList.xsd"]
 

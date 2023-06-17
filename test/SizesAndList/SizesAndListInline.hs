@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Reached REDO in Generate
+-- TODO Reached REDO for ListDefn in Generate (d)
 -- qdhxb (useDebugging . logByFile True) ["test/SizesAndList/sizesAndListInline.xsd"]
 -- qdhxb' ["test/SizesAndList/sizesAndListInline.xsd"]
 

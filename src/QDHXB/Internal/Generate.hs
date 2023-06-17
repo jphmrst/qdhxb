@@ -173,7 +173,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoderBody nam
   whenDebugging $ do
-    dbgBLabel "- decoder " $ decoder (mkName "SRC") (mkName "DEST")
+    dbgResultSrcDest "- decoder " decoder
     dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
   hrefOut <- indenting $ mapM getAttributeOrGroupTypeForUsage ads
   dbgResultM "Generated" $
@@ -422,7 +422,7 @@ xsdDeclToHaskell decl@(ChoiceDefn name fields _ifLine ifDoc) = do
   whenDebugging $ do
     dbgBLabel "- constrDefs " constrDefs
     dbgBLabel "- dataDef " (dataDef $ mkName "NAME")
-    dbgBLabel "- decoder " $ decoder (mkName "SRC") (mkName "DEST")
+    dbgBLabelSrcDest "- decoder " decoder
   dbgResultM "Generated" $ newAssemble name (Just dataDef) decoder ifDoc
 
 xsdDeclToHaskell decl = do
@@ -483,9 +483,7 @@ getSafeDecoderBody qn = indenting $ do
                                (NormalB $ foldl (AppE)
                                       (ConE $ mkName $ firstToUpper $ qName nam)
                                       (map VarE boundNames)) []]]
-          whenDebugging $ do
-            dbgBLabel "- result " $ result (mkName "SRC") (mkName "DEST")
-          return result
+          dbgResultSrcDest "- result " result
 
         ChoiceDefn name fields _ _ -> do
           (_, constrs, stmtsMaker) <-
@@ -551,7 +549,7 @@ getSafeDecoderBody qn = indenting $ do
               dbgBLabel "- " $ sd (mkName "SRC") (mkName "DEST")
           (subBinder, subNames) <- labelBlockMakers subdecoders
           whenDebugging $ do
-            dbgBLabel "- subBinder " $ subBinder $ mkName "SRC"
+            dbgBLabelFn1 "- subBinder " (mkName "SRC") $ subBinder
             dbgBLabel "- subNames " $ show subNames
           let res :: BlockMaker
               res src dest = subBinder src ++ [
@@ -569,8 +567,7 @@ getSafeDecoderBody qn = indenting $ do
                       []
                     ]
                 ]
-          whenDebugging $ do
-            dbgBLabel "- result " $ res (mkName "SRC") (mkName "DEST")
+          whenDebugging $ dbgBLabelSrcDest "- result " res
           return res
 
         Just (SingleAttributeDefn typ _usage) -> do
@@ -663,9 +660,7 @@ getSafeDecoderUsageCall (qn, usage) = do
     Forbidden -> return $ \_ dest ->
       [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
 
-  whenDebugging $
-    dbgBLabel ("  gives") $ result (mkName "SRC") (mkName "DEST")
-  return result
+  dbgResultSrcDest "  gives" result
 
 
 -- | Calculate the Haskell type corresponding to a bound QName.
@@ -833,8 +828,8 @@ getRefSafeDecoder (AttributeRef ref usage) = do
   usageFn <- indenting $ unpackAttrDecoderForUsage usage
   tmp <- newName "attr"
   whenDebugging $ do
-    dbgBLabel "  - coreFn " $ coreFn (mkName "SRC") (mkName "TMP")
-    dbgBLabel "  - usageFn " $ usageFn (mkName "TMP") (mkName "DEST")
+    dbgBLabelSrcDest "  - coreFn " coreFn
+    dbgBLabelSrcDest "  - usageFn " usageFn
   return $ \src dest -> coreFn src tmp ++ usageFn tmp dest
 
 getRefSafeDecoder (TypeRef nam lower upper _ _) = do
@@ -901,8 +896,8 @@ referenceToBlockMaker r@(AttributeRef _ usage) = do
   safeDec <- indenting $ getRefSafeDecoder r
   f' <- indenting $ makeUsageBinder safeDec usage
   whenDebugging $ do
-    dbgBLabel "  - safeDec " $ safeDec (mkName "SRC") (mkName "DEST")
-    dbgBLabel "  - f' " $ f' (mkName "SRC") (mkName "DEST")
+    dbgBLabelSrcDest "  - safeDec " safeDec
+    dbgBLabelSrcDest "  - f' " f'
   return f'
 
 referenceToBlockMaker r@(TypeRef tqn lo hi _ _) = do
@@ -980,7 +975,7 @@ refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
   whenDebugging $ do
     dbgLn "refBlockMakerForBounds' maybe case"
     dbgBLabel "- given puller " $ puller $ VarE $ mkName "SRC"
-    dbgBLabel "- given indivF " $ indivF (mkName "SRC") (mkName "DEST")
+    dbgBLabelSrcDest "- given indivF " indivF
   pull <- newName "pullForMaybe"
   pullMaybe <- newName "maybeOne"
   tmp <- newName "subres"
@@ -995,7 +990,7 @@ refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
               ValD (VarP pull) (NormalB $ puller $ VarE src) []]
         : listToMaybe pull pullMaybe
         ++ [BindS (VarP dest) finalCase]
-  whenDebugging $ dbgBLabel "- result " $ result (mkName "SRC") (mkName "DEST")
+  whenDebugging $ dbgBLabelSrcDest "- result " result
   return result
 
 refBlockMakerForBounds' _tqn hsType puller indivF _ _ = do             -- List
