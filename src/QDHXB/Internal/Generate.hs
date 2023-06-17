@@ -75,7 +75,7 @@ import Control.Monad.Except
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
-import Text.XML.Light.Types (QName, Content, qName)
+import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
@@ -274,18 +274,18 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn _nam _typ _ln _ifDoc) = do
   dbgResult "Generated" $ TySynD typeName [] haskellType : decs
   -}
 
-xsdDeclToHaskell decl@(UnionDefn _name _pairs _ln _ifDoc) = do
-  whenDebugging $ dbgBLabel "Generating from (c) UnionDefn" decl
-  error "REDO"
-  {-
+xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
+  whenDebugging $ do
+    dbgBLabel "Generating from (c) UnionDefn " decl
+
   let baseName = qName name
 
-      makeConstr :: (QName, QName) -> Con
+  let makeConstr :: (QName, QName) -> Con
       makeConstr (constructorName, tn) =
         NormalC (mkName $ qName constructorName)
                 [(useBang, ConT $ mkName $ qName tn)]
 
-      safeDecoder :: Exp
+  let safeDecoder :: Exp
       safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
                               (app2Exp
                                  fmapVarE
@@ -296,6 +296,12 @@ xsdDeclToHaskell decl@(UnionDefn _name _pairs _ln _ifDoc) = do
                               (LamE [WildP] e))
                           (qthNoValidContentInUnion baseName ln)
                           pairs
+
+  whenDebugging $ dbgBLabel "- safeDecoder " safeDecoder
+
+
+  error "REDO"
+  {-
   (typeName, decs) <- indenting $
     getSimpleTypeElements baseName (VarP xName) safeDecoder ln ifDoc
   pushDeclHaddock ifDoc typeName $
@@ -1206,6 +1212,8 @@ getSimpleTypeElements baseNameStr pat1 body l ifDoc = do
     "Decode an element of simple type represented as `" ++ baseNameStr
     ++ "`, or fail with a top-level `error`"
 
+  strictDecBody <- resultOrThrow $ AppE (VarE safeDecAsNam) ctxtVarE
+
   return (typeName,
           [SigD decStrName decStrType,
            FunD decStrName [Clause [pat1] (NormalB body) []],
@@ -1220,8 +1228,7 @@ getSimpleTypeElements baseNameStr pat1 body l ifDoc = do
 
            SigD decAsNam decType,
            FunD decAsNam [Clause [ctxtVarP]
-                           (NormalB $ resultOrThrow $
-                             AppE (VarE safeDecAsNam) ctxtVarE)
+                           (NormalB strictDecBody)
                            []]
            {-
            -- TODO Encoder

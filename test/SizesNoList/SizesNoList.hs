@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Reaches REDO in Generate
+-- TODO Reaches REDO in Generate; namespace issues for invented names
 -- qdhxb (useDebugging . logByFile True) ["test/SizesNoList/sizesNoList.xsd"]
 -- qdhxb' ["test/SizesNoList/sizesNoList.xsd"]
 
