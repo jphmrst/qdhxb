@@ -6,9 +6,8 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Input of Union not reading attr memberTypes
-qdhxb (useDebugging . logByFile True) ["test/SizesNoList/min-1.xsd"]
--- qdhxb' ["test/SizesNoList/min-1.xsd"]
+-- qdhxb (useDebugging . logByFile True) ["test/SizesNoList/min-1.xsd"]
+qdhxb' ["test/SizesNoList/min-1.xsd"]
 
 testSNLmin1 :: TLT IO ()
 testSNLmin1 = inGroup "XSD sizesNoList/min-1" $ do
@@ -20,6 +19,4 @@ testSNLmin1 = inGroup "XSD sizesNoList/min-1" $ do
     p <- lift $ loadSizes "test/SizesNoList/sizesNoList0b.xml"
     "Correctly decode <sizes>small</sizes> in sizesNoList0a.xml" ~:
       SizeTypeAlt2 "small" @==- p
-  {-
-  -}
   return ()
