@@ -6,13 +6,11 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Reaches REDO for Union in Generate; namespace issues for invented names
 -- qdhxb (useDebugging . logByFile True) ["test/SizesNoList/sizesNoList.xsd"]
--- qdhxb' ["test/SizesNoList/sizesNoList.xsd"]
+qdhxb' ["test/SizesNoList/sizesNoList.xsd"]
 
 testSizesNoList :: TLT IO ()
 testSizesNoList = inGroup "XSD sizesNoList" $ do
-  {-
   inGroup "SizesNoList 0a" $ do
     p <- lift $ loadSizes "test/SizesNoList/sizesNoList0a.xml"
     "Correctly decode <sizes>12</sizes> in sizesNoList0a.xml" ~:
@@ -21,5 +19,4 @@ testSizesNoList = inGroup "XSD sizesNoList" $ do
     p <- lift $ loadSizes "test/SizesNoList/sizesNoList0b.xml"
     "Correctly decode <sizes>small</sizes> in sizesNoList0a.xml" ~:
       SizeTypeTop2Union2SimpleRestrtoken "small" @==- p
-  -}
   return ()
