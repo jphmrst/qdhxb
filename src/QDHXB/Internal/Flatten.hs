@@ -75,43 +75,53 @@ flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (SimpleRestriction base)
     addTypeDefn nam tyDefn
     dbgResult "Flattened [fSI'] to" $ [ tyDefn ]
 
-flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Union alts) ln d) = do
+flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Union alts ns) ln d) = do
   whenDebugging $ dbgBLabel "[fSI'] Flattening simple union " sts
-  indenting $ do
-    let nameUnnamed :: QName -> DataScheme -> DataScheme
-        nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
-                                     ifMin ifMax l ifDoc) =
-          ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
-        nameUnnamed q (AttributeScheme
-                       (SingleAttribute (WithRef _) ifType usage d') ln' d'') =
-          AttributeScheme (SingleAttribute (WithName q) ifType usage d') ln'
-            (pickOrCombine d d'')
-        nameUnnamed q (ComplexTypeScheme form attrs Nothing l d') =
-          ComplexTypeScheme form attrs (Just q) l d'
-        nameUnnamed q (SimpleTypeScheme Nothing detail ln' d') =
-          SimpleTypeScheme (Just q) detail ln' d'
-        nameUnnamed _ b = b
+  let nameUnnamed :: QName -> DataScheme -> DataScheme
+      nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
+                                   ifMin ifMax l ifDoc) =
+        ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
+      nameUnnamed q (AttributeScheme
+                     (SingleAttribute (WithRef _) ifType usage d') ln' d'') =
+        AttributeScheme (SingleAttribute (WithName q) ifType usage d') ln'
+          (pickOrCombine d d'')
+      nameUnnamed q (ComplexTypeScheme form attrs Nothing l d') =
+        ComplexTypeScheme form attrs (Just q) l d'
+      nameUnnamed q (SimpleTypeScheme Nothing detail ln' d') =
+        SimpleTypeScheme (Just q) detail ln' d'
+      nameUnnamed _ b = b
 
-        pullLabel :: DataScheme -> XSDQ ((QName, QName), [Definition])
-        pullLabel ds = do
-          nameSuffix <- case labelOf ds of
-                          Just q -> return q
-                          Nothing -> do
-                            freshName <- getNextCapName
-                            freshQName <- decodePrefixedName freshName
-                            return freshQName
-          let name = withSuffix (firstToUpper $ qName nameSuffix) nam
-          let d' = nameUnnamed name ds
-          let typeName = maybe (error "Should not find anonymous decl") id $
-                           labelOf d'
-          defns <- flattenSchemaItem d'
-          return ((name, typeName), defns)
-    labelledAlts <- mapM pullLabel alts
-    let (names, defnss) = unzip labelledAlts
-        defns = concat defnss
-    let uDef = UnionDefn nam names ln d
-    fileNewDefinition uDef
-    dbgResult "Flattened [fSI'] to" $ defns ++ [uDef]
+      pullNestedLabel :: DataScheme -> XSDQ ((QName, QName), [Definition])
+      pullNestedLabel ds = do
+        nameSuffix <- case labelOf ds of
+                        Just q -> return q
+                        Nothing -> do
+                          freshName <- getNextCapName
+                          freshQName <- decodePrefixedName freshName
+                          return freshQName
+        let name = withSuffix (firstToUpper $ qName nameSuffix) nam
+        let d' = nameUnnamed name ds
+        let typeName = maybe (error "Should not find anonymous decl") id $
+                         labelOf d'
+        defns <- flattenSchemaItem d'
+        return ((name, typeName), defns)
+
+      pullRefLabel :: QName -> (QName, QName)
+      pullRefLabel qn = (withSuffix (firstToUpper $ qName qn) nam, qn)
+
+  labelledAlts <- mapM pullNestedLabel alts
+  -- whenDebugging $ dbgBLabel "- labelledAlts " labelledAlts
+  let (names, defnss) = unzip labelledAlts
+      defns = concat defnss
+  whenDebugging $ do
+    dbgBLabel "- names " names
+    -- dbgBLabel "- defnss " defnss
+  let fromMemberList = map pullRefLabel ns
+  whenDebugging $ dbgBLabel "- fromMemberList " fromMemberList
+  let uDef = UnionDefn nam (names ++ fromMemberList) ln d
+  whenDebugging $ dbgBLabel "- uDef " uDef
+  fileNewDefinition uDef
+  dbgResult "Flattened [fSI'] to" $ defns ++ [uDef]
 
 
 flattenSchemaItem' s@(SimpleTypeScheme (Just nam)

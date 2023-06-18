@@ -46,7 +46,9 @@ data SimpleTypeScheme =
       QName -- ^ Base type
   | Union -- ^ A type defined as a collection (union) of values from
           -- simple data types.
-      [DataScheme] -- ^ Constituent types
+      [DataScheme] -- ^ Constituent types given as nested schemes
+      [QName] -- ^ Constituent types given by name in the
+              -- @memberTypes@ attribute
   | List -- ^ Space-delimited list of simple types
       (Maybe QName) -- ^ Type of list elements
       (Maybe DataScheme) -- ^ Constituent type
@@ -178,7 +180,7 @@ labelOf (ComplexTypeScheme (Group _ _ _ _) _ _ _ _) = Nothing
 labelOf (SimpleTypeScheme j@(Just _) _ _ _) = j
 labelOf (SimpleTypeScheme _ (Synonym t) _ _) = Just t
 labelOf (SimpleTypeScheme _ (SimpleRestriction r) _ _) = Just r
-labelOf (SimpleTypeScheme _ (Union _ds) _ _) = Nothing
+labelOf (SimpleTypeScheme _ (Union _ds _ns) _ _) = Nothing
 labelOf (SimpleTypeScheme _ (List t@(Just _) _) _ _) =
   fmap (withPrefix "List") t
 labelOf (SimpleTypeScheme _ (List _ (Just t)) _ _) =
@@ -259,7 +261,7 @@ instance Blockable NameOrRefOpt where
 instance Blockable SimpleTypeScheme where
   block (Synonym t) = labelBlock "== " $ block t
   block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
-  block (Union ds) = labelBlock "Union " $ block ds
+  block (Union ds ns) = labelBlock "Union " (block ds `stack2` block ns)
   block (List t Nothing) = labelBlock "List " $ block t
   block (List Nothing t) = labelBlock "List " $ block t
   block (List r t) = stackBlocks [

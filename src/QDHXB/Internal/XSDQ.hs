@@ -32,7 +32,7 @@ module QDHXB.Internal.XSDQ (
   -- * Managing namespaces
   pushNamespaces, popNamespaces,
   getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
-  decodePrefixedName, getURIprefix, getNextCapName,
+  decodePrefixedName, decodePrefixedNameList, getURIprefix, getNextCapName,
 
   -- * Debugging output
   indenting, indentingWith, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
@@ -746,6 +746,11 @@ decodePrefixedName str = do
       dftPrefix = compressMaybe $
         fmap (\s -> getFirst lookupPrefixForURI s nss) dft
   return $ decodePrefixed dftPrefix dft [] nss str
+
+-- |Given a string which may be namespace-prefixed, reconstruct the
+-- corresponding `QName` according to the current `XSDQ` state.
+decodePrefixedNameList :: String -> XSDQ [QName]
+decodePrefixedNameList str = mapM decodePrefixedName $ words str
 
 getFirst ::
   (String -> Namespaces -> Maybe String) -> String -> [Namespaces] ->

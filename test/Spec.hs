@@ -16,6 +16,7 @@ import Age.Age (testAge)
 import Age.Age0 (testAge0)
 import Initials.Initials (testInitials)
 import SizesNoList.SizesNoList (testSizesNoList)
+import SizesNoList.Min1 (testSNLmin1)
 import SizesAndList.SizesAndList (testSizesAndList)
 import SizesAndList.SizesAndListInline (testSizesAndListInline)
 import PersonAttr1.PersonAttr1 (testPersonAttr1)
@@ -59,6 +60,7 @@ main = do
     testOFX1
     testXSD1
     testSizesNoList
+    testSNLmin1
     testSizesAndList
     testSizesAndListInline
     testPersonAttr1

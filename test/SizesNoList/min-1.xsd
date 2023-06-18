@@ -1,0 +1,21 @@
+<!-- From http://www.datypic.com/books/defxmlschema1/chapter11.html -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <xsd:simpleType name="Alt1">
+    <xsd:restriction base="xsd:integer">
+      <xsd:minInclusive value="2"/>
+      <xsd:maxInclusive value="18"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  <xsd:simpleType name="Alt2">
+    <xsd:restriction base="xsd:token">
+      <xsd:enumeration value="small"/>
+      <xsd:enumeration value="medium"/>
+      <xsd:enumeration value="large"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  <xsd:simpleType name="SizeType">
+    <xsd:union memberTypes="Alt1 Alt2" />
+  </xsd:simpleType>
+  <xs:element name="sizes" type="SizeType"/>
+</xs:schema>

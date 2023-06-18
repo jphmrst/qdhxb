@@ -113,17 +113,12 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
 
   extractor <- do
     cparamName <- newName "content"
-    extRes <- newName "extRes"
     pushDeclHaddock ifDoc extractElemNam
       ("Decode the given piece of @Content@ as a @\\<"
        ++ origName ++ ">@ element")
     return [
       SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
-      FunD extractElemNam [Clause [VarP cparamName]
-                            (NormalB $ DoE Nothing $
-                              decoderFn cparamName extRes ++ [
-                                NoBindS $ applyReturn $ VarE extRes
-                                ]) []]
+      FunD extractElemNam [Clause [VarP cparamName] (NormalB $ blockMakerClose cparamName decoderFn) []]
       ]
 
   subextractor <- do
@@ -210,8 +205,8 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
           caseNothingJust' (VarE attrName)
             (applyReturn nothingConE)
             xName (DoE Nothing $ coreDecoder xName resName ++ [
-                      NoBindS $ applyReturn $ applyJust (VarE resName)
-                      ])
+                     NoBindS $ applyReturn $ applyJust (VarE resName)
+                     ])
         ]
 
   pushDeclHaddock ifd safeDecNam $
@@ -279,38 +274,57 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
     dbgBLabel "Generating from (c) UnionDefn " decl
 
   let baseName = qName name
+      baseType = ConT $ mkName baseName
 
   let makeConstr :: (QName, QName) -> Con
       makeConstr (constructorName, tn) =
         NormalC (mkName $ qName constructorName)
                 [(useBang, ConT $ mkName $ qName tn)]
 
-  let safeDecoder :: Exp
-      safeDecoder = foldr (\(c, t) e -> applyCatchErrorExp
-                              (app2Exp
-                                 fmapVarE
-                                 (ConE $ mkName $ qName c)
-                                 (AppE (VarE $ mkName $
-                                            "tryStringDecodeFor" ++ qName t)
-                                       (VarE xName)))
-                              (LamE [WildP] e))
-                          (qthNoValidContentInUnion baseName ln)
-                          pairs
+  -- Prepare where-block bindings for calls to the alternative
+  -- decoders, each of which tags their result with the appropriate
+  -- constructor.
+  let whereDecoderPair :: (QName, QName) -> XSDQ (Name, Name -> [Dec])
+      whereDecoderPair (constr, typ) = do
+        let binderName :: Name
+            binderName = mkName $ "binder" ++ qName constr
+        decoder <- getSafeDecoderCall typ
+        return (
+          binderName,
+          \src -> [
+            SigD binderName (qHXBExcT baseType),
+            ValD (VarP binderName)
+                 (NormalB $ blockMakerCloseWith (AppE (ConE $ mkName $ qName constr)) src decoder) []
+            ])
 
-  whenDebugging $ dbgBLabel "- safeDecoder " safeDecoder
+  whereDecoderPairs <- mapM whereDecoderPair pairs
+  let (whereNames, whereDecs) = unzip whereDecoderPairs
+  whenDebugging $ do
+    dbgBLabel "- whereNames " whereNames
+    dbgLn "- whereDecs "
+    indenting $ forM_ whereDecs $ \decl ->
+      dbgBLabelFn1 "- " srcName decl
+
+  -- TODO Something getSafeDecoderCall
+  let safeCore :: Exp
+      safeCore =
+        foldr (\n e -> applyCatchErrorExp (VarE n) (LamE [WildP] e))
+              (qthNoValidContentInUnion baseName ln)
+              whereNames
+  whenDebugging $ dbgBLabel "- safeDecoder " safeCore
+
+  let typDef tn = DataD [] tn [] Nothing (map makeConstr pairs)
+                    [DerivClause Nothing [eqConT, showConT]]
+  whenDebugging $ dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
 
 
-  error "REDO"
-  {-
-  (typeName, decs) <- indenting $
-    getSimpleTypeElements baseName (VarP xName) safeDecoder ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @\\<" ++ baseName ++ ">@ union"
-  dbgResult "Generated" $
-      DataD [] typeName [] Nothing (map makeConstr pairs)
-            [DerivClause Nothing [eqConT, showConT]]
-      : decs
-  -}
+  dbgResultM "Generated" $
+    newAssemble name (Just typDef)
+                (\src dest -> [
+                    BindS (VarP dest) $
+                      LetE (concat $ map (\f -> f src) whereDecs) safeCore
+                    ])
+                ifDoc
 
 
 xsdDeclToHaskell decl@(ListDefn _name _elemTypeRef _ln _ifDoc) = do

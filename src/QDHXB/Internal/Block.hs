@@ -9,7 +9,7 @@
 
 module QDHXB.Internal.Block (
   -- * Basic block type
-  BlockMaker,
+  BlockMaker, blockMakerClose, blockMakerCloseWith,
   -- ** Combinators on `BlockMaker`s
   retrievingCRefFor, scaleBlockMakerToBounds,
   -- ** Some atomic `BlockMaker`s
@@ -104,3 +104,17 @@ listToMaybe src dest =
                  "Zero or single element required, multiple found"))
         []]]
   where vName = mkName "v"
+
+-- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
+-- returning @b@'s result, transformed as given by @expF@, all given
+-- the `Name` of a source.
+blockMakerCloseWith :: (Exp -> Exp) -> Name -> BlockMaker -> Exp
+blockMakerCloseWith expF src b =
+  let res = mkName "result"
+  in DoE Nothing $ b src res ++ [ NoBindS $ applyReturn $ expF $ VarE res ]
+
+-- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
+-- returning @b@'s result, all given the `Name` of a source.
+blockMakerClose :: Name -> BlockMaker -> Exp
+blockMakerClose = blockMakerCloseWith id
+

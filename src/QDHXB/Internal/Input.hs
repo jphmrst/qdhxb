@@ -27,24 +27,27 @@ inputSchemaItems items = do
 
 inputSchemaItems' :: String -> [Content] -> XSDQ [DataScheme]
 inputSchemaItems' outer items = do
+  whenDebugging $ do
+    dbgPt $ "inputSchemaItems' with \"" ++ outer ++ "\""
+    dbgBLabel "  items " items
   res <- mapM (\(s, i) ->
-                 inputSchemaItem (outer ++ show i) s) $
+                 indenting $ inputSchemaItem (outer ++ show i) s) $
               zip items ([1..] :: [Int])
   -- dbgLn $ show res
   return res
 
 inputSchemaItem :: String -> Content -> XSDQ DataScheme
 inputSchemaItem o e@(Elem (Element q a c l)) = do
-  whenDebugging $ dbgPt $ "Encoding element " ++ showContent e
+  whenDebugging $ dbgPt $ "[iSI] Encoding element " ++ showContent e
   ifDoc <- getAnnotationDocFrom c
   res <- indenting $ inputElement q a c o l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 inputSchemaItem _ (Text _) = do
-  whenDebugging $ dbgPt "Dropping Text entry "
+  whenDebugging $ dbgPt "[iSI] Dropping Text entry "
   return Skip
 inputSchemaItem _ (CRef txt) = do
-  whenDebugging $ dbgPt $ "Dropping CRef entry " ++ txt
+  whenDebugging $ dbgPt $ "[iSI] Dropping CRef entry " ++ txt
   return Skip
 
 
@@ -191,21 +194,33 @@ inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
   indenting $ case separateSimpleTypeContents ats ctnts' of
 
     (nam, One restr, Zero, Zero) -> do
-      whenDebugging $ dbgPt "Subcase restr"
+      whenDebugging $ do
+        dbgPt "Subcase restr"
       qnam <- mapM decodePrefixedName nam
       res <- indenting $ encodeSimpleTypeByRestriction qnam
                            (maybe (outer ++ "Simple") (outer ++) nam) ats restr
       dbgResult "Subcase result" res
 
-    (ifNam, Zero, One (Elem (Element (QName "union" _ _) _ cs' _)), Zero) -> do
+    (ifNam, Zero, One (Elem (Element (QName "union" _ _) ats' cs' _)), Zero) -> do
       let outerUnion = outer ++ "Union"
           nam = maybe outerUnion id ifNam
-      whenDebugging $ dbgPt "Subcase union"
+      whenDebugging $ do
+        dbgPt "Subcase union"
+        dbgBLabel "- ifNam " $ show ifNam
+        dbgBLabel "- cs' " cs'
       qnam <- decodePrefixedName nam
-      alts <- indenting $
+      whenDebugging $ do
+        dbgBLabel "- qnam " qnam
+        dbgPt "Calling inputSchemaItems' "
+      nestedAlts <- indenting $
                 inputSchemaItems' outerUnion $ filter isElem cs'
+      whenDebugging $ dbgBLabel "- nestedAlts " nestedAlts
+      -- Extract from the memberTypes attribute here
+      membersAttr <- pullAttrQNameList "memberTypes" ats'
+      whenDebugging $ dbgBLabel "- membersAttr " membersAttr
+      let members = maybe [] id membersAttr
       dbgResult "Subcase result" $
-        SimpleTypeScheme (Just qnam) (Union alts) ifLn ifDoc
+        SimpleTypeScheme (Just qnam) (Union nestedAlts members) ifLn ifDoc
 
     (ifNam, Zero, Zero,
      One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
@@ -635,6 +650,9 @@ decodeMaybeIntOrUnbound1 = maybe (Just 1) decodeIntOrUnbound
 
 pullAttrQName :: String -> [Attr] -> XSDQ (Maybe QName)
 pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
+
+pullAttrQNameList :: String -> [Attr] -> XSDQ (Maybe [QName])
+pullAttrQNameList str attrs = mapM decodePrefixedNameList (pullAttr str attrs)
 
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine

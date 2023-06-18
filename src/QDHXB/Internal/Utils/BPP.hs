@@ -222,6 +222,8 @@ instance Blockable [Attr] where block = verticalBlockListFn
 instance Blockable QName where block = stringToBlock . showQName
 -- | Allow [`QName`] from the @XMLLight@ library to be pretty-printed.
 instance Blockable [QName] where block = verticalBlockListFn
+instance Blockable (QName, QName) where block = horizontalBlockablePairFn
+instance Blockable [(QName, QName)] where block = verticalBlockListFn
 
 -- | Allow `Dec` from the Template Haskell library to be pretty-printed.
 instance Blockable Dec where block = stringToBlock . pprint
