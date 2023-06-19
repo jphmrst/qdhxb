@@ -4,6 +4,8 @@
 Each XSD type, attribute, and element definition is translated into a
 Haskell type declaration plus several functions.
 
+LOTS OF THIS IS OUTDATED
+
 A __complex type__ named /Typ/ is accompanied with these functions:
 
  - @tryDecodeAs@/Typ/, which takes a `String` and a piece of XML
