@@ -21,3 +21,4 @@ testPersonAttr2 = inGroup "XSD PersonAttr 2" $ do
     "Correctly decode <person> in personattr1m.xml"
       ~: PersonType (Just $ Personattr Nothing (Just 4)) @==- p
   return ()
+

@@ -9,7 +9,7 @@
 
 module QDHXB.Internal.Block (
   -- * Basic block type
-  BlockMaker, blockMakerClose, blockMakerCloseWith,
+  BlockMaker, blockMakerClose, blockMakerCloseWith, abstractOnSourceName,
   -- ** Combinators on `BlockMaker`s
   retrievingCRefFor, scaleBlockMakerToBounds,
   -- ** Some atomic `BlockMaker`s
@@ -108,13 +108,19 @@ listToMaybe src dest =
 -- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
 -- returning @b@'s result, transformed as given by @expF@, all given
 -- the `Name` of a source.
-blockMakerCloseWith :: (Exp -> Exp) -> Name -> BlockMaker -> Exp
-blockMakerCloseWith expF src b =
+blockMakerCloseWith :: (Exp -> Exp) -> BlockMaker -> Name -> Exp
+blockMakerCloseWith expF b src =
   let res = mkName "result"
   in DoE Nothing $ b src res ++ [ NoBindS $ applyReturn $ expF $ VarE res ]
 
 -- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
 -- returning @b@'s result, all given the `Name` of a source.
-blockMakerClose :: Name -> BlockMaker -> Exp
+blockMakerClose :: BlockMaker -> Name -> Exp
 blockMakerClose = blockMakerCloseWith id
 
+-- | Build a TH lambda abstraction over the @src@ name over e.g. the
+-- result of a partial application of `blockMakerClose`.
+abstractOnSourceName :: (Name -> Exp) -> XSDQ Exp
+abstractOnSourceName ef = do
+  src <- newName "src"
+  return $ LamE [VarP src] $ ef src

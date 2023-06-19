@@ -118,7 +118,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
        ++ origName ++ ">@ element")
     return [
       SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
-      FunD extractElemNam [Clause [VarP cparamName] (NormalB $ blockMakerClose cparamName decoderFn) []]
+      FunD extractElemNam [Clause [VarP cparamName]
+                             (NormalB $ blockMakerClose decoderFn cparamName)
+                             []]
       ]
 
   subextractor <- do
@@ -257,7 +259,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln ifDoc) = do
 
 xsdDeclToHaskell decl@(ComplexSynonymDefn _nam _typ _ln _ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (b) " decl
-  error "REDO"
+  error "REDO/b"
   {-
   haskellType <- getTypeHaskellType typ
   decoder <- getSafeStringDecoder typ
@@ -272,51 +274,24 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn _nam _typ _ln _ifDoc) = do
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (c) UnionDefn " decl
-
   let baseName = qName name
-      baseType = ConT $ mkName baseName
+
+  (safeCore, _, whereDecs) <-
+    unionDefnComponents getSafeDecoderCall name pairs ln
+  whenDebugging $ do
+    dbgLn "- whereDecs "
+    indenting $ forM_ whereDecs $ \decl ->
+      dbgBLabelFn1 "- " srcName decl
+    dbgBLabel "- safeDecoder " safeCore
 
   let makeConstr :: (QName, QName) -> Con
       makeConstr (constructorName, tn) =
         NormalC (mkName $ qName constructorName)
                 [(useBang, ConT $ mkName $ qName tn)]
 
-  -- Prepare where-block bindings for calls to the alternative
-  -- decoders, each of which tags their result with the appropriate
-  -- constructor.
-  let whereDecoderPair :: (QName, QName) -> XSDQ (Name, Name -> [Dec])
-      whereDecoderPair (constr, typ) = do
-        let binderName :: Name
-            binderName = mkName $ "binder" ++ qName constr
-        decoder <- getSafeDecoderCall typ
-        return (
-          binderName,
-          \src -> [
-            SigD binderName (qHXBExcT baseType),
-            ValD (VarP binderName)
-                 (NormalB $ blockMakerCloseWith (AppE (ConE $ mkName $ qName constr)) src decoder) []
-            ])
-
-  whereDecoderPairs <- mapM whereDecoderPair pairs
-  let (whereNames, whereDecs) = unzip whereDecoderPairs
-  whenDebugging $ do
-    dbgBLabel "- whereNames " whereNames
-    dbgLn "- whereDecs "
-    indenting $ forM_ whereDecs $ \decl ->
-      dbgBLabelFn1 "- " srcName decl
-
-  -- TODO Something getSafeDecoderCall
-  let safeCore :: Exp
-      safeCore =
-        foldr (\n e -> applyCatchErrorExp (VarE n) (LamE [WildP] e))
-              (qthNoValidContentInUnion baseName ln)
-              whereNames
-  whenDebugging $ dbgBLabel "- safeDecoder " safeCore
-
   let typDef tn = DataD [] tn [] Nothing (map makeConstr pairs)
                     [DerivClause Nothing [eqConT, showConT]]
   whenDebugging $ dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
-
 
   dbgResultM "Generated" $
     newAssemble name (Just typDef)
@@ -327,9 +302,13 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
                 ifDoc
 
 
-xsdDeclToHaskell decl@(ListDefn _name _elemTypeRef _ln _ifDoc) = do
+xsdDeclToHaskell decl@(ListDefn name elemTypeQName _ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (d) " decl
-  error "REDO"
+  -- error "REDO/d"
+  elemTypeName <- getTypeHaskellName elemTypeQName
+  let typDef tn = TySynD tn [] $ AppT ListT $ ConT $ mkName elemTypeName
+  dec <- decoderForSimpleType name
+  dbgResultM "Generated" $ newAssemble name (Just typDef) dec ifDoc
   {-
 
   {-
@@ -354,7 +333,6 @@ xsdDeclToHaskell decl@(ListDefn _name _elemTypeRef _ln _ifDoc) = do
     newAssemble name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
   -}
 
-
 xsdDeclToHaskell decl@(SequenceDefn nam refs _ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (h) " decl
   decoder <- getSafeDecoderBody nam
@@ -370,7 +348,7 @@ xsdDeclToHaskell decl@(ExtensionDefn _qn _base _refs _ _) = do
   whenDebugging $ do
     dbgBLabel "Generating from (i) " decl
     dbgBLabel "DECL " decl
-  error "REDO"
+  error "REDO/i"
   {-
   let nameRoot = firstToUpper $ qName qn
       typNam = mkName nameRoot
@@ -445,6 +423,8 @@ xsdDeclToHaskell decl = do
     dbgBLabel "DECL " decl
   error "Uncaught case in xsdDeclToHaskell"
 
+-- | The `BlockMaker` result expects a `String` as its source, and the
+-- Haskell type corresponding to the XSD type as its result.
 getSafeStringDecoder :: QName -> XSDQ BlockMaker
 getSafeStringDecoder qn = do
   ifDefn <- getTypeDefn qn
@@ -457,24 +437,32 @@ getSafeStringDecoder qn = do
       AttributeDefn _ (SingleAttributeDefn ty _) _ _ ->
         getSafeStringDecoder ty
       SimpleSynonymDefn _ ty _ _ -> getSafeStringDecoder ty
+      ListDefn _ elemTyp _ _ -> do
+        elemDecoderBlockMaker <- getSafeStringDecoder elemTyp
+        mapper <- abstractOnSourceName $ blockMakerClose elemDecoderBlockMaker
+        return $ \src dest -> [
+          BindS (VarP dest) $
+            applyMapM mapper $ AppE (VarE $ mkName "words") (VarE src)
+          ]
+      UnionDefn nam cts ln _doc -> do
+        (safeCore, _, whereDecs) <-
+          unionDefnComponents getSafeStringDecoder nam cts ln
+        return $ \src dest -> [
+          BindS (VarP dest) $
+            LetE (concat $ map (\f -> f src) whereDecs) safeCore
+          ]
+      ExtensionDefn _ _ _ _ _ ->
+        error "TODO? string decoder for extension"
       ComplexSynonymDefn _ _ _ _ ->
         throwError "No string decoder for complex synonym type"
       SequenceDefn _ _ _ _ ->
         throwError "No string decoder for complex sequence"
-      UnionDefn _ _ _ _ ->
-        throwError "No string decoder for union"
       ChoiceDefn _ _ _ _ ->
         throwError "No string decoder for complex choice"
       GroupDefn _ _ _ _ ->
         throwError "No string decoder for complex group"
-      ListDefn _ _ty _ _ -> do
-        {-
-        elemDecoder <- getSafeStringDecoder ty
-        return $ \wholeExpr ->
-          applyMapM (qLambdaCtntArg elemDecoder) (spaceSepApp wholeExpr)
-        -}
-        throwError "REDO"
-      _ -> throwError "TODO"
+      AttributeDefn _ (AttributeGroupDefn _) _ _ ->
+        throwError "No string decoder for attr. defn. over group"
 
 getSafeDecoderBody :: QName -> XSDQ BlockMaker
 getSafeDecoderBody qn = indenting $ do
@@ -485,7 +473,9 @@ getSafeDecoderBody qn = indenting $ do
     Just defn -> do
       whenDebugging $ dbgBLabel "- Found type " defn
       indenting $ case defn of
-        BuiltinDefn ty _ _ _ -> decoderForSimpleType qn ty
+        BuiltinDefn ty _ _ _ -> do
+          whenDebugging $ dbgBLabel "Basic type " ty
+          decoderForSimpleType qn
 
         SequenceDefn nam refs _ln _doc -> do
           whenDebugging $ dbgLn "  so Sequence case"
@@ -528,19 +518,19 @@ getSafeDecoderBody qn = indenting $ do
           error "AttributeRef not allowed in GroupDefn"
 
         ElementDefn _ _ty _ _ -> do
-          error "REDO"
+          error "REDO/2"
           -- getSafeDecoderBody ty
         AttributeDefn _ (SingleAttributeDefn _ty _) _ _ -> do
           error "TODO"
         SimpleSynonymDefn _ _ty _ _ -> do
-          error "REDO"
+          error "REDO/3"
           -- forSimpleType ty
         ComplexSynonymDefn _ _ _ _ -> do
           error "TODO"
         UnionDefn _ _ _ _ -> do
           error "TODO"
         ListDefn _listType _ _ _ -> do
-          error "REDO"
+          error "REDO/4"
           -- forSimpleType listType
         _ -> error "TODO"
 
@@ -627,9 +617,12 @@ getSafeDecoderBody qn = indenting $ do
             Nothing -> liftExcepttoXSDQ $ throwError $
               "No type or attribute/group " ++ bpp qn ++ " found"
 
-decoderForSimpleType :: QName -> QName -> XSDQ BlockMaker
-decoderForSimpleType qn ty = do
-  strDec <- getSafeStringDecoder ty
+decoderForSimpleType :: QName -> XSDQ BlockMaker
+decoderForSimpleType qn = do
+  whenDebugging $ do
+    dbgLn "- decoderForSimpleType"
+    dbgBLabel "  - qn " qn
+  strDec <- getSafeStringDecoder qn
   retrievingCRefFor qn strDec
 
 
@@ -643,7 +636,7 @@ getSafeDecoderCall qn = do
     Just defn -> do
       whenDebugging $ dbgBLabel "- Found type " defn
       indenting $ case defn of
-        BuiltinDefn ty _ _ _ -> decoderForSimpleType qn ty
+        BuiltinDefn _ _ _ _ -> decoderForSimpleType qn
         _ -> baseByName
     _ -> baseByName
 
@@ -1565,3 +1558,47 @@ getTypeDecoderFn qn = do
                                   (qCrefMustBePresentIn (qName qn) Nothing)
                                   (qLambdaCtntArg f)
   -}
+
+-- | The processors which produce a `BlockMaker` from a `UnionDefn`
+-- all have the same structure, abstracted here.
+unionDefnComponents ::
+  -- Really, the abstracted bit is the actual source (`String`, XML
+  -- `Content`, etc.).  Given a type, this function argument returns a
+  -- `BlockMaker` whose source should be of this type, and whose
+  -- result is of the given type.
+  (QName -> XSDQ BlockMaker)
+  -- Next the components of this `UnionDefn`
+  -> QName -> [(QName, QName)] -> Maybe Line
+  -- And the result is a computation returning a `BlockMaker`
+  -> XSDQ (Exp, [Name], [Name -> [Dec]])
+unionDefnComponents blockMakerBuilder name pairs ln = do
+  let baseName = qName name
+      baseType = ConT $ mkName baseName
+
+  -- Prepare where-block bindings for calls to the alternative
+  -- decoders, each of which tags their result with the appropriate
+  -- constructor.
+  let whereDecoderPair :: (QName, QName) -> XSDQ (Name, Name -> [Dec])
+      whereDecoderPair (constr, typ) = do
+        let binderName :: Name
+            binderName = mkName $ "binder" ++ qName constr
+        decoder <- blockMakerBuilder typ
+        return (
+          binderName,
+          \src -> [
+            SigD binderName (qHXBExcT baseType),
+            ValD (VarP binderName)
+                 (NormalB $
+                    blockMakerCloseWith (AppE (ConE $ mkName $ qName constr))
+                                        decoder src) []
+            ])
+
+  whereDecoderPairs <- mapM whereDecoderPair pairs
+  let (names, decs) = unzip whereDecoderPairs
+
+  let safeCore :: Exp
+      safeCore =
+        foldr (\n e -> applyCatchErrorExp (VarE n) (LamE [WildP] e))
+              (qthNoValidContentInUnion baseName ln) names
+
+  return (safeCore, names, decs)
