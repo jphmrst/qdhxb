@@ -12,6 +12,7 @@ import Books.BooksMod0 (testBooksMod0)
 import Books.BooksMod1 (testBooksMod1)
 import Books.BooksMod2 (testBooksMod2)
 import CustomersOrders.CustomersOrders1 (testCustomersOrders1)
+import Address.Address (testAddress)
 import Age.Age (testAge)
 import Age.Age0 (testAge0)
 import Initials.Initials (testInitials)
@@ -73,3 +74,4 @@ main = do
     testGB1
     testCB0
     testCB1
+    testAddress

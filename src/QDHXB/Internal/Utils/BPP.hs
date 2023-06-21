@@ -255,3 +255,10 @@ instance Blockable [Con] where block = verticalBlockListFn
 instance Blockable Name where block = stringToBlock . pprint
 -- | Allow [`Name`] from the Template Haskell library to be pretty-printed.
 instance Blockable [Name] where block = verticalBlockListFn
+
+-- | Allow `BangType` from the Template Haskell library to be pretty-printed.
+instance Blockable Bang where block = stringToBlock . show
+instance Blockable SourceUnpackedness where block = stringToBlock . show
+instance Blockable SourceStrictness where block = stringToBlock . show
+instance Blockable BangType where block = horizontalBlockablePairFn
+instance Blockable [BangType] where block = verticalBlockListFn

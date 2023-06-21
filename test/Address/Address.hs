@@ -17,7 +17,8 @@ testAddress = inGroup "XSD address" $ do
   {-
   inGroup "Address 1" $ do
     p <- lift $ loadAddr "test/Address/address1.xml"
-    lift $ putStrLn $ show p
+    lift $ putStrLn $ ">>> " ++ show p
     -- "Correctly decode <address> in address1.xml" ~: "JPM" @==- p
   -}
   return ()
+

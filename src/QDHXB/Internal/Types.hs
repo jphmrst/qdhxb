@@ -170,7 +170,7 @@ data Definition =
         (Maybe String) -- ^ Documentation string, if available
   | ExtensionDefn
     -- ^ Define a type the extension of one type with additional
-    -- contexts/attributes
+    -- contents/attributes
         QName
         -- ^ Name of the extension
         Reference
