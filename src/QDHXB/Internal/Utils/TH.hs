@@ -83,8 +83,8 @@ module QDHXB.Internal.Utils.TH (
   zomCase, zomCaseSingle, zomCaseSingle', applyZommapM,
 
   -- * @XMLLight@
-  contentConT, applyPullContentFrom, applyPullCRefContent, applyLoadContent,
-  applyPullAttrFrom,
+  contentName, contentConT, applyPullContentFrom, applyPullCRefContent,
+  applyLoadContent, applyPullAttrFrom,
 
   -- * Functions used in TH expansions
   simpleTypeDecoderVarE, spaceSepApp,

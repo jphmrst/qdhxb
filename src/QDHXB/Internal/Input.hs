@@ -457,7 +457,7 @@ inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
 encodeSequenceTypeScheme ::
   String -> [Content] -> [Content] -> XSDQ ComplexTypeScheme
 encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
-  dbgLn $ "encodeSequenceTypeScheme outer=\"" ++ outer ++ "\""
+  whenDebugging $ dbgLn $ "encodeSequenceTypeScheme outer=\"" ++ outer ++ "\""
   included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
   atrSpecs <- indenting $
     mapM (encodeAttributeScheme $ outer ++ "Seq") attrSpecs

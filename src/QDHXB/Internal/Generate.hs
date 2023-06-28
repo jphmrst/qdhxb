@@ -259,19 +259,16 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln ifDoc) = do
   dbgResultM "Generated" $
     newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
-xsdDeclToHaskell decl@(ComplexSynonymDefn _nam _typ _ln _ifDoc) = do
+xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ _ln ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (b) " decl
-  error "REDO/b"
-  {-
+  -- Get the Haskell type name of the base type
   haskellType <- getTypeHaskellType typ
-  decoder <- getSafeStringDecoder typ
-  let baseName = firstToUpper $ qName nam
-  (typeName, decs) <- indenting $
-    getComplexTypeElements baseName (decoder $ VarE eName) ln ifDoc
-  pushDeclHaddock ifDoc typeName $
-    "Representation of the @" ++ qName nam ++ "@ simple type"
-  dbgResult "Generated" $ TySynD typeName [] haskellType : decs
-  -}
+  -- Make the safe decoder
+  decoder <- indenting $ getSafeDecoderCall typ
+  -- Assemble the various declarations from the Haskell type synonym
+  -- declaration, and the safe decoder steps transformer.
+  dbgResultM "Generated" $
+    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ do
@@ -886,6 +883,10 @@ getRefSafeDecoder (GroupRef nam lower upper _ _) = do
               "QDHXB: group reference " ++ showQName nam
               ++ " to non-group definition"
 
+getRefSafeDecoder (RawXML _ _) = do
+  whenDebugging $ dbgLn "- getRefSafeDecoder RawXML"
+  return $ \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ]
+
 getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker Content dt)
 getAttrRefSafeDecoder rf = do
   whenDebugging $ dbgLn "getAttrRefSafeDecoder only case"
@@ -1090,7 +1091,16 @@ makeChoiceConstructor name (typeName, ref) = do
 
     AttributeRef _ _ ->
       error "Not expected: makeChoiceConstructor for AttributeRef"
+
+    RawXML _ _ -> do
+      whenDebugging $ dbgLn "- makeChoiceConstructor RawXML"
+      return $ (
+        NormalC contentName [(useBang, contentConT)],
+        ConE contentName,
+        \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ])
+
 
+
 newAssemble ::
   QName -> Maybe (Name -> Dec) -> BlockMaker Content dt -> Maybe String
   -> XSDQ [Dec]
