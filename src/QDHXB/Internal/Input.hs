@@ -10,7 +10,7 @@ import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Output
 import Text.XML.Light.Types
-import QDHXB.Internal.Utils.Misc (pickOrCombine)
+import QDHXB.Internal.Utils.Misc (pickOrCombine, ifAtLine)
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.ZeroOneMany
 import QDHXB.Internal.Utils.XMLLight
@@ -652,9 +652,6 @@ pullAttrQName str attrs = mapM decodePrefixedName (pullAttr str attrs)
 
 pullAttrQNameList :: String -> [Attr] -> XSDQ (Maybe [QName])
 pullAttrQNameList str attrs = mapM decodePrefixedNameList (pullAttr str attrs)
-
-ifAtLine :: Maybe Line -> String
-ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
 
 -- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
 -- values and a default `String` name.  The first argument corresponds

@@ -1,7 +1,8 @@
 
 -- | Template Haskell definitions
 module QDHXB.Internal.Utils.Misc (
-  compressMaybe, qFirstToUpper, qTransformName, spaceSep, chomp, pickOrCombine
+  compressMaybe, qFirstToUpper, qTransformName, spaceSep, chomp, pickOrCombine,
+  ifAtLine
   ) where
 import Data.Char (isSpace)
 import Text.XML.Light.Types
@@ -51,3 +52,8 @@ pickOrCombine :: Maybe String -> Maybe String -> Maybe String
 pickOrCombine Nothing x = x
 pickOrCombine x Nothing = x
 pickOrCombine (Just y) (Just z) = Just $ y ++ "\n\n" ++ z
+
+-- | If there is one, return a reference to a line number in an XSD
+-- file (and an empty string otherwise).
+ifAtLine :: Maybe Line -> String
+ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine

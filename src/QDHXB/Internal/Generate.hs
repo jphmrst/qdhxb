@@ -82,6 +82,7 @@ import QDHXB.Errs
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.Utils.XMLLight
 import QDHXB.Internal.Utils.BPP
+import QDHXB.Internal.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
@@ -368,8 +369,9 @@ xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   -}
 
 
-xsdDeclToHaskell decl@(ChoiceDefn name fields _ifLine ifDoc) = do
-  whenDebugging $ do dbgBLabel "Generating from (k) " decl
+xsdDeclToHaskell decl@(ChoiceDefn name fields ln ifDoc) = do
+  whenDebugging $ do
+    dbgBLabel ("Generating from (k)" ++ ifAtLine ln ++ " ") decl
   (constrDefs, _, _) <- indenting $
     fmap unzip3 $ mapM (makeChoiceConstructor name) fields
   let dataDef tn = DataD [] tn [] Nothing constrDefs
