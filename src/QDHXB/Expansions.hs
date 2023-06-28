@@ -29,3 +29,6 @@ import QDHXB.Internal.Utils.XMLLight (
 import QDHXB.Internal.Utils.Misc (spaceSep)
 import QDHXB.Internal.Utils.BPP (bpp)
 import QDHXB.Internal.Generate (simpleTypeDecoder)
+
+instance Eq Content where
+  _ == _ = False

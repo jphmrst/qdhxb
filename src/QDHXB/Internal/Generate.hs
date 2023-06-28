@@ -963,6 +963,10 @@ referenceToBlockMaker r@(GroupRef rqn lo hi _ _) = do
     _ -> throwError $
            "QDHXB: group reference " ++ showQName rqn
            ++ " to non-group definition"
+
+referenceToBlockMaker r@(RawXML _ _) = do
+  whenDebugging $ dbgBLabel "referenceToBlockMaker for" r
+  return $ \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ]
 
 refBlockMakerForBounds ::
   QName -> Type -> BlockMaker Content dt -> Maybe Int -> Maybe Int
@@ -1192,6 +1196,8 @@ xsdRefToBangTypeQ (GroupRef groupName lower upper _ _) = do
     _ -> do throwError $
               "QDHXB: group reference " ++ showQName groupName
               ++ " to non-group definition"
+
+xsdRefToBangTypeQ (RawXML _ _) = return (useBang, contentConT)
 
   {-
   coreType <- getTypeHaskellType typeName

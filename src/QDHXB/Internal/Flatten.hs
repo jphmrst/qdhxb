@@ -476,6 +476,12 @@ flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub) ifLn ifDoc) = do
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   dbgResult "Flattened [fSR.GS-WN] to" $
     (defns, GroupRef name (Just 1) (Just 1) ifLn ifDoc)
+flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
+  boxed $ do
+    dbgLn "[fSR] GroupScheme"
+    dbgBLabel "CTS " cts
+    dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
+  error $ "TODO flattenSchemaRef > GroupScheme with no name/reference"
 
 flattenSchemaRef gs@(ChoiceScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
   whenDebugging $ dbgBLabel "[fSR] CS-WR " gs
@@ -486,19 +492,15 @@ flattenSchemaRef gs@(ChoiceScheme (WithName name) (Just sub) ifLn ifDoc) = do
   defns <- indenting $ flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
   dbgResult "Flattened [fSR.GS-WN] to" $
     (defns, TypeRef name (Just 1) (Just 1) ifLn ifDoc)
-
-flattenSchemaRef (GroupScheme WithNeither (Just cts) ifLn _ifDoc) = do
-  boxed $ do
-    dbgLn "[fSR] GroupScheme"
-    dbgBLabel "CTS " cts
-    dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
-  error $ "TODO flattenSchemaRef > GroupScheme with no name/reference"
 flattenSchemaRef (ChoiceScheme WithNeither (Just cts) ifLn _ifDoc) = do
   boxed $ do
     dbgLn "[fSR] ChoiceScheme"
     dbgBLabel "CTS " cts
     dbgLn $ "IFLN " ++ maybe "(none)" show ifLn
   error $ "TODO flattenSchemaRef > ChoiceScheme with no name/reference"
+
+flattenSchemaRef (UnprocessedXML _ ifLn ifDoc) = do
+  dbgResult "Flattened [fSR.UNPROC] to" ([], RawXML ifLn ifDoc)
 
 flattenSchemaRef s = do
   boxed $ do

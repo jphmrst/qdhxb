@@ -39,6 +39,9 @@ data Reference =
       (Maybe Int)    -- ^ Upper bound of occurences.
       (Maybe Line)    -- ^ Source code line.
       (Maybe String)   -- ^ Documentation of the referenced type.
+  | RawXML -- ^ When raw XML is passed on as `Content`.
+      (Maybe Line)    -- ^ Source code line.
+      (Maybe String)   -- ^ Documentation of the referenced type.
 {-
   | ComplexTypeRef String
   -- ^ The name of a complex type.
@@ -60,6 +63,7 @@ instance Blockable Reference where
     "GroupRef " ++ showQName name
     ++ maybe " no lower bound" ((" lower bound=" ++) . show) ifLower
     ++ maybe " no upper bound" ((" upper bound=" ++) . show) ifUpper
+  block (RawXML _ _) = stringToBlock "Raw XML"
 
 -- | Enumeration encoding the valid values of the XSD attribute
 -- definition's "usage" attribute.
