@@ -172,7 +172,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
   whenDebugging $ dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoderBody nam
   whenDebugging $ do
-    dbgResultSrcDest "- decoder " decoder
+    dbgBLabelSrcDest "- decoder " decoder
     dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
   hrefOut <- indenting $ mapM getAttributeOrGroupTypeForUsage ads
   dbgResultM "Generated" $
@@ -276,14 +276,12 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn _nam _typ _ln _ifDoc) = do
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (c) UnionDefn " decl
-  let baseName = qName name
 
   (safeCore, _, whereDecs) <-
     unionDefnComponents getSafeDecoderCall name pairs ln
   whenDebugging $ do
     dbgLn "- whereDecs "
-    indenting $ forM_ whereDecs $ \decl ->
-      dbgBLabelFn1 "- " srcName decl
+    indenting $ forM_ whereDecs $ dbgBLabelFn1 "- " srcName
     dbgBLabel "- safeDecoder " safeCore
 
   let makeConstr :: (QName, QName) -> Con
@@ -355,43 +353,6 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ doc) = do
                     [DerivClause Nothing [eqConT, showConT]]
   dbgResultM "Generated" $
     newAssemble qn (Just typDef) decoder doc
-  -- error "REDO/i"
-  {-
-  let nameRoot = firstToUpper $ qName qn
-      typNam = mkName nameRoot
-      decNam = mkName $ "decodeAs" ++ nameRoot
-      tryDecNam = mkName $ "tryDecodeAs" ++ nameRoot
-      subNames = map (mkName . ("s" ++) . (show :: Int -> String)) [1..]
-  safeDecoder <- fmap (DoE Nothing) $ indenting $
-    assembleTryStatements (base:refs) subNames ctxtName (ConE typNam) []
-  hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
-
-  dbgResult "Generated" $ [
-    -- Type declaration
-    DataD [] typNam [] Nothing [NormalC typNam $ hrefOut]
-          [DerivClause Nothing [eqConT, showConT]],
-
-    -- Safe decoder
-    SigD tryDecNam (fn1Type contentConT
-                            (qHXBExcT (ConT $ mkName nameRoot))),
-    FunD tryDecNam [Clause [ctxtVarP]
-                              (NormalB safeDecoder) []],
-
-    -- Decoder
-    SigD decNam (fn1Type contentConT (ConT $ mkName nameRoot)),
-    FunD decNam [Clause [ctxtVarP]
-                           (NormalB $ resultOrThrow $
-                             AppE (VarE tryDecNam) ctxtVarE) []]
-
-     {-
-    -- TODO Encoder
-     : SigD encNam encType
-     : FunD encNam [Clause [] (NormalB $ AppE errorVarE
-                                              (quoteStr "TODO")) []]
-     -}
-
-     ]
-  -}
 
 xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   whenDebugging $ dbgBLabel "Generating from (j) " decl
@@ -431,7 +392,7 @@ xsdDeclToHaskell decl = do
 
 -- | The `BlockMaker` result expects a `String` as its source, and the
 -- Haskell type corresponding to the XSD type as its result.
-getSafeStringDecoder :: QName -> XSDQ BlockMaker
+getSafeStringDecoder :: QName -> XSDQ (BlockMaker String a)
 getSafeStringDecoder qn = do
   ifDefn <- getTypeDefn qn
   case ifDefn of
@@ -470,7 +431,7 @@ getSafeStringDecoder qn = do
       AttributeDefn _ (AttributeGroupDefn _) _ _ ->
         throwError "No string decoder for attr. defn. over group"
 
-getSafeDecoderBody :: QName -> XSDQ BlockMaker
+getSafeDecoderBody :: QName -> XSDQ (BlockMaker Content dt)
 getSafeDecoderBody qn = indenting $ do
   whenDebugging $ dbgBLabel "getSafeDecoderBody for " qn
   ifDefn <- getTypeDefn qn
@@ -478,36 +439,42 @@ getSafeDecoderBody qn = indenting $ do
 
     Just defn -> do
       whenDebugging $ dbgBLabel "- Found type " defn
-      indenting $ case defn of
+      case defn of
         BuiltinDefn ty _ _ _ -> do
-          whenDebugging $ dbgBLabel "Basic type " ty
+          whenDebugging $ do
+            dbgBLabel "- Basic type (aa) " ty
+            dbgPt "Relay to decoderForSimpleType"
           decoderForSimpleType qn
 
         SequenceDefn nam refs _ln _doc -> do
-          whenDebugging $ dbgLn "  so Sequence case"
+          whenDebugging $ dbgPt "Sequence case (bb)"
           (bindingsF, boundNames) <- indenting $ makeSubexprLabeling refs
-          let result :: BlockMaker
+          let result :: BlockMaker Content dt
               result src dest =
                 bindingsF src
                 ++ [LetS [ValD (VarP dest)
                                (NormalB $ foldl (AppE)
-                                      (ConE $ mkName $ firstToUpper $ qName nam)
+                                      (ConE $ mkName $
+                                       firstToUpper $ qName nam)
                                       (map VarE boundNames)) []]]
           dbgResultSrcDest "- result " result
 
         ChoiceDefn name fields _ _ -> do
+          whenDebugging $ dbgPt "Choice case (cc)"
           (_, constrs, stmtsMaker) <-
-            indenting $ fmap unzip3 $ mapM (makeChoiceConstructor name) fields
+            indenting $
+              fmap unzip3 $ mapM (makeChoiceConstructor name) fields
           whenDebugging $ do
             dbgBLabel "- constrs " constrs
             dbgBLabel "- stmtsMaker " $
               map (\x -> x (mkName "SRC") (mkName "DEST")) stmtsMaker
           localDest <- newName "dest"
-          let finishStmts :: Name -> (Exp, BlockMaker) -> Exp
+          let finishStmts :: Name -> (Exp, BlockMaker Content dt) -> Exp
               finishStmts src (constr, stmtMaker) =
                 DoE Nothing $
                   stmtMaker src localDest
                   ++ [NoBindS $ applyReturn $ AppE constr $ VarE localDest]
+              decoder :: BlockMaker Content dt
               decoder = \src dest ->
                 let toDests :: [Exp]
                     toDests = map (finishStmts src) $ zip constrs stmtsMaker
@@ -516,7 +483,7 @@ getSafeDecoderBody qn = indenting $ do
 
         ExtensionDefn edqn base refs _ _doc -> do
           whenDebugging $
-            dbgBLabel "- Using getSafeDecoderUsageCall with Extension for " edqn
+            dbgBLabel "- Using getSafeDecoderBody (dd) with Extension for " edqn
           indenting $ do
             hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
             whenDebugging $ dbgBLabel "- hrefOut " hrefOut
@@ -527,7 +494,7 @@ getSafeDecoderBody qn = indenting $ do
             whenDebugging $ do
               dbgBLabelFn1 "- bindingsF " srcName bindingsF
               dbgBLabel "- boundNames " boundNames
-            let result :: BlockMaker
+            let result :: BlockMaker Content dt
                 result src dest =
                   bindingsF src
                   ++ [LetS [ValD (VarP dest)
@@ -541,12 +508,12 @@ getSafeDecoderBody qn = indenting $ do
 
         GroupDefn _name (TypeRef nam _lo _up _ln _doc) _ifLn _ifDoc -> do
           whenDebugging $
-            dbgBLabel "- Using getSafeDecoderUsageCall with Required for " nam
+            dbgBLabel "- Using getSafeDecoderBody (ee) with Required for " nam
           getSafeDecoderUsageCall (nam, Required)
         GroupDefn _name (ElementRef _ _ _ _) _ifLn _ifDoc -> do
-          error "ElementRef not allowed in GroupDefn"
+          error "ElementRef not allowed in GroupDefn (ff)"
         GroupDefn _name (AttributeRef _ _) _ifLn _ifDoc -> do
-          error "AttributeRef not allowed in GroupDefn"
+          error "AttributeRef not allowed in GroupDefn (gg)"
 
         ElementDefn _ _ty _ _ -> do
           error "REDO/2"
@@ -570,7 +537,7 @@ getSafeDecoderBody qn = indenting $ do
       ifGroupDefn <- getAttributeGroup qn
       case ifGroupDefn of
         Just (AttributeGroupDefn subqns) -> do
-          whenDebugging $ dbgLn "- AttributeGroupDefn found"
+          whenDebugging $ dbgLn "- AttributeGroupDefn (2aa) found"
           typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
           haskellType <- buildAttrOrGroupHaskellType qn
           whenDebugging $ do
@@ -586,7 +553,7 @@ getSafeDecoderBody qn = indenting $ do
           whenDebugging $ do
             dbgBLabelFn1 "- subBinder " (mkName "SRC") $ subBinder
             dbgBLabel "- subNames " $ show subNames
-          let res :: BlockMaker
+          let res :: BlockMaker Content dt
               res src dest = subBinder src ++ [
                 LetS [
                     SigD dest (appMaybeType $ ConT typeAndConstrName),
@@ -607,7 +574,8 @@ getSafeDecoderBody qn = indenting $ do
 
 
         Just (SingleAttributeDefn typ _usage) -> do
-          throwError $ "Found SingleAttributeDefn in attribute group table for "
+          throwError $
+            "Found (2bb) SingleAttributeDefn in attribute group table for "
             ++ qName typ
 
         -- And no attribute group definition found, so look for a
@@ -625,7 +593,7 @@ getSafeDecoderBody qn = indenting $ do
               -- paramName <- newName "content"
               -- haskellTyp <- getTypeHaskellType typ
               coreDecoder <- getSafeStringDecoder typ
-              let decoder :: BlockMaker
+              let decoder :: BlockMaker Content dt
                   decoder src dest = [
                     LetS [SigD attrName (AppT maybeConT stringConT),
                           ValD (VarP attrName)
@@ -647,9 +615,9 @@ getSafeDecoderBody qn = indenting $ do
                 ++ qName qn
 
             Nothing -> liftExcepttoXSDQ $ throwError $
-              "No type or attribute/group " ++ bpp qn ++ " found"
+              "No type or attribute/group (zz) " ++ bpp qn ++ " found"
 
-decoderForSimpleType :: QName -> XSDQ BlockMaker
+decoderForSimpleType :: QName -> XSDQ (BlockMaker Content dt)
 decoderForSimpleType qn = do
   whenDebugging $ do
     dbgLn "- decoderForSimpleType"
@@ -660,7 +628,7 @@ decoderForSimpleType qn = do
 
 -- | Return an invocation of a safe decoder expected to be defined
 -- elsewhere.
-getSafeDecoderCall :: QName -> XSDQ BlockMaker
+getSafeDecoderCall :: QName -> XSDQ (BlockMaker Content dt)
 getSafeDecoderCall qn = do
   whenDebugging $ dbgPt $ "getSafeDecoderCall for " ++ showQName qn
   ifDefn <- getTypeDefn qn
@@ -672,9 +640,9 @@ getSafeDecoderCall qn = do
         _ -> baseByName
     _ -> baseByName
 
-  where baseByName :: XSDQ BlockMaker
+  where baseByName :: XSDQ (BlockMaker Content dt)
         baseByName =
-          do let base :: BlockMaker
+          do let base :: BlockMaker Content dt
                  base = \src dest -> [
                    BindS (VarP dest) $
                      AppE (buildSafeDecoderExpFor $ qName qn) (VarE src)
@@ -683,7 +651,8 @@ getSafeDecoderCall qn = do
 
 -- | Return an invocation of a safe decoder expected to be defined
 -- elsewhere.
-getSafeDecoderUsageCall :: (QName, AttributeUsage) -> XSDQ BlockMaker
+getSafeDecoderUsageCall ::
+  (QName, AttributeUsage) -> XSDQ (BlockMaker Content dt)
 getSafeDecoderUsageCall (qn, usage) = do
   whenDebugging $
     dbgPt $ "getSafeDecoderUsageCall on " ++ showQName qn ++ " used " ++ show usage
@@ -757,7 +726,7 @@ makeDecoderLabeling refs = do
     makeLabeling decoders [] []
 
   where makeLabeling ::
-          [BlockMaker] -> [Name -> [Stmt]] -> [Name]
+          [BlockMaker Content dt] -> [Name -> [Stmt]] -> [Name]
             -> XSDQ (Name -> [Stmt], [Name])
         makeLabeling [] srcFns destNames =
           return ((\src -> concat $ reverse $ map (\z -> z src) srcFns),
@@ -792,7 +761,7 @@ makeSubexprLabeling refs = do
 -- functions by assembling a new map from the concatenation of the
 -- results of the individual functions, and reversing the list of
 -- names.
-labelBlockMakers :: [BlockMaker] -> XSDQ (Name -> [Stmt], [Name])
+labelBlockMakers :: [BlockMaker st dt] -> XSDQ (Name -> [Stmt], [Name])
 labelBlockMakers blockMakers = do
   whenDebugging $ dbgPt "Calling labelBlockMakers"
   indenting $
@@ -808,7 +777,7 @@ labelBlockMakers blockMakers = do
 -- new map from the concatenation of the results of the individual
 -- functions, and reversing the list of names.
 labelBlockMakers' ::
-  [BlockMaker] -> [String] -> [Name] -> [Name -> [Stmt]]
+  [BlockMaker st dt] -> [String] -> [Name] -> [Name -> [Stmt]]
   -> XSDQ (Name -> [Stmt], [Name])
 labelBlockMakers' [] _ accNames accFns = do
   whenDebugging $ dbgLn "- End of labelBlockMakers'"
@@ -881,7 +850,7 @@ labelBlockMakers' (r@(TypeRef tqn lo hi _ _):rs) (n:ns) accNs accFns = do
 
 -- | Construct the body of a @tryDecode@ function for the given
 -- `Reference`.
-getRefSafeDecoder :: Reference -> XSDQ BlockMaker
+getRefSafeDecoder :: Reference -> XSDQ (BlockMaker Content dt)
 
 getRefSafeDecoder (ElementRef nam _lower _upper _) = do
   whenDebugging $ dbgLn "- getRefSafeDecoder ElementRef case"
@@ -917,14 +886,14 @@ getRefSafeDecoder (GroupRef nam lower upper _ _) = do
               "QDHXB: group reference " ++ showQName nam
               ++ " to non-group definition"
 
-getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker)
+getAttrRefSafeDecoder :: String -> XSDQ (BlockMaker Content dt)
 getAttrRefSafeDecoder rf = do
   whenDebugging $ dbgLn "getAttrRefSafeDecoder only case"
   let safeDec = buildSafeDecoderExpFor rf
   whenDebugging $ dbgBLabel "  - safeDec " safeDec
   return $ \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
 
-unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (BlockMaker)
+unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (BlockMaker st dt)
 unpackAttrDecoderForUsage Forbidden = do
   whenDebugging $ dbgLn "unpackAttrDecoderForUsage Forbidden case"
   return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
@@ -937,9 +906,8 @@ unpackAttrDecoderForUsage Required = do
   return $ \src dest ->
     [LetS [ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) []]]
 
--- | Convert a `Reference` to a `BlockMaker` calculating its
--- value.
-referenceToBlockMaker :: Reference -> XSDQ BlockMaker
+-- | Convert a `Reference` into a `BlockMaker` calculating its value.
+referenceToBlockMaker :: Reference -> XSDQ (BlockMaker Content dt)
 
 referenceToBlockMaker r@(ElementRef eqn lo hi _) = do
   whenDebugging $ dbgBLabel "referenceToBlockMaker for" r
@@ -997,14 +965,16 @@ referenceToBlockMaker r@(GroupRef rqn lo hi _ _) = do
            ++ " to non-group definition"
 
 refBlockMakerForBounds ::
-  QName -> Type -> BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
+  QName -> Type -> BlockMaker Content dt -> Maybe Int -> Maybe Int
+  -> XSDQ (BlockMaker Content dt')
 refBlockMakerForBounds sqn hsTyp indivF lo hi = indenting $
   refBlockMakerForBounds' sqn hsTyp (applyPullContentFrom $ qName sqn)
                           indivF lo hi
 
 refBlockMakerForBounds' ::
-  QName -> Type -> (Exp -> Exp) -> (BlockMaker) -> Maybe Int -> Maybe Int
-  -> XSDQ (BlockMaker)
+  QName -> Type -> (Exp -> Exp) -> (BlockMaker Content dt)
+  -> Maybe Int -> Maybe Int
+  -> XSDQ (BlockMaker Content dt')
 refBlockMakerForBounds' _ _ _ _ _ (Just 0) = do                  -- Unit
   whenDebugging $ dbgLn "refBlockMakerForBounds' unit case"
   return $ \ _ dest -> [ BindS (VarP dest) $ TupE [] ]
@@ -1030,7 +1000,7 @@ refBlockMakerForBounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
   pull <- newName "pullForMaybe"
   pullMaybe <- newName "maybeOne"
   tmp <- newName "subres"
-  a <- newName "eachPulled"
+  -- a <- newName "eachPulled" -- unused
   finalCase <- caseNothingJust (VarE pullMaybe)
     (applyReturn nothingConE)
     (\nam -> DoE Nothing $
@@ -1062,7 +1032,8 @@ refBlockMakerForBounds' _tqn hsType puller indivF _ _ = do             -- List
         SigE (VarE asList) (AppT ListT contentConT)
     ]
 
-makeUsageBinder :: BlockMaker -> AttributeUsage -> XSDQ BlockMaker
+makeUsageBinder ::
+  BlockMaker st dt -> AttributeUsage -> XSDQ (BlockMaker st dt)
 makeUsageBinder _ Forbidden = do
   whenDebugging $ dbgLn "makeUsageBinder Forbidden case"
   return $ \_ dest -> [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
@@ -1077,7 +1048,7 @@ makeUsageBinder singleTrans Required = do
 -- Second is the constructor as a TH `Exp`.  Third is the `BlockMaker`
 -- for the decoder function.
 makeChoiceConstructor ::
-  QName -> (QName, Reference) -> XSDQ (Con, Exp, BlockMaker)
+  QName -> (QName, Reference) -> XSDQ (Con, Exp, BlockMaker Content dt)
 makeChoiceConstructor name (typeName, ref) = do
   let typeRoot = firstToUpper $ qName name
   case ref of
@@ -1117,7 +1088,8 @@ makeChoiceConstructor name (typeName, ref) = do
       error "Not expected: makeChoiceConstructor for AttributeRef"
 
 newAssemble ::
-  QName -> Maybe (Name -> Dec) -> BlockMaker -> Maybe String -> XSDQ [Dec]
+  QName -> Maybe (Name -> Dec) -> BlockMaker Content dt -> Maybe String
+  -> XSDQ [Dec]
 newAssemble base tyDec safeDec ifDoc = do
   whenDebugging $ dbgBLabel "newAssemble with " base
 
@@ -1253,7 +1225,7 @@ simpleTypeDecoder contentNode miscFailMsg stringDecoder =
 -- `Name`s @src@ and @dest@ to the list of TH `Stmt`s which, assuming
 -- that XML `Content` is stored at the identifier @src@, writes the
 -- decoded value of the Haskell type corresponding to @t@ to @dest@.
-getTypeDecoderFn :: QName -> XSDQ BlockMaker
+getTypeDecoderFn :: QName -> XSDQ (BlockMaker Content dt)
 getTypeDecoderFn qn = do
   ifDefn <- getTypeDefn qn
   case ifDefn of
@@ -1295,7 +1267,7 @@ unionDefnComponents ::
   -- `Content`, etc.).  Given a type, this function argument returns a
   -- `BlockMaker` whose source should be of this type, and whose
   -- result is of the given type.
-  (QName -> XSDQ BlockMaker)
+  (QName -> XSDQ (BlockMaker st dt))
   -- Next the components of this `UnionDefn`
   -> QName -> [(QName, QName)] -> Maybe Line
   -- And the result is a computation returning a `BlockMaker`

@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
 
 {-| Basic blocks of Template Haskell `Stmt` statements used in
   generating code for XSD definitions.  The main type here is
@@ -10,6 +11,7 @@
 module QDHXB.Internal.Block (
   -- * Basic block type
   BlockMaker, blockMakerClose, blockMakerCloseWith, abstractOnSourceName,
+  Unitized,
   -- ** Combinators on `BlockMaker`s
   retrievingCRefFor, scaleBlockMakerToBounds,
   -- ** Some atomic `BlockMaker`s
@@ -18,19 +20,31 @@ module QDHXB.Internal.Block (
 where
 
 import Language.Haskell.TH
-import Text.XML.Light.Types (QName, qName)
+import Text.XML.Light.Types (Content, QName, qName)
+import QDHXB.Internal.Utils.ZeroOneMany
 import QDHXB.Internal.Utils.TH
 import QDHXB.Internal.XSDQ
 
+-- | The destination (second) argument of `BlockMaker` contains a
+-- simplified version of types, with list/`Maybe`/other type
+-- constructors wrapping only the unit type.  Added to (hopefully)
+-- ease debugging in the @Generate@ module.
+type family Unitized t where
+  Unitized [t] = [Unitized t]
+  Unitized (Maybe t) = Maybe (Unitized t)
+  Unitized (ZeroOneMany t) = ZeroOneMany (Unitized t)
+  Unitized _ = ()
+
 -- | Map from @source@ and @dest@ identifiers to a list of TH `Stmt`
 -- statements implementing some calculation.
-type BlockMaker = Name -> Name -> [Stmt]
+type BlockMaker srcType destShape = Name -> Name -> [Stmt]
 
 -- | Given a `BlockMaker` which operates on a `String`, return a
 -- `BlockMaker` which fetches a `String` from the @CRef@ innards of a
 -- piece of XML `Text.XML.Light.Types.Content`, and use it as the
 -- `String` for the `BlockMaker`.
-retrievingCRefFor :: QName -> BlockMaker -> XSDQ BlockMaker
+retrievingCRefFor ::
+  QName -> BlockMaker String a -> XSDQ (BlockMaker Content a)
 retrievingCRefFor qn strDec = do
   tmp1 <- newName "maybeContent"
   tmp2 <- newName "content"
@@ -49,8 +63,11 @@ retrievingCRefFor qn strDec = do
 -- `BlockMaker` which acts for a possible number of instances within
 -- the given bounds.  This function interprets `Nothing` in a bound as
 -- "unbounded" rather than "default."
+--
+-- No help from the second type argument to `BlockMaker` here --- no
+-- dependent types.
 scaleBlockMakerToBounds ::
-  BlockMaker -> Maybe Int -> Maybe Int -> XSDQ BlockMaker
+  BlockMaker a b -> Maybe Int -> Maybe Int -> XSDQ (BlockMaker a c)
 scaleBlockMakerToBounds _ _ (Just 0) = do
   whenDebugging $ dbgLn "- scaleBlockMakerToBounds none case"
   return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
@@ -78,7 +95,7 @@ scaleBlockMakerToBounds k _ _ = do
 -- | Atomic `BlockMaker` which expects a list value at its source.  If
 -- the value is a singleton list, it writes the element at its
 -- destination; otherwise it throws a run-time error.
-listToSingle :: String -> BlockMaker
+listToSingle :: String -> BlockMaker [a] (Unitized a)
 listToSingle msg src dest =
   [ LetS [
      ValD (VarP dest)
@@ -93,7 +110,7 @@ listToSingle msg src dest =
 -- the value is either empty or a singleton list, then it writes a
 -- `Maybe`-value containing any element at its destination; otherwise
 -- it throws a run-time error.
-listToMaybe :: BlockMaker
+listToMaybe :: BlockMaker [a] (Maybe (Unitized a))
 listToMaybe src dest =
   [ LetS [
       ValD (VarP dest)
@@ -108,14 +125,14 @@ listToMaybe src dest =
 -- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
 -- returning @b@'s result, transformed as given by @expF@, all given
 -- the `Name` of a source.
-blockMakerCloseWith :: (Exp -> Exp) -> BlockMaker -> Name -> Exp
+blockMakerCloseWith :: (Exp -> Exp) -> BlockMaker st dt -> Name -> Exp
 blockMakerCloseWith expF b src =
   let res = mkName "result"
   in DoE Nothing $ b src res ++ [ NoBindS $ applyReturn $ expF $ VarE res ]
 
 -- | Turn a `BlockMaker` @b@ into an `Exp` for a do-expression
 -- returning @b@'s result, all given the `Name` of a source.
-blockMakerClose :: BlockMaker -> Name -> Exp
+blockMakerClose :: BlockMaker st dt -> Name -> Exp
 blockMakerClose = blockMakerCloseWith id
 
 -- | Build a TH lambda abstraction over the @src@ name over e.g. the

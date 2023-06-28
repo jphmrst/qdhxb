@@ -10,15 +10,16 @@ import qualified QDHXB.Expansions
 
 -- TODO Reaches REDO for Extension in Generate
 -- qdhxb (useDebugging . logByFile True) ["test/Address/address.xsd"]
--- qdhxb' ["test/Address/address.xsd"]
+qdhxb' ["test/Address/address.xsd"]
 
 testAddress :: TLT IO ()
 testAddress = inGroup "XSD address" $ do
-  {-
   inGroup "Address 1" $ do
     p <- lift $ loadAddr "test/Address/address1.xml"
-    lift $ putStrLn $ ">>> " ++ show p
-    -- "Correctly decode <address> in address1.xml" ~: "JPM" @==- p
-  -}
+    -- lift $ putStrLn $ ">>> " ++ show p
+    "Correctly decode <address> in address1.xml" ~:
+      USAddress (Address "Kingspointe Circle" "Lafayette")
+                (Top4ComplexExtSeq "Louisiana")
+      @==- p
   return ()
 

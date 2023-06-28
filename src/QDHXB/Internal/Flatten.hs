@@ -235,7 +235,7 @@ flattenComplexTypeScheme c@(ComplexRestriction base) _ats (Just nam) l d = do
 flattenComplexTypeScheme e@(Extension base ds) _ats (Just nam) l d = do
   whenDebugging $ dbgBLabel "[fCTS] Complex extension " e
   (defs, refs) <- indenting $ flattenSchemaRefs ds
-  let defn = ExtensionDefn nam (TypeRef base Nothing Nothing l d) refs l d
+  let defn = ExtensionDefn nam (TypeRef base (Just 1) (Just 1) l d) refs l d
   fileNewDefinition defn
   dbgResult "Flattened [fCTS] to" $ defs ++ [defn]
 
