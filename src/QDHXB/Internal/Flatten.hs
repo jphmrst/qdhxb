@@ -213,7 +213,7 @@ flattenComplexTypeScheme ::
   -> XSDQ [Definition]
 
 flattenComplexTypeScheme c@(Composing cts ats0) ats (Just nam) l d = do
-  whenDebugging $ dbgBLabel "[fCTS] Complex composition " c
+  whenDebugging $ dbgBLabel ("[fCTS] Complex composition at " ++ show l) c
   (defs, refs) <- indenting $
     musterComplexSequenceComponents (filter nonSkip cts) (ats0 ++ ats) nam
       -- TODO DOC possible to add a docstring here?
@@ -609,6 +609,25 @@ flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
     dbgBLabel "       " s
     dbgBLabel "    to " prev
     dbgBLabel "       " ref
+  dbgResult "Flattened [fESR] to" (prev, ref)
+flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ (Just schemeName) _ _))
+                        n@(Just nam) t@Nothing r@Nothing
+                        lower upper ln ifDoc = do
+  whenDebugging $ do
+    dbgLn "[fESR] CTS name, scheme name, no t, no r"
+    indenting $ do
+      dbgBLabel "CONTENTS " s
+      dbgLn $ "INNER NAME " ++ show schemeName
+      dbgLn $ "IFNAME " ++ show nam
+      dbgLn $ "IFTYPE Nothing"
+      dbgLn $ "IFREF  Nothing"
+      dbgLn $ "LOWER " ++ show lower
+      dbgLn $ "UPPER " ++ show upper
+      dbgLn $ "LN " ++ show ln
+  prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
+  whenDebugging $ dbgBLabel "- prev " prev
+  let ref = ElementRef schemeName lower upper ln
+  whenDebugging $ dbgBLabel "- ref " ref
   dbgResult "Flattened [fESR] to" (prev, ref)
 flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ _ = do
   boxed $ do
