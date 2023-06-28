@@ -1,0 +1,14 @@
+<!-- From https://www.w3schools.com/xml/schema_example.asp -->
+<?xml version="1.0" encoding="UTF-8" ?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<xs:element name="shiporder">
+  <xs:complexType>
+    <xs:sequence>
+      <xs:element name="alpha" type="xs:string"/>
+      <xs:any/>
+    </xs:sequence>
+  </xs:complexType>
+</xs:element>
+
+</xs:schema>
