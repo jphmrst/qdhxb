@@ -240,7 +240,10 @@ flattenComplexTypeScheme e@(Extension base ds) _ats (Just nam) l d = do
   dbgResult "Flattened [fCTS] to" $ defs ++ [defn]
 
 flattenComplexTypeScheme c@(Choice ifName contents) _ats ifOuterName ln doc = do
-  whenDebugging $ dbgBLabel "[fCTS] Choice " c
+  whenDebugging $ do
+    dbgBLabel "[fCTS] Choice " c
+    dbgLn $ "- Line " ++ show ln
+    -- dbgBLabel "- contents " contents
   let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuterName)
                    id ifName
   (defs, refs) <- flattenSchemaRefs contents

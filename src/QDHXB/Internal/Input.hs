@@ -432,8 +432,7 @@ inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
   whenDebugging $ dbgPt "For <any> scheme:"
   ifName <- pullAttrQName "name" ats
   name <- useNameOrWrap ifName outer "Any"
-  -- whenDebugging $ do
-  boxed $ do
+  whenDebugging $ do
     dbgLn $ "TODO <any>" ++ ifAtLine ifLn
     dbgLn $ "NAME " ++ showQName name
     dbgLn $ "OUTER " ++ outer
@@ -467,7 +466,7 @@ encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
 encodeChoiceTypeScheme ::
   Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
 encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
-  dbgLn $ "encodeChoiceTypeScheme"
+  whenDebugging $ dbgLn "encodeChoiceTypeScheme"
   let ctnts = filter isElem allCtnts
   {-
   whenDebugging $ do
@@ -477,7 +476,7 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
         (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
   -}
   contentSchemes <- indenting $ mapM (inputSchemaItem "X") ctnts
-  return $ Choice ifNam contentSchemes
+  return $ Choice ifNam $ filter nonSkip contentSchemes
 
 
 encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
