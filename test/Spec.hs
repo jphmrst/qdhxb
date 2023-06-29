@@ -30,6 +30,7 @@ import GroupBasic.GroupBasic0 (testGB0)
 import GroupBasic.GroupBasic1 (testGB1)
 import ChoiceBasic.ChoiceBasic0 (testCB0)
 import ChoiceBasic.ChoiceBasic1 (testCB1)
+import ChoiceBasic.ChoiceBasic2 (testCB2)
 import SequenceBasic.SequenceBasic0 (testSequencebasic0)
 import SequenceBasic.SequenceBasic1 (testSequencebasic1)
 import SequenceBasic.SequenceBasic2 (testSequencebasic2)
@@ -75,5 +76,6 @@ main = do
     testGB1
     testCB0
     testCB1
+    testCB2
     testAddress
     testAny0
