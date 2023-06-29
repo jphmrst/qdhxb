@@ -369,18 +369,21 @@ xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   -}
 
 
-xsdDeclToHaskell decl@(ChoiceDefn name fields ln ifDoc) = do
+xsdDeclToHaskell (ChoiceDefn name fields ln ifDoc) = do
   whenDebugging $ do
-    dbgBLabel ("Generating from (k)" ++ ifAtLine ln ++ " ") decl
+    dbgLn $ "Generating from (k)"
+      ++ ifAtLine ln ++ " on ChoiceDefn " ++ showQName name
+    dbgBLabel
+      ("- Calling mapM (makeChoiceConstructor " ++ showQName name ++ ") on ")
+      fields
   (constrDefs, _, _) <- indenting $
     fmap unzip3 $ mapM (makeChoiceConstructor name) fields
+  whenDebugging $ dbgBLabel "- constrDefs " constrDefs
   let dataDef tn = DataD [] tn [] Nothing constrDefs
                      [DerivClause Nothing [eqConT, showConT]]
+  whenDebugging $ dbgBLabelFn1 "- dataDef " (mkName "NAME") dataDef
   decoder <- getSafeDecoderBody name
-  whenDebugging $ do
-    dbgBLabel "- constrDefs " constrDefs
-    dbgBLabel "- dataDef " (dataDef $ mkName "NAME")
-    dbgBLabelSrcDest "- decoder " decoder
+  whenDebugging $ dbgBLabelSrcDest "- decoder " decoder
   dbgResultM "Generated" $ newAssemble name (Just dataDef) decoder ifDoc
 
 xsdDeclToHaskell decl = do
@@ -1056,46 +1059,54 @@ makeUsageBinder singleTrans Required = do
 -- for the decoder function.
 makeChoiceConstructor ::
   QName -> (QName, Reference) -> XSDQ (Con, Exp, BlockMaker Content dt)
-makeChoiceConstructor name (typeName, ref) = do
+makeChoiceConstructor name (constrSuffix, ref) = do
+  whenDebugging $ dbgLn $ "Called makeChoiceConstructor "
+    ++ showQName name ++ " (" ++ showQName constrSuffix ++ ", ...)"
   let typeRoot = firstToUpper $ qName name
   case ref of
 
     ElementRef elName ifMin ifMax _ -> do
-      let constrBase = typeRoot ++ (firstToUpper $ qName elName)
-          constrName = mkName constrBase
-          -- (decName, _) = xsdNameToNameTranslation $ qName typeName
-      decName <- getTypeHaskellName typeName
-      useType <- containForBounds ifMin ifMax $ return $ ConT $ mkName decName
-      decoderFn <- getTypeDecoderFn typeName
-      return (NormalC constrName [(useBang, useType)],
-              ConE constrName,
-              decoderFn -- VarE (mkName $ "tryDecodeAs" ++ decName)
-             )
-              -- TODO --- must check for basic types here.  Isn't
-              -- there a function to return a LamE or this VarE here?
-              -- ==> Check out `getTypeDecoderFn`
+      whenDebugging $ dbgLn $ "- With ElementRef " ++ showQName elName
+      let constrName = mkName $ typeRoot ++ firstToUpper (qName elName)
+      whenDebugging $ do
+        dbgBLabel "- constr " constrName
+        dbgLn $ "- Calling getElementTypeOrFail " ++ showQName elName
+      decQName <- getElementTypeOrFail elName
+      whenDebugging $ dbgBLabel "- decQName " decQName
+      decType <- getTypeHaskellType decQName
+      whenDebugging $ dbgBLabel "- decType " decType
+      useType <- containForBounds ifMin ifMax $ return decType
+      whenDebugging $ dbgBLabel "- useType " useType
+      decoderFn <- getTypeDecoderFn decQName
+      return (
+        NormalC constrName [(useBang, useType)],
+        ConE constrName,
+        decoderFn)
 
-    GroupRef _grName _ifMin _ifMax _ _ -> do
+    GroupRef grName _ifMin _ifMax _ _ -> do
+      whenDebugging $ dbgLn $ "- With GroupRef " ++ showQName grName
       boxed $ do
         dbgLn "TODO makeChoiceConstructor - GroupRef case"
         dbgBLabel "NAME " name
-        dbgBLabel "TYPENAME " typeName
+        dbgBLabel "constrSuffix " constrSuffix
         dbgBLabel "REF " ref
       error "TODO makeChoiceConstructor (b)"
 
-    TypeRef _tyName _ifMin _ifMax _ _ -> do
+    TypeRef tyName _ifMin _ifMax _ _ -> do
+      whenDebugging $ dbgLn $ "- With TypeRef " ++ showQName tyName
       boxed $ do
         dbgLn "TODO makeChoiceConstructor - TypeRef case"
         dbgBLabel "NAME " name
-        dbgBLabel "TYPENAME " typeName
+        dbgBLabel "constrSuffix " constrSuffix
         dbgBLabel "REF " ref
       error "TODO makeChoiceConstructor (c)"
 
-    AttributeRef _ _ ->
+    AttributeRef _ _ -> do
+      whenDebugging $ dbgLn $ "- With AttributeRef"
       error "Not expected: makeChoiceConstructor for AttributeRef"
 
     RawXML _ _ -> do
-      whenDebugging $ dbgLn "- makeChoiceConstructor RawXML"
+      whenDebugging $ dbgLn "- With RawXML"
       return $ (
         NormalC contentName [(useBang, contentConT)],
         ConE contentName,
