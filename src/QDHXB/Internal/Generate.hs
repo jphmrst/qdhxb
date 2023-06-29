@@ -1083,14 +1083,30 @@ makeChoiceConstructor name (constrSuffix, ref) = do
         ConE constrName,
         decoderFn)
 
-    GroupRef grName _ifMin _ifMax _ _ -> do
+    GroupRef grName ifMin ifMax _ _ -> do
       whenDebugging $ dbgLn $ "- With GroupRef " ++ showQName grName
-      boxed $ do
-        dbgLn "TODO makeChoiceConstructor - GroupRef case"
-        dbgBLabel "NAME " name
-        dbgBLabel "constrSuffix " constrSuffix
-        dbgBLabel "REF " ref
-      error "TODO makeChoiceConstructor (b)"
+      let constrName = mkName $ typeRoot ++ firstToUpper (qName grName)
+      whenDebugging $ dbgBLabel "- constr " constrName
+      groupDefn <- getGroupDefnOrFail grName
+      whenDebugging $ dbgBLabel "- groupDefn " groupDefn
+      case groupDefn of
+        GroupDefn _ storedRef _ _ -> do
+          whenDebugging $ dbgBLabel "- storedRef " storedRef
+          case storedRef of
+            TypeRef tyName _tyIfMin _tyIfMax _ _ -> do
+              decType <- getTypeHaskellType tyName
+              whenDebugging $ dbgBLabel "- decType " decType
+              useType <- containForBounds ifMin ifMax $ return decType
+              whenDebugging $ dbgBLabel "- useType " useType
+              decoderFn <- getTypeDecoderFn tyName
+              return (
+                NormalC constrName [(useBang, useType)],
+                ConE constrName,
+                decoderFn)
+            _ -> error "TODO makeChoiceConstructor (b/2) --- GroupDefn alias to non-type"
+        _ -> do
+          error $ "Ref/stored defn mismatch: expected GroupDefn but got\n"
+            ++ bpp groupDefn
 
     TypeRef tyName _ifMin _ifMax _ _ -> do
       whenDebugging $ dbgLn $ "- With TypeRef " ++ showQName tyName

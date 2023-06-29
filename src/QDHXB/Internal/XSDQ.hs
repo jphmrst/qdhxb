@@ -20,9 +20,9 @@ module QDHXB.Internal.XSDQ (
   -- ** Attribute groups
   getAttributeGroup, buildAttrOrGroupHaskellName, buildAttrOrGroupHaskellType,
   -- ** Types
-  addGroupDefn, getGroupDefn, addTypeDefn, getTypeDefn, isKnownType,
-  ifKnownType, isSimpleType, isComplexType,
-  getTypeHaskellName, getTypeHaskellType,
+  addGroupDefn, getGroupDefn, getGroupDefnOrFail,
+  addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
+  isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
   -- *** XSD primitive types
   installXsdPrimitives,
@@ -57,6 +57,7 @@ import Control.Monad.Trans.State.Lazy
 import Data.Time.Clock
 import Data.Time.Format
 import Text.XML.Light.Types
+import Text.XML.Light.Output (showQName)
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.Namespaces
 import QDHXB.Internal.Utils.Misc
@@ -437,6 +438,15 @@ getGroupDefn :: QName -> XSDQ (Maybe Definition)
 getGroupDefn name = liftStatetoXSDQ $ do
   st <- get
   return $ lookupFirst (stateGroupDefinitions st) name
+
+-- | Return the `Definition` of an XSD group from the tracking tables
+-- in the `XSDQ` state.
+getGroupDefnOrFail :: QName -> XSDQ Definition
+getGroupDefnOrFail name = do
+  ifGroup <- getGroupDefn name
+  case ifGroup of
+    Just gr -> return gr
+    Nothing -> error $ "No such group " ++ showQName name
 
 -- | If the argument names an XSD type known to the translator, then
 -- return the `String` name of the corresponding Haskell type (and

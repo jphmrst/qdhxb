@@ -280,7 +280,7 @@ instance Blockable ComplexTypeScheme where
     (stringToBlock $ "Extension " ++ showQName base)
     `stack2` indent "  " (block ds)
   block (Choice base ds) =
-    (stringToBlock $ "Choice " ++ show base)
+    (stringToBlock $ "Choice " ++ maybe "[unnamed]" showQName base)
     `stack2` indent "  " (block ds)
   block (Group nr contents ifMin ifMax) =
     (labelBlock "Group " $ block nr)
