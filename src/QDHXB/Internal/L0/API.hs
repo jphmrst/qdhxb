@@ -1,6 +1,6 @@
 
 -- | Top-level calls
-module QDHXB.Internal.API (qdhxb, qdhxb') where
+module QDHXB.Internal.L0.API (qdhxb, qdhxb') where
 
 import Language.Haskell.TH (Q, Dec)
 import System.IO
@@ -11,7 +11,7 @@ import QDHXB.Internal.Utils.XMLLight (isElem)
 import QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, whenDebugging, whenCentralLogging, whenResetLog,
   localLoggingStart, localLoggingEnd, putLog, resetLog)
-import QDHXB.Internal.Pipeline
+import QDHXB.Internal.L0.Pipeline
 import QDHXB.Options
 
 -- | Load the given XSD files, translating each into Haskell

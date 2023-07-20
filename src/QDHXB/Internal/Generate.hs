@@ -1103,7 +1103,8 @@ makeChoiceConstructor name (constrSuffix, ref) = do
                 NormalC constrName [(useBang, useType)],
                 ConE constrName,
                 decoderFn)
-            _ -> error "TODO makeChoiceConstructor (b/2) --- GroupDefn alias to non-type"
+            _ -> error $ "TODO makeChoiceConstructor (b/2) --- "
+                   ++ "GroupDefn alias to non-type"
         _ -> do
           error $ "Ref/stored defn mismatch: expected GroupDefn but got\n"
             ++ bpp groupDefn

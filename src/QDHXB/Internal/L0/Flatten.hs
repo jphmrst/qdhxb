@@ -1,6 +1,6 @@
 -- | Internal representation directly reflecting XSD code, in
 -- particular allowing nested definitions.
-module QDHXB.Internal.Flatten (flattenSchemaItems) where
+module QDHXB.Internal.L0.Flatten (flattenSchemaItems) where
 
 -- import System.Directory
 import Text.XML.Light.Types
@@ -11,7 +11,7 @@ import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.Misc (pickOrCombine)
 import QDHXB.Internal.Utils.TH (firstToUpper)
 import QDHXB.Internal.Utils.XMLLight (withSuffix)
-import QDHXB.Internal.NestedTypes
+import QDHXB.Internal.L0.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
 

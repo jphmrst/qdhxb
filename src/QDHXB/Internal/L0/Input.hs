@@ -2,7 +2,7 @@
 
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
-module QDHXB.Internal.Input (inputSchemaItems) where
+module QDHXB.Internal.L0.Input (inputSchemaItems) where
 
 -- import System.Directory
 import Language.Haskell.TH (newName, nameBase)
@@ -14,7 +14,7 @@ import QDHXB.Internal.Utils.Misc (pickOrCombine, ifAtLine)
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.Utils.ZeroOneMany
 import QDHXB.Internal.Utils.XMLLight
-import QDHXB.Internal.NestedTypes
+import QDHXB.Internal.L0.NestedTypes
 import QDHXB.Internal.XSDQ
 
 -- |Rewrite otherwise-unstructured parsed XML content structures as a

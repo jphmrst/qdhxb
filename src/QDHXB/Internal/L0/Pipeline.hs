@@ -1,6 +1,6 @@
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
-module QDHXB.Internal.Pipeline (xmlToDecs) where
+module QDHXB.Internal.L0.Pipeline (xmlToDecs) where
 
 import Language.Haskell.TH
 -- import System.Directory
@@ -11,8 +11,8 @@ import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import QDHXB.Internal.Utils.BPP
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate
-import QDHXB.Internal.Input
-import QDHXB.Internal.Flatten
+import QDHXB.Internal.L0.Input
+import QDHXB.Internal.L0.Flatten
 
 -- | Convert XML `Content` into a quotation monad returning top-level
 -- Haskell declarations.

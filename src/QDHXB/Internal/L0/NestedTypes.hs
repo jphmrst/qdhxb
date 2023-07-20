@@ -2,7 +2,7 @@
 
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
-module QDHXB.Internal.NestedTypes (
+module QDHXB.Internal.L0.NestedTypes (
   NameOrRefOpt(..), nameOrRefOpt,
   SimpleTypeScheme(..),
   ComplexTypeScheme(..),
