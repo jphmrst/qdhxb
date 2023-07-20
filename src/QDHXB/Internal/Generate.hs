@@ -79,10 +79,10 @@ import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
 import Text.XML.Light.Types (QName, Content, qName, Line)
 import QDHXB.Errs
-import QDHXB.Internal.Utils.TH
-import QDHXB.Internal.Utils.XMLLight
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Utils.Misc (ifAtLine)
+import QDHXB.Utils.TH
+import QDHXB.Utils.XMLLight
+import QDHXB.Utils.BPP
+import QDHXB.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ

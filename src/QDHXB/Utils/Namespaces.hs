@@ -1,6 +1,6 @@
 
 -- | Dealing with namespaces
-module QDHXB.Internal.Utils.Namespaces
+module QDHXB.Utils.Namespaces
   (Namespaces, decodePrefixed, decodeAttrsForNamespaces)
 where
 import Data.List (stripPrefix)

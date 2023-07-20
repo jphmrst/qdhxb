@@ -6,11 +6,11 @@ module QDHXB.Internal.L0.Flatten (flattenSchemaItems) where
 import Text.XML.Light.Types
 import Text.XML.Light.Output
 import QDHXB.Internal.Generate
-import QDHXB.UtilMisc
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Utils.Misc (pickOrCombine)
-import QDHXB.Internal.Utils.TH (firstToUpper)
-import QDHXB.Internal.Utils.XMLLight (withSuffix)
+import QDHXB.Utils.Misc (applyFst, applySnd)
+import QDHXB.Utils.BPP
+import QDHXB.Utils.Misc (pickOrCombine)
+import QDHXB.Utils.TH (firstToUpper)
+import QDHXB.Utils.XMLLight (withSuffix)
 import QDHXB.Internal.L0.NestedTypes
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ

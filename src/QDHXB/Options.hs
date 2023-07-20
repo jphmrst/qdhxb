@@ -19,7 +19,7 @@ module QDHXB.Options (
   )
 where
 
-import QDHXB.Internal.Utils.BPP
+import QDHXB.Utils.BPP
 
 -- | The assortment of values to which options may be set.
 data QDHXBOptionSet = QDHXBOptionSet {

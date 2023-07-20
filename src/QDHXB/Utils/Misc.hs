@@ -1,12 +1,23 @@
 
 -- | Template Haskell definitions
-module QDHXB.Internal.Utils.Misc (
+module QDHXB.Utils.Misc (
+  applyFst, applySnd,
   compressMaybe, qFirstToUpper, qTransformName, spaceSep, chomp, pickOrCombine,
   ifAtLine
   ) where
 import Data.Char (isSpace)
 import Text.XML.Light.Types
-import QDHXB.Internal.Utils.TH
+import QDHXB.Utils.TH
+
+-- | Apply a function to the first element of a pair, and return a
+-- pair with the original second element.
+applyFst :: (a -> b) -> (a, c) -> (b, c)
+applyFst f (x,y) = (f x, y)
+
+-- | Apply a function to the second element of a pair, and return a
+-- pair with the original first element.
+applySnd :: (a -> b) -> (c, a) -> (c, b)
+applySnd f (x,y) = (x, f y)
 
 -- | Compress nested `Maybe` types into a single one.
 compressMaybe :: Maybe (Maybe a) -> Maybe a

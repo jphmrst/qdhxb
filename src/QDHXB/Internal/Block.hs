@@ -21,8 +21,8 @@ where
 
 import Language.Haskell.TH
 import Text.XML.Light.Types (Content, QName, qName)
-import QDHXB.Internal.Utils.ZeroOneMany
-import QDHXB.Internal.Utils.TH
+import QDHXB.Utils.ZeroOneMany
+import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
 
 -- | The destination (second) argument of `BlockMaker` contains a

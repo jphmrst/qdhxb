@@ -10,10 +10,10 @@ import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Output
 import Text.XML.Light.Types
-import QDHXB.Internal.Utils.Misc (pickOrCombine, ifAtLine)
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Utils.ZeroOneMany
-import QDHXB.Internal.Utils.XMLLight
+import QDHXB.Utils.Misc (pickOrCombine, ifAtLine)
+import QDHXB.Utils.BPP
+import QDHXB.Utils.ZeroOneMany
+import QDHXB.Utils.XMLLight
 import QDHXB.Internal.L0.NestedTypes
 import QDHXB.Internal.XSDQ
 

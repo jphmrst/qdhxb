@@ -1,6 +1,6 @@
 
 -- | Utilities based on the @XMLLight@ library.
-module QDHXB.Internal.Utils.ZeroOneMany (
+module QDHXB.Utils.ZeroOneMany (
     ZeroOneMany(Zero, One, Many),
     zomToMaybe, zomToSingle, zomToList, listToZom,
     zappend, lzappend, zomfilter, zommap, zommapM, zomintercalate
@@ -8,7 +8,7 @@ module QDHXB.Internal.Utils.ZeroOneMany (
 where
 import Data.List (intercalate)
 import Control.Monad.Except
-import QDHXB.Internal.Utils.BPP
+import QDHXB.Utils.BPP
 
 -- | Explicit tagging of whether a list has zero, one, or more than
 -- one elements.

@@ -7,7 +7,7 @@ import System.IO
 import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Text.XML.Light.Input (parseXML)
-import QDHXB.Internal.Utils.XMLLight (isElem)
+import QDHXB.Utils.XMLLight (isElem)
 import QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, whenDebugging, whenCentralLogging, whenResetLog,
   localLoggingStart, localLoggingEnd, putLog, resetLog)

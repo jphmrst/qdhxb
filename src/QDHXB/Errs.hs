@@ -4,7 +4,7 @@
 module QDHXB.Errs(HXBErr(..), HXBExcept) where
 import Control.Monad.Except
 import Text.XML.Light.Types (Line)
-import QDHXB.Internal.Utils.BPP
+import QDHXB.Utils.BPP
 
 -- | Exceptions raised when the code generated from an XSD
 -- specification encounters XML which it cannot process.  Note that

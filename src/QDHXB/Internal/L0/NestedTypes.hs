@@ -14,8 +14,8 @@ module QDHXB.Internal.L0.NestedTypes (
 
 import Text.XML.Light.Types (QName, Line, qName)
 import Text.XML.Light.Output
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Utils.XMLLight (withPrefix)
+import QDHXB.Utils.BPP
+import QDHXB.Utils.XMLLight (withPrefix)
 
 -- | A sort of variation of `Maybe` with two `Just` forms, for schema
 -- which allow either a @name@ or a @ref@ attribute, but not both, and

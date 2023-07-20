@@ -14,7 +14,7 @@ import Data.List (intercalate)
 import Text.XML.Light.Types
 import Text.XML.Light.Output (showQName)
 import Language.Haskell.TH (Exp, Type)
-import QDHXB.Internal.Utils.BPP
+import QDHXB.Utils.BPP
 
 -- | A reference to an XSD element.
 data Reference =

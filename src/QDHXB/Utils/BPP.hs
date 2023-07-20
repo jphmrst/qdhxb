@@ -4,7 +4,7 @@
 
 -- | Block Pretty-Printer, a quick-and-dirty pretty printer that uses
 -- a list of `String`s for a multi-line representation.
-module QDHXB.Internal.Utils.BPP (
+module QDHXB.Utils.BPP (
   -- * Top-level pretty-printer functions
   bpp, bpp', bprint, bprintLn, bLabelPrint, bLabelPrintln,
   -- * Main type and classes
@@ -148,8 +148,8 @@ verticalBlockListFn = Block . concat . map (openBlock . block)
 -- `Blockable`.
 verticalBlockList :: Q Type -> Q [Dec]
 verticalBlockList name =
-  [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
-       where block = QDHXB.Internal.Utils.BPP.verticalBlockListFn|]
+  [d|instance QDHXB.Utils.BPP.Blockable [$name]
+       where block = QDHXB.Utils.BPP.verticalBlockListFn|]
 
 -- | Standalone function rendering a list as a bulleted vertical
 -- rendering of its elements.
@@ -162,8 +162,8 @@ bulletedVerticalBlockListFn =
 -- `Blockable`.
 bulletedVerticalBlockList :: Q Type -> Q [Dec]
 bulletedVerticalBlockList name =
-  [d|instance QDHXB.Internal.Utils.BPP.Blockable [$name]
-       where block = QDHXB.Internal.Utils.BPP.bulletedVerticalBlockListFn|]
+  [d|instance QDHXB.Utils.BPP.Blockable [$name]
+       where block = QDHXB.Utils.BPP.bulletedVerticalBlockListFn|]
 
 -- | Standalone function rendering a pair with the first component
 -- directly above the second.
@@ -178,8 +178,8 @@ verticalBlockablePairFn (a, b) = labelBlock "(" $ stackBlocks [
 -- either @s@ or @t@ is not `Blockable`.
 verticalBlockablePair :: Q Type -> Q Type -> Q [Dec]
 verticalBlockablePair t1 t2 =
-  [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
-       where block = QDHXB.Internal.Utils.BPP.verticalBlockablePairFn|]
+  [d|instance QDHXB.Utils.BPP.Blockable ($t1,$t2)
+       where block = QDHXB.Utils.BPP.verticalBlockablePairFn|]
 
 -- | Standalone function rendering a pair on one line.
 horizontalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
@@ -190,8 +190,8 @@ horizontalBlockablePairFn (a, b) = labelBlock "(" $
 -- line.  Will raise an error if either @s@ or @t@ is not `Blockable`.
 horizontalBlockablePair :: Q Type -> Q Type -> Q [Dec]
 horizontalBlockablePair t1 t2 =
-  [d|instance QDHXB.Internal.Utils.BPP.Blockable ($t1,$t2)
-       where block = QDHXB.Internal.Utils.BPP.horizontalBlockablePairFn|]
+  [d|instance QDHXB.Utils.BPP.Blockable ($t1,$t2)
+       where block = QDHXB.Utils.BPP.horizontalBlockablePairFn|]
 
 -- | Given two blockable values, format them as an ordered pair.
 horizontalPair :: (Blockable a, Blockable b) => a -> b -> Block

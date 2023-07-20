@@ -1,6 +1,6 @@
 
 -- | Utilities based on the @XMLLight@ library.
-module QDHXB.Internal.Utils.XMLLight (
+module QDHXB.Utils.XMLLight (
   pullAttr, pullAttrFrom, pullContent, pullContentFrom,
     pullCRef, pullCRefContent, pullCRefOf,
     getAnnotationDoc, getAnnotationDocFrom,
@@ -15,8 +15,8 @@ import System.IO
 import Control.Monad.Except
 import Text.XML.Light.Input
 import Text.XML.Light.Types
-import QDHXB.Internal.Utils.Misc
-import QDHXB.Internal.Utils.ZeroOneMany
+import QDHXB.Utils.Misc
+import QDHXB.Utils.ZeroOneMany
 
 -- | Retrieve the named attribute value from a list of `Attr`
 -- bindings.

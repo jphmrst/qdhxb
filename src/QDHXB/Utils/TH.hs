@@ -1,6 +1,6 @@
 
 -- | Template Haskell definitions
-module QDHXB.Internal.Utils.TH (
+module QDHXB.Utils.TH (
   -- * Possibly-absent integers from XSD text
   xsdNameToTypeTranslation, xsdNameToNameTranslation,
 
@@ -77,7 +77,7 @@ module QDHXB.Internal.Utils.TH (
   fn1Type, fn2Type, app2Exp, app3Exp, app4Exp,
   quotedId, quotedReturnId,
 
-  -- * `QDHXB.Internal.Utils.ZeroOneMany`
+  -- * `QDHXB.Utils.ZeroOneMany`
   zomConT, zeroPat, onePat, manyPat, zomToListVarE,
   applyZomToSingle, applyZomToMaybe, applyZomToList,
   zomCase, zomCaseSingle, zomCaseSingle', applyZommapM,
@@ -504,44 +504,44 @@ readVarE = VarE readName
 readMaybeVarE :: Exp
 readMaybeVarE = VarE readMaybeName
 
--- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToList`
+-- | TH `Name` for `QDHXB.Utils.ZeroOneMany.zomToList`
 zomToListName :: Name
 zomToListName = mkName "QDHXB.Expansions.zomToList"
 
--- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToList`
+-- | TH `Exp` for function `QDHXB.Utils.ZeroOneMany.zomToList`
 zomToListVarE :: Exp
 zomToListVarE = VarE zomToListName
 
 -- | Apply the TH quotation of the function
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToList` to another `Exp`.
+-- `QDHXB.Utils.ZeroOneMany.zomToList` to another `Exp`.
 applyZomToList :: Exp -> Exp
 applyZomToList = AppE zomToListVarE
 
--- | TH `Name` for the `QDHXB.Internal.Utils.ZeroOneMany.ZeroOneMany`
+-- | TH `Name` for the `QDHXB.Utils.ZeroOneMany.ZeroOneMany`
 -- type.
 zomName :: Name
 zomName = mkName "QDHXB.Expansions.ZeroOneMany"
 
--- | TH `Name` for the `QDHXB.Internal.Utils.ZeroOneMany.ZeroOneMany`
+-- | TH `Name` for the `QDHXB.Utils.ZeroOneMany.ZeroOneMany`
 -- type.
 zomConT :: Type
 zomConT = ConT zomName
 
--- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`
+-- | TH `Name` for `QDHXB.Utils.ZeroOneMany.zomToMaybe`
 zomToMaybeName :: Name
 zomToMaybeName = mkName "QDHXB.Expansions.zomToMaybe"
 
--- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`
+-- | TH `Exp` for function `QDHXB.Utils.ZeroOneMany.zomToMaybe`
 zomToMaybeVarE :: Exp
 zomToMaybeVarE = VarE zomToMaybeName
 
 -- | Apply the TH quotation of the function
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe` to another `Exp`.
+-- `QDHXB.Utils.ZeroOneMany.zomToMaybe` to another `Exp`.
 applyZomToMaybe :: Exp -> Exp
 applyZomToMaybe = AppE zomToMaybeVarE
 
 -- | Build a TH @case@ expression over a
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression.
+-- `QDHXB.Utils.ZeroOneMany.zomToMaybe`-valued expression.
 zomCase :: Exp -> Exp -> Name -> Exp -> Name -> Exp -> Exp
 zomCase e zeroExp oneN oneExp manyN manyExp =
   CaseE e [
@@ -551,7 +551,7 @@ zomCase e zeroExp oneN oneExp manyN manyExp =
     ]
 
 -- | Build a TH @case@ expression over a
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression
+-- `QDHXB.Utils.ZeroOneMany.zomToMaybe`-valued expression
 -- which distinguishes the single case, and a miscellaneous catch-all.
 zomCaseSingle :: Exp -> Name -> Exp -> Name -> Exp -> Exp
 zomCaseSingle e oneN oneExp otherN otherExp =
@@ -561,7 +561,7 @@ zomCaseSingle e oneN oneExp otherN otherExp =
     ]
 
 -- | Build a TH @case@ expression over a
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToMaybe`-valued expression
+-- `QDHXB.Utils.ZeroOneMany.zomToMaybe`-valued expression
 -- which distinguishes the single case, and a wildcard catch-all for
 -- other cases.
 zomCaseSingle' :: Exp -> Name -> Exp -> Exp -> Exp
@@ -571,16 +571,16 @@ zomCaseSingle' e oneN oneExp otherExp =
     Match (WildP) (NormalB otherExp) []
     ]
 
--- | TH `Name` for `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle`
+-- | TH `Name` for `QDHXB.Utils.ZeroOneMany.zomToSingle`
 zomToSingleName :: Name
 zomToSingleName = mkName "QDHXB.Expansions.zomToSingle"
 
--- | TH `Exp` for function `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle`
+-- | TH `Exp` for function `QDHXB.Utils.ZeroOneMany.zomToSingle`
 zomToSingleVarE :: Exp
 zomToSingleVarE = VarE zomToSingleName
 
 -- | Apply the TH quotation of the function
--- `QDHXB.Internal.Utils.ZeroOneMany.zomToSingle` to another `Exp`.
+-- `QDHXB.Utils.ZeroOneMany.zomToSingle` to another `Exp`.
 applyZomToSingle :: Exp -> Exp
 applyZomToSingle = AppE zomToSingleVarE
 
@@ -757,7 +757,7 @@ pullAttrFromVarE :: Exp
 pullAttrFromVarE = VarE pullAttrFromName
 
 -- | Build an expression applying the
--- `QDHXB.Internal.Utils.XMLLight.pullAttrFrom` function to two
+-- `QDHXB.Utils.XMLLight.pullAttrFrom` function to two
 -- arguments.  The first argument is a `String` to be quoted
 -- literally; the second argument should denote an XML
 -- `Text.XML.Light.Types.Content` node.
@@ -953,12 +953,12 @@ simpleTypeDecoderVarE :: Exp
 simpleTypeDecoderVarE = VarE simpleTypeDecoderName
 
 -- | `Name` for the `QDHXB.Expansions.spaceSep` re-export of the
--- `QDHXB.Internal.Utils.Misc.spaceSep` function.
+-- `QDHXB.Utils.Misc.spaceSep` function.
 spaceSepName :: Name
 spaceSepName = mkName "QDHXB.Expansions.spaceSep"
 
 -- | Apply for the
--- `QDHXB.Expansions.spaceSep`/`QDHXB.Internal.Utils.Misc.spaceSep`
+-- `QDHXB.Expansions.spaceSep`/`QDHXB.Utils.Misc.spaceSep`
 -- function.
 spaceSepApp :: Exp -> Exp
 spaceSepApp = AppE (VarE spaceSepName)
@@ -969,7 +969,7 @@ mapMName :: Name
 mapMName = mkName "QDHXB.Expansions.mapM"
 
 -- | `Name` for the `QDHXB.Expansions.zommapM` re-export of the
--- `QDHXB.Internal.Utils.ZeroOneMany.zommapM` function.
+-- `QDHXB.Utils.ZeroOneMany.zommapM` function.
 zommapMName :: Name
 zommapMName = mkName "QDHXB.Expansions.zommapM"
 
@@ -981,7 +981,7 @@ applyMapM f = AppE (AppE (VarE mapMName) f)
 
 -- | Create an `Exp`ression from a full application of the
 -- `QDHXB.Expansions.zommapM` re-export of the
--- `QDHXB.Internal.Utils.ZeroOneMany.zommapM` function.
+-- `QDHXB.Utils.ZeroOneMany.zommapM` function.
 applyZommapM :: Exp -> Exp -> Exp
 applyZommapM f = AppE (AppE (VarE zommapMName) f)
 
@@ -1149,18 +1149,18 @@ useBang :: Bang
 useBang = Bang NoSourceUnpackedness NoSourceStrictness
 
 -- | Reference to exported version of
--- `QDHXB.Internal.Utils.XMLLight.pullContentFrom`.
+-- `QDHXB.Utils.XMLLight.pullContentFrom`.
 pullContentFromName :: Name
 pullContentFromName = mkName "QDHXB.Expansions.pullContentFrom"
 
 pullContentFromVarE :: Exp
 pullContentFromVarE = VarE pullContentFromName
 
--- | The `QDHXB.Internal.Utils.XMLLight.pullContentFrom` function
+-- | The `QDHXB.Utils.XMLLight.pullContentFrom` function
 -- returns the sub-elements of a piece of XML
--- `QDHXB.Internal.Utils.XMLLight.Content` with the given name; this
+-- `QDHXB.Utils.XMLLight.Content` with the given name; this
 -- function creates a TH `Exp` to apply
--- `QDHXB.Internal.Utils.XMLLight.pullContentFrom` with a particular
+-- `QDHXB.Utils.XMLLight.pullContentFrom` with a particular
 -- tag name.
 applyPullContentFrom :: String -> Exp -> Exp
 applyPullContentFrom s = AppE $ AppE pullContentFromVarE $ LitE $ StringL s

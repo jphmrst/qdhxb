@@ -22,12 +22,12 @@ import Data.Time.Calendar.OrdinalDate (Day)
 import Data.Time.LocalTime (TimeOfDay, ZonedTime)
 import Data.Time.Clock (DiffTime)
 import QDHXB.Errs
-import QDHXB.Internal.Utils.ZeroOneMany
-import QDHXB.Internal.Utils.XMLLight (
+import QDHXB.Utils.ZeroOneMany
+import QDHXB.Utils.XMLLight (
   __loadElement, __loadContent,
   pullContentFrom, pullAttrFrom, pullCRefContent)
-import QDHXB.Internal.Utils.Misc (spaceSep)
-import QDHXB.Internal.Utils.BPP (bpp)
+import QDHXB.Utils.Misc (spaceSep)
+import QDHXB.Utils.BPP (bpp)
 import QDHXB.Internal.Generate (simpleTypeDecoder)
 
 instance Eq Content where

@@ -58,10 +58,10 @@ import Data.Time.Clock
 import Data.Time.Format
 import Text.XML.Light.Types
 import Text.XML.Light.Output (showQName)
-import QDHXB.Internal.Utils.BPP
-import QDHXB.Internal.Utils.Namespaces
-import QDHXB.Internal.Utils.Misc
-import QDHXB.Internal.Utils.TH (
+import QDHXB.Utils.BPP
+import QDHXB.Utils.Namespaces
+import QDHXB.Utils.Misc
+import QDHXB.Utils.TH (
   timeOfDayBasicDecoder, stringListBasicDecoder, stringBasicDecoder,
     intBasicDecoder, dayBasicDecoder, diffTimeBasicDecoder, floatBasicDecoder,
     doubleBasicDecoder, zonedTimeBasicDecoder, boolBasicDecoder,
