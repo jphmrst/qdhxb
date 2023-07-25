@@ -15,6 +15,6 @@ testMinGroup1 = inGroup "Min group 1" $ do
     p <- lift $ loadCombo "test/GroupBasic/min1a.xml"
     -- lift $ putStrLn $ show p
     "Correctly decode <group> in min1a.xml" ~:
-      ComboType (TheGroupGroupContent "abc123") @==- p
+      ComboType (TheGroup "abc123") @==- p
   return ()
 
