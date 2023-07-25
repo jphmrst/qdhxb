@@ -147,26 +147,23 @@ flattenSchemaItem' s@(SimpleTypeScheme (Just nam)
 flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
   whenDebugging $
     dbgBLabel "[fSI'] Flattening group scheme with name and present content " gs
-  let typeSchemeName = withSuffix "GroupContent" name
-  defs <- flattenComplexTypeScheme cts [] (Just typeSchemeName) ln doc
-  {-
-  boxed $ do
-    dbgLn "TODO flattenSchemaItem' group case"
-    dbgLn $ "NAME " ++ qName name
-    dbgBLabel "DEFS " defs
-    -- dbgBLabel "REF " ref
-    dbgBLabel "CTS " cts
-    dbgLn $ "LN " ++ show ln
-  error $ "TODO flatten group " ++ maybe "(unnamed)" qName ifName ++ " case: "
-  -}
+  -- let typeSchemeName = withSuffix "GroupContent" name
+  defs <- flattenComplexTypeScheme cts []
+            (Just name {- typeSchemeName -} )
+            ln doc
 
   -- TODO The bounds are hardcoded here, but should be detected in the
   -- Input and carried forward.
   let defn = GroupDefn name
-               (TypeRef typeSchemeName (Just 1) (Just 1) Nothing Nothing) ln doc
+               (TypeRef (name {- typeSchemeName -})
+                        (Just 1) (Just 1) Nothing Nothing) ln doc
   fileNewDefinition defn
+  -- We do not actually generate anything from a GroupDefn, so the
+  -- `defn` does not go into the list of definitions which become
+  -- Haskell code.  But we do store the GroupDefn to look up as a
+  -- group against its name.
 
-  dbgResult "Flattened [fSI'] to" $ defs {- ++ [defn] -}
+  dbgResult "Flattened [fSI'] to" $ defs -- ++ [defn]
 
 flattenSchemaItem' gs@(GroupScheme (WithRef ref) Nothing ln _doc) = do
   whenDebugging $
