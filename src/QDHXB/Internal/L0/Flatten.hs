@@ -31,7 +31,7 @@ flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
 
 flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
-                                  ifMin ifMax l ifDoc) = do
+                                  ifMin ifMax _isAbstract l ifDoc) = do
   whenDebugging $ dbgLn "[fSI'] Relaying to flattenElementSchemeItem"
   flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
 
@@ -79,8 +79,9 @@ flattenSchemaItem' sts@(SimpleTypeScheme (Just nam) (Union alts ns) ln d) = do
   whenDebugging $ dbgBLabel "[fSI'] Flattening simple union " sts
   let nameUnnamed :: QName -> DataScheme -> DataScheme
       nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
-                                   ifMin ifMax l ifDoc) =
-        ElementScheme ctnts (Just q) ifType ifRef ifId ifMin ifMax l ifDoc
+                                   ifMin ifMax isAbstract l ifDoc) =
+        ElementScheme ctnts (Just q) ifType ifRef ifId
+                      ifMin ifMax isAbstract l ifDoc
       nameUnnamed q (AttributeScheme
                      (SingleAttribute (WithRef _) ifType usage d') ln' d'') =
         AttributeScheme (SingleAttribute (WithName q) ifType usage d') ln'
@@ -444,7 +445,7 @@ flattenSchemaRefs = fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
 
 flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
 flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId
-                                ifLower ifUpper ln ifDoc) = do
+                                ifLower ifUpper _isAbstract ln ifDoc) = do
   whenDebugging $ dbgLn "[fSR -> flattenElementSchemeRef]"
   flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
 flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') l d) = do

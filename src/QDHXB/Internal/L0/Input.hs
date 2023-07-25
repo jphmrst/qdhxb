@@ -65,6 +65,10 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
   refQName <- pullAttrQName "ref" ats
+  let ifAbstr = pullAttr "abstract" ats
+      isAbstract = case ifAbstr of
+                     Just "true" -> True
+                     _ -> False
   ifDoc <- getAnnotationDocFrom content
   let ifId = pullAttr "id" ats
   sub <- case included of
@@ -81,7 +85,7 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
     ElementScheme sub nameQName typeQName refQName ifId
              (decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats)
              (decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats)
-             ln ifDoc
+             isAbstract ln ifDoc
 
 inputElement q@(QName "attribute" _ _) a c o l _d = do
   ifDoc <- getAnnotationDocFrom c

@@ -112,6 +112,7 @@ data DataScheme =
                   (Maybe String) -- ^ ifId
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
+                  Bool -- ^ isAbstract
                   (Maybe Line) -- ^ ifLine
                   (Maybe String) -- ^ ifDocumentation
   | AttributeScheme AttributeScheme -- ^ Single vs. group
@@ -141,7 +142,7 @@ data DataScheme =
   deriving Show
 
 --  block Skip =
---  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax ifLine ifDoc) =
+--  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract ifLine ifDoc) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
 --  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
 --  block (SimpleTypeScheme name detail ifDoc) =
@@ -159,10 +160,10 @@ quoteString s = "\"" ++ s ++ "\""
 -- | Try to find a name for this `DataScheme`.
 labelOf :: DataScheme -> Maybe QName
 labelOf Skip = Nothing
-labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _) = Just name
-labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _) = Just typ
-labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _) = labelOf sub
-labelOf (ElementScheme _ _ _ _ _ _ _ _ _) = Nothing
+labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _ _) = Just name
+labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _ _) = Just typ
+labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _ _) = labelOf sub
+labelOf (ElementScheme _ _ _ _ _ _ _ _ _ _) = Nothing
 labelOf (AttributeScheme (SingleAttribute (WithName n) _ _ _) _ _) = Just n
 labelOf (AttributeScheme (SingleAttribute _ (NameRef qn) _ _) _ _) = Just qn
 labelOf (AttributeScheme (SingleAttribute _ (Nested d) _ _) _ _) = labelOf d
@@ -201,10 +202,11 @@ nonSkip _ = True
 
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
-  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax _ifLine ifDoc) =
+  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract _ifLine ifDoc) =
     stackBlocks [
       stringToBlock ("ElementScheme name="
                        ++ maybe "undef" quoteShowQName ifName
+                       ++ if isAbstract then " abstract" else ""
                        ++ " type="
                        ++ maybe "undef" quoteShowQName ifType),
       indent "  " $ stringToBlock ("ref="
