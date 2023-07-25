@@ -11,7 +11,7 @@ module QDHXB.Internal.XSDQ (
   -- * Monad transformer
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ, liftExcepttoXSDQ,
   -- * Information about declarations
-  fileNewDefinition,
+  fileNewDefinition, anyTypeQName,
   -- ** Elements
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
@@ -258,6 +258,15 @@ fileNewDefinition d@(BuiltinDefn qn _ _ _) = do
        -- `follow` (labelBlock " :: " $ block t)
   addTypeDefn qn d
 
+-- | Retrieve the `QName` of the standard XSD type @anyType@.
+anyTypeQName :: XSDQ QName
+anyTypeQName = do
+  st <- liftStatetoXSDQ $ get
+  return $ get_anyType $ stateTypeDefinitions st
+  where get_anyType ((qn, BuiltinDefn (QName "anyType" _ _) _ _ _):_) = qn
+        get_anyType (_:env) = get_anyType env
+        get_anyType [] = error "Bad call to anyTypeQName"
+
 -- | Write the current state of the `XSDQ` internals to the standard
 -- output.
 debugXSDQ :: XSDQ ()
@@ -269,9 +278,9 @@ debugXSDQ = do
 -- environment.
 installXsdPrimitives :: String -> Maybe String -> XSDQ ()
 installXsdPrimitives ns pfx = do
+  let anyTypeQName = QName "anyType" (Just ns) pfx
   fileNewDefinition $
-    BuiltinDefn (QName "anyType" (Just ns) pfx) "String"
-      stringType stringBasicDecoder
+    BuiltinDefn anyTypeQName "String" stringType stringBasicDecoder
   fileNewDefinition $
     BuiltinDefn (QName "anySimpleType" (Just ns) pfx) "String"
       stringType stringBasicDecoder

@@ -31,9 +31,9 @@ flattenSchemaItem' :: DataScheme -> XSDQ [Definition]
 flattenSchemaItem' Skip = return []
 
 flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
-                                  ifMin ifMax _isAbstract l ifDoc) = do
+                                  ifMin ifMax abst l ifDoc) = do
   whenDebugging $ dbgLn "[fSI'] Relaying to flattenElementSchemeItem"
-  flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax l ifDoc
+  flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax abst l ifDoc
 
 flattenSchemaItem' (AttributeScheme
                     (SingleAttribute (WithName nam) (NameRef typ) m d')
@@ -320,24 +320,25 @@ getLabelledDisjunct ref ds = (maybe (referenceBase ref) id $ labelOf ds,
                               ref)
 
 flattenElementSchemeItem ::
-  Maybe DataScheme -> Maybe QName -> Maybe QName -> (Maybe QName)
-  -> (Maybe Int) -> (Maybe Int) -> (Maybe Line) -> Maybe String
+  Maybe DataScheme -> Maybe QName -> Maybe QName -> Maybe QName
+  -> Maybe Int -> Maybe Int -> Bool -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
-flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing _ _ ln ifDoc = do
+flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing _ _ _ ln ifDoc = do
   whenDebugging $ dbgLn "[fESI] With name/type"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
-flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ _ _ ln ifDoc = do
+flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ _ _ _ ln ifDoc = do
   whenDebugging $ dbgLn "[fESI] Enclosing skip"
   indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
 flattenElementSchemeItem (Just (SimpleTypeScheme _ ts ln d))
-                          ifName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+                          ifName@(Just nam) Nothing Nothing _ _ _ _ ifDoc = do
   whenDebugging $ dbgLn "[fESI] Enclosing simple type scheme"
   flatTS <- flattenSchemaItem' $ SimpleTypeScheme ifName ts ln d
   let elemDefn = ElementDefn nam nam ln ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
 flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs ifCTSName l d))
-                          ifElementName@(Just nam) Nothing Nothing _ _ _ ifDoc = do
+                         ifElementName@(Just nam) Nothing Nothing _ _
+                         _ _ ifDoc = do
   whenDebugging $ dbgLn "[fESI] Enclosing complex type scheme"
   let typeName = maybe nam id ifCTSName
   let ifTypeName = maybe ifElementName Just ifCTSName
@@ -347,9 +348,17 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs ifCTSName l d))
   let elemDefn = ElementDefn nam typeName l ifDoc
   fileNewDefinition elemDefn
   dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
+flattenElementSchemeItem Nothing ifName@(Just _) Nothing Nothing ifMax ifMin
+                         True ifLine ifDoc = do
+  whenDebugging $
+    dbgLn "[fESI] Abstract with name but no contents/type --- relay with any"
+  anyType <- anyTypeQName
+  flattenElementSchemeItem Nothing ifName (Just anyType) Nothing ifMax ifMin
+                           True ifLine ifDoc
   {-
 flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
-                          ifName ifType ifRef ifMin ifMax _ifLn _ifDoc = do
+                         ifName ifType ifRef ifMin ifMax
+                         _ifAbstr _ifLn _ifDoc = do
   boxed $ do
     dbgLn $ "flattenElementSchemeItem"
     dbgBLabel "TS " ts
@@ -362,7 +371,7 @@ flattenElementSchemeItem (Just (ComplexTypeScheme ts attrs (Just n) _l _d))
     dbgLn $ "IFMAX " ++ show ifMax
   error "Unmatched ComplexTypeScheme case for flattenElementSchemeItem"
 -}
-flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ifDoc = do
+flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax _ _ _ifDoc = do
   boxed $ do
     dbgLn "[fESI] flattenElementSchemeItem"
     dbgBLabel "CONTENT " content
@@ -602,7 +611,7 @@ flattenElementSchemeRef Nothing (Just n)
 flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
                         n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
   whenDebugging $ dbgLn "[fESR] t and r and Nothing"
-  prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
+  prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
   let ref = ElementRef nam lower upper ln
   whenDebugging $ do
     dbgLn "Flattening element schema with name and nested complex type"
@@ -624,7 +633,7 @@ flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ (Just schemeName) _ _))
       dbgLn $ "LOWER " ++ show lower
       dbgLn $ "UPPER " ++ show upper
       dbgLn $ "LN " ++ show ln
-  prev <- flattenElementSchemeItem s n t r lower upper ln ifDoc
+  prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
   whenDebugging $ dbgBLabel "- prev " prev
   let ref = ElementRef schemeName lower upper ln
   whenDebugging $ dbgBLabel "- ref " ref
