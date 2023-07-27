@@ -275,26 +275,27 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (c) UnionDefn " decl
 
-  let capName = qnFirstToUpper name
-
-  (safeCore, _, whereDecs) <-
-    unionDefnComponents getSafeDecoderCall capName pairs ln
+  (safeCore, _, whereDecs) <- do
+    dbgLn "- Calling unionDefnComponents"
+    indenting $ unionDefnComponents getSafeDecoderCall name pairs ln
   whenDebugging $ do
     dbgLn "- whereDecs "
     indenting $ forM_ whereDecs $ dbgBLabelFn1 "- " srcName
-    dbgBLabel "- safeDecoder " safeCore
+    dbgBLabel "- safeCore " safeCore
 
-  let makeConstr :: (QName, QName) -> Con
-      makeConstr (constructorName, tn) =
-        NormalC (mkName $ firstToUpper $ qName constructorName)
-                [(useBang, ConT $ mkName $ qName tn)]
+  let makeConstr :: (QName, QName) -> XSDQ Con
+      makeConstr (constructorName, tn) = do
+        tyName <- getTypeHaskellType tn
+        return $ NormalC (mkName $ firstToUpper $ qName constructorName)
+                         [(useBang, tyName)]
 
-  let typDef tn = DataD [] tn [] Nothing (map makeConstr pairs)
+  constrDefs <- mapM makeConstr pairs
+  let typDef tn = DataD [] tn [] Nothing constrDefs
                     [DerivClause Nothing [eqConT, showConT]]
   whenDebugging $ dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
 
   dbgResultM "Generated" $
-    newAssemble capName (Just typDef)
+    newAssemble name (Just typDef)
                 (\src dest -> [
                     BindS (VarP dest) $
                       LetE (concat $ map (\f -> f src) whereDecs) safeCore
@@ -1336,7 +1337,7 @@ unionDefnComponents ::
   -- And the result is a computation returning a `BlockMaker`
   -> XSDQ (Exp, [Name], [Name -> [Dec]])
 unionDefnComponents blockMakerBuilder name pairs ln = do
-  let baseName = qName name
+  let baseName = firstToUpper $ qName name
       baseType = ConT $ mkName baseName
 
   -- Prepare where-block bindings for calls to the alternative
@@ -1347,13 +1348,14 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
         let binderName :: Name
             binderName = mkName $ "binder" ++ qName constr
         decoder <- blockMakerBuilder typ
+        htype <- getTypeHaskellName typ
         return (
           binderName,
           \src -> [
             SigD binderName (qHXBExcT baseType),
             ValD (VarP binderName)
                  (NormalB $
-                    blockMakerCloseWith (AppE (ConE $ mkName $ qName constr))
+                    blockMakerCloseWith (AppE (ConE $ mkName $ firstToUpper $ qName constr))
                                         decoder src) []
             ])
 
