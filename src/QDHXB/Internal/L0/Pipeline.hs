@@ -1,12 +1,11 @@
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
-module QDHXB.Internal.L0.Pipeline (xmlToDecs) where
+module QDHXB.Internal.L0.Pipeline (translateParsedXSD) where
 
 import Language.Haskell.TH
 -- import System.Directory
 import Control.Monad.IO.Class
 -- import Data.Char
--- import Text.XML.Light.Types
 import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import QDHXB.Utils.BPP
 import QDHXB.Internal.XSDQ
@@ -14,53 +13,60 @@ import QDHXB.Internal.Generate
 import QDHXB.Internal.L0.Input
 import QDHXB.Internal.L0.Flatten
 
--- | Convert XML `Content` into a quotation monad returning top-level
--- Haskell declarations.
-xmlToDecs :: [Content] -> XSDQ [Dec]
-xmlToDecs ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
-  (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) -> elementToDecs e
-  _ -> error "Expected top-level <schema> element"
-xmlToDecs (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) =
-  elementToDecs e
-xmlToDecs _ = error "Missing <?xml> element"
+-- | Convert several parsed XSD files to a list of Haskell definitions
+translateParsedXSD :: [[Content]] -> XSDQ [Dec]
+translateParsedXSD xsds = do
+  let cores = map getCoreContent xsds
+  flatteneds <- mapM (
+    \core ->
+      case core of
+        Elem (Element (QName "schema" _ _) attrs forms _) -> do
+          pushNamespaces attrs
+          whenDebugging $ liftIO $ do
+            putStrLn "======================================== INPUT"
+            bLabelPrintln "Source: " core
+            putStrLn "----------------------------------------"
+          putLog $ "------------------------------ SOURCE\n" ++ bpp core
+            ++ "\n------------------------------ "
 
-elementToDecs :: Content -> XSDQ [Dec]
-elementToDecs e@(Elem (Element (QName "schema" _ _) attrs forms _)) = do
-  pushNamespaces attrs
-  whenDebugging $ liftIO $ do
-    putStrLn "======================================== INPUT"
-    bLabelPrintln "Source: " e
-    putStrLn "----------------------------------------"
-  putLog $ "------------------------------ SOURCE\n" ++ bpp e
-    ++ "\n------------------------------ "
+          schemaReps <- inputSchemaItems forms
+          putLog $ " NESTED INPUT\n" ++ bpp schemaReps
+            ++ "\n------------------------------ "
+          whenDebugging $ liftIO $ do
+            putStrLn "----------------------------------------"
+            bLabelPrintln "Final: " schemaReps
+            putStrLn "======================================== FLATTEN"
 
-  schemaReps <- inputSchemaItems forms
-  whenDebugging $ liftIO $ do
-    putStrLn "----------------------------------------"
-    bLabelPrintln "Final: " schemaReps
-    putStrLn "======================================== FLATTEN"
-  putLog $ " NESTED INPUT\n" ++ bpp schemaReps
-    ++ "\n------------------------------ "
+          ir <- flattenSchemaItems schemaReps
+          putLog $ " FLATTENED INPUT\n" ++ bpp ir
+            ++ "\n------------------------------ "
+          whenDebugging $ liftIO $ do
+            putStrLn "----------------------------------------"
+            bLabelPrintln "Final: " ir
 
-  ir <- flattenSchemaItems schemaReps
+          return ir
+        _ -> error "Expected top-level <schema> element") cores
+
+  -- Now concatenate the flattened definition lists together, and
+  -- convert them all to Haskell declarations.
+  let flattened = concat flatteneds
   whenDebugging $ do
-    liftIO $ do
-      putStrLn "----------------------------------------"
-      bLabelPrintln "Final: " ir
-      putStrLn "======================================== GENERATE"
     debugXSDQ
     liftIO $ do
-      putStrLn "----------------------------------------"
-  putLog $ " FLATTENED INPUT\n" ++ bpp ir
-    ++ "\n------------------------------ "
-
-  decls <- xsdDeclsToHaskell ir
+      putStrLn "======================================== GENERATE"
+  decls <- xsdDeclsToHaskell flattened
+  putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
   whenDebugging $ liftIO $ do
-    putStrLn "----------------------------------------"
     bLabelPrintln "Final: " decls
     putStrLn "======================================== end "
-  putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
 
   return decls
 
-elementToDecs _ = error "Unexpected form in elementToDecs"
+-- | Find the core `Content` corresponding to an XML scheme in the
+-- list of `Content` returned from parsing an XSD file.
+getCoreContent :: [Content] -> Content
+getCoreContent (e@(Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
+  (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) -> e
+  _ -> error "Expected top-level <schema> element"
+getCoreContent (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) = e
+getCoreContent _ = error "Missing <?xml> element"

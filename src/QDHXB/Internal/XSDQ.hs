@@ -19,8 +19,9 @@ module QDHXB.Internal.XSDQ (
   getAttributeOrGroup, adjustTypeForUsage, getAttributeOrGroupTypeForUsage,
   -- ** Attribute groups
   getAttributeGroup, buildAttrOrGroupHaskellName, buildAttrOrGroupHaskellType,
-  -- ** Types
+  -- ** Groups
   addGroupDefn, getGroupDefn, getGroupDefnOrFail,
+  -- ** Types
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,

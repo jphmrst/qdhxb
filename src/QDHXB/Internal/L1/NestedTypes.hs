@@ -7,8 +7,8 @@ import QDHXB.Internal.L0.API
 import QDHXB.Options
 import qualified QDHXB.Expansions
 
--- qdhxb (useDebugging . logByFile True)
---       ["src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"]
+-- qdhxb (useDebugging . logByFile True) [
+--   "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"]
 -- qdhxb' ["src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"]
 
 -- |Placeholder, until the full XSD specification can actually be

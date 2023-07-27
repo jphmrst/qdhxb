@@ -275,8 +275,10 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (c) UnionDefn " decl
 
+  let capName = qnFirstToUpper name
+
   (safeCore, _, whereDecs) <-
-    unionDefnComponents getSafeDecoderCall name pairs ln
+    unionDefnComponents getSafeDecoderCall capName pairs ln
   whenDebugging $ do
     dbgLn "- whereDecs "
     indenting $ forM_ whereDecs $ dbgBLabelFn1 "- " srcName
@@ -284,7 +286,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
 
   let makeConstr :: (QName, QName) -> Con
       makeConstr (constructorName, tn) =
-        NormalC (mkName $ qName constructorName)
+        NormalC (mkName $ firstToUpper $ qName constructorName)
                 [(useBang, ConT $ mkName $ qName tn)]
 
   let typDef tn = DataD [] tn [] Nothing (map makeConstr pairs)
@@ -292,7 +294,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   whenDebugging $ dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
 
   dbgResultM "Generated" $
-    newAssemble name (Just typDef)
+    newAssemble capName (Just typDef)
                 (\src dest -> [
                     BindS (VarP dest) $
                       LetE (concat $ map (\f -> f src) whereDecs) safeCore
@@ -1109,14 +1111,29 @@ makeChoiceConstructor name (constrSuffix, ref) = do
           error $ "Ref/stored defn mismatch: expected GroupDefn but got\n"
             ++ bpp groupDefn
 
-    TypeRef tyName _ifMin _ifMax _ _ -> do
+    TypeRef tyName ifMin ifMax _ _ -> do
       whenDebugging $ dbgLn $ "- With TypeRef " ++ showQName tyName
+      let constrName = mkName $ typeRoot ++ firstToUpper (qName tyName)
+      whenDebugging $ dbgBLabel "- constr " constrName
+      typeDefn <- getTypeDefn tyName
+      whenDebugging $ dbgBLabel "- typeDefn " constrName
+      decType <- getTypeHaskellType tyName
+      whenDebugging $ dbgBLabel "- decType " decType
+      useType <- containForBounds ifMin ifMax $ return decType
+      whenDebugging $ dbgBLabel "- useType " useType
+      decoderFn <- getTypeDecoderFn tyName
       boxed $ do
         dbgLn "TODO makeChoiceConstructor - TypeRef case"
         dbgBLabel "NAME " name
-        dbgBLabel "constrSuffix " constrSuffix
+        dbgBLabel "CONSTRSUFFIX " constrSuffix
         dbgBLabel "REF " ref
-      error "TODO makeChoiceConstructor (c)"
+        dbgLn "--"
+        dbgBLabel "CONSTRNAME " constrName
+        dbgBLabel "TYPEDEFN " typeDefn
+      return (
+        NormalC constrName [(useBang, useType)],
+        ConE constrName,
+        decoderFn)
 
     AttributeRef _ _ -> do
       whenDebugging $ dbgLn $ "- With AttributeRef"

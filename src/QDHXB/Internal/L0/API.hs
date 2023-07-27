@@ -6,6 +6,7 @@ import Language.Haskell.TH (Q, Dec)
 import System.IO
 import Control.Monad.IO.Class
 import Data.List (intercalate)
+import Text.XML.Light.Types (Content(Elem))
 import Text.XML.Light.Input (parseXML)
 import QDHXB.Utils.XMLLight (isElem)
 import QDHXB.Internal.XSDQ (
@@ -24,18 +25,20 @@ qdhxb opts xsds = do
       whenResetLog $ do
         resetLog file
         liftIO $ appendFile file $ "Files: " ++ intercalate ", " xsds ++ "\n"
-    fmap concat $ mapM loadFile xsds
+    xsdContents <- mapM loadContent xsds
+    translateParsedXSD xsdContents
 
 -- | Load and translate the given XSD files with the default options.
 qdhxb' :: [String] -> Q [Dec]
 qdhxb' = qdhxb id
 
-loadFile :: String -> XSDQ [Dec]
-loadFile xsdFile = do
+loadContent :: String -> XSDQ [Content]
+loadContent xsdFile = do
   localLoggingStart xsdFile
   putLog $ "============================== " ++ xsdFile ++ "\n"
   xsd <- liftIO $ readFile' xsdFile
-  let xml = parseXML xsd
-  res <- xmlToDecs $ filter isElem xml
+  let xml :: [Content]
+      xml = parseXML xsd
+  let res = filter isElem xml
   localLoggingEnd
   return res

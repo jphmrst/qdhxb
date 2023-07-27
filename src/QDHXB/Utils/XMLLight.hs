@@ -8,7 +8,7 @@ module QDHXB.Utils.XMLLight (
     isTagged,
 
     __loadElement, __loadContent, loadElementName,
-    withPrefix, withSuffix, withNamePrefix, withNameSuffix)
+    withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper)
 where
 import Language.Haskell.TH (mkName, Name)
 import System.IO
@@ -16,6 +16,7 @@ import Control.Monad.Except
 import Text.XML.Light.Input
 import Text.XML.Light.Types
 import QDHXB.Utils.Misc
+import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.ZeroOneMany
 
 -- | Retrieve the named attribute value from a list of `Attr`
@@ -171,6 +172,11 @@ loadElementName = mkName "QDHXB.Expansions.__loadElement"
 -- original `qName`.
 withPrefix :: String -> QName -> QName
 withPrefix prefix (QName name u p) = QName (prefix ++ name) u p
+
+-- | Return a new `QName` with the given `String` prepended to the
+-- original `qName`.
+qnFirstToUpper :: QName -> QName
+qnFirstToUpper (QName name u p) = QName (firstToUpper name) u p
 
 -- | Return a new `QName` with the given `String` appended to the
 -- original `qName`.

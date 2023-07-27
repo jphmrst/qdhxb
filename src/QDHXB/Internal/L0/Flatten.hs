@@ -571,16 +571,16 @@ flattenElementSchemeRef ::
   -> XSDQ ([Definition], Reference)
 -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
 flattenElementSchemeRef Nothing Nothing Nothing (Just r) lower upper ln _ifDoc = do
-  whenDebugging $ dbgLn "[fESR] all Nothing"
+  whenDebugging $ dbgLn "[fESR.1] all Nothing"
   let result = ElementRef r lower upper ln
   whenDebugging $ do
     dbgLn $ "Flattening element schema with reference only"
     dbgBLabel "  to " result
-  dbgResult ("Ref to " ++ showQName r ++ " flattened [fESR] to") ([], result)
+  dbgResult ("Ref to " ++ showQName r ++ " flattened [fESR.2] to") ([], result)
 flattenElementSchemeRef Nothing (Just n)
                         (Just t@(QName resolvedName _resolvedURI _))
                         Nothing lo up ln ifDoc = do
-  whenDebugging $ dbgLn "[fESR] first Nothing"
+  whenDebugging $ dbgLn "[fESR.3] first Nothing"
   isKnown <- isKnownType t
   whenDebugging $ dbgLn $
     "- Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
@@ -593,7 +593,7 @@ flattenElementSchemeRef Nothing (Just n)
                         dbgBLabel "    to " defn
                         dbgBLabel "       " ref
                       dbgResult
-                        ("Name ref " ++ showQName n ++ " flattened [fESR] to")
+                        ("Name ref " ++ showQName n ++ " flattened [fESR.4] to")
                         ([defn], ref))
     else (do let defn1 = SimpleSynonymDefn n t ln ifDoc
                  defn2 = ElementDefn n n ln ifDoc
@@ -606,11 +606,11 @@ flattenElementSchemeRef Nothing (Just n)
                dbgBLabel "    to " defn1
                dbgBLabel "       " defn2
                dbgBLabel "       " ref
-             dbgResult ("Ref to " ++ showQName n ++ " flattened [fESR] to")
+             dbgResult ("Ref to " ++ showQName n ++ " flattened [fESR.5] to")
                ([defn1, defn2], ref))
 flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
                         n@(Just nam) t@Nothing r@Nothing lower upper ln ifDoc = do
-  whenDebugging $ dbgLn "[fESR] t and r and Nothing"
+  whenDebugging $ dbgLn "[fESR.6] t and r and Nothing"
   prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
   let ref = ElementRef nam lower upper ln
   whenDebugging $ do
@@ -618,16 +618,16 @@ flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ Nothing _ _))
     dbgBLabel "       " s
     dbgBLabel "    to " prev
     dbgBLabel "       " ref
-  dbgResult "Flattened [fESR] to" (prev, ref)
+  dbgResult "Flattened [fESR.7] to" (prev, ref)
 flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ (Just schemeName) _ _))
                         n@(Just nam) t@Nothing r@Nothing
                         lower upper ln ifDoc = do
   whenDebugging $ do
-    dbgLn "[fESR] CTS name, scheme name, no t, no r"
+    dbgLn "[fESR.8] CTS name, scheme name, no t, no r"
     indenting $ do
       dbgBLabel "CONTENTS " s
-      dbgLn $ "INNER NAME " ++ show schemeName
-      dbgLn $ "IFNAME " ++ show nam
+      dbgLn $ "SCHEMANAME (inner name) " ++ show schemeName
+      dbgLn $ "NAM " ++ show nam
       dbgLn $ "IFTYPE Nothing"
       dbgLn $ "IFREF  Nothing"
       dbgLn $ "LOWER " ++ show lower
@@ -635,12 +635,12 @@ flattenElementSchemeRef s@(Just (ComplexTypeScheme _ _ (Just schemeName) _ _))
       dbgLn $ "LN " ++ show ln
   prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
   whenDebugging $ dbgBLabel "- prev " prev
-  let ref = ElementRef schemeName lower upper ln
+  let ref = ElementRef nam lower upper ln
   whenDebugging $ dbgBLabel "- ref " ref
-  dbgResult "Flattened [fESR] to" (prev, ref)
+  dbgResult "Flattened [fESR.9] to" (prev, ref)
 flattenElementSchemeRef ctnts maybeName maybeType maybeRef lower upper _ _ = do
   boxed $ do
-    whenDebugging $ dbgLn "[fESR] flattenElementSchemeRef"
+    whenDebugging $ dbgLn "[fESR.10] flattenElementSchemeRef"
     dbgBLabel "CONTENTS " ctnts
     dbgLn $ "IFNAME " ++ show maybeName
     dbgLn $ "IFTYPE " ++ show maybeType
