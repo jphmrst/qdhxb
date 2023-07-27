@@ -65,7 +65,7 @@ translateParsedXSD xsds = do
 -- | Find the core `Content` corresponding to an XML scheme in the
 -- list of `Content` returned from parsing an XSD file.
 getCoreContent :: [Content] -> Content
-getCoreContent (e@(Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
+getCoreContent ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
   (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) -> e
   _ -> error "Expected top-level <schema> element"
 getCoreContent (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) = e
