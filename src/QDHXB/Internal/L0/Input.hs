@@ -88,15 +88,24 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
              isAbstract ln ifDoc
 
 inputElement q@(QName "attribute" _ _) a c o l _d = do
-  ifDoc <- getAnnotationDocFrom c
-  scheme <- encodeAttribute (o ++ "Attr") q a
-                            (filter isNonKeyNonNotationElem c) l ifDoc
+  whenDebugging $ do
+    dbgLn $ "inputElement for attribute tag"
+    dbgPt $ "outer tag " ++ o
+  ifDoc <- indenting $ getAnnotationDocFrom c
+  scheme <- indenting $
+    encodeAttribute (o ++ "Attr") q a (filter isFocusElem c) l ifDoc
+  whenDebugging $ dbgBLabel "- scheme " scheme
   return $ AttributeScheme scheme l ifDoc
 
 inputElement q@(QName "attributeGroup" _ _) a c o l _d = do
+  whenDebugging $ do
+    dbgLn $ "inputElement for attribute group"
+    dbgPt $ "outer tag " ++ o
   ifDoc <- getAnnotationDocFrom c
-  scheme <- encodeAttribute (o ++ "AtrGrp") q a
-                            (filter isNonKeyNonNotationElem c) l ifDoc
+  scheme <- indenting $
+    encodeAttribute (o ++ "AtrGrp") q a
+                    (filter isNonKeyNonNotationElem c) l ifDoc
+  whenDebugging $ dbgBLabel "- scheme " scheme
   return $ AttributeScheme scheme l ifDoc
 
 
@@ -485,10 +494,11 @@ encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
 
 encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
 encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
-  whenDebugging $ dbgBLabel "- Encoding attribute " q
+  whenDebugging $ dbgBLabel "- Encoding attribute scheme " q
   ifDoc <- getAnnotationDocFrom c
-  res <- encodeAttribute (outer ++ "Elem") q a
-                         (filter isNonKeyNonNotationElem c) l ifDoc
+  res <- indenting $
+    encodeAttribute (outer ++ "Elem") q a
+                    (filter isNonKeyNonNotationElem c) l ifDoc
   whenDebugging $ dbgBLabel "  Encoding result " res
   return res
 encodeAttributeScheme _o c = do
@@ -506,7 +516,12 @@ encodeAttribute _ (QName "attribute" _ _) ats [] _ d = indenting $ do
              (maybe Neither NameRef typeQName)
              (maybe "optional" id $ pullAttr "use" ats)
              d
-encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
+encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = do
+  whenDebugging $ do
+    dbgLn $ "encodeSequenceTypeScheme attribute outer=\"" ++ outer ++ "\""
+    dbgBLabel "- ats " ats
+    dbgBLabel "- st "  st
+    dbgBLabel "- sts " sts
   typeQName <- pullAttrQName "type" ats
   case typeQName of
     Just n -> do
@@ -521,19 +536,23 @@ encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = indenting $ do
                                     (maybe "optional" id $ pullAttr "use" ats)
                                     l d
 encodeAttribute o (QName "attributeGroup" _ _) ats ctnts _ d = indenting $ do
+  whenDebugging $ do
+    dbgLn $ "encodeSequenceTypeScheme attributeGroup outer=\"" ++ o ++ "\""
+    dbgBLabel "- ats " ats
+    dbgBLabel "- ctnts " ctnts
   name <- pullAttrQName "name" ats
   ref <- pullAttrQName "ref" ats
   let attrs = filterTagged "attribute" ctnts
       atGroups = filterTagged "attributeGroup" ctnts
-  subcontents <- mapM (encodeAttributeScheme $ o ++ "Group") $
-                   attrs ++ atGroups
+  subcontents <- indenting $ mapM (encodeAttributeScheme $ o ++ "Group") $
+                               attrs ++ atGroups
   return $ AttributeGroup (nameOrRefOpt name ref) subcontents d
 encodeAttribute outer (QName n _ _) a c _ _ = do
   boxed $ do
     dbgLn n
     dbgLn $ "OUTER " ++ outer
-    dbgBLabel "ATTRS " a
-    dbgBLabel "CTNTS " $ filter isElem c
+    dbgBLabel "A " a
+    dbgBLabel "C " $ filter isElem c
   error $ "Can't use encodeAttribute with <" ++ n ++ ">"
 
 encodeAttributeWithNestedType ::
@@ -541,8 +560,15 @@ encodeAttributeWithNestedType ::
   -> Maybe Line -> Maybe String
   -> XSDQ AttributeScheme
 encodeAttributeWithNestedType outer nameOrRef tySpec [] use _ d = do
+  whenDebugging $ do
+    dbgLn $ "encodeAttributeWithNestedType outer=\"" ++ outer ++ "\""
+    dbgBLabel "- nameOrRef " nameOrRef
+    dbgBLabel "- tySpec " tySpec
+    dbgBLabel "- use " use
   ds <- inputSchemaItem outer tySpec
-  return $ SingleAttribute nameOrRef (Nested ds) use d
+  whenDebugging $ dbgBLabel "- ds " ds
+  dbgResult "Result [encodeAttributeWithNestedType]:" $
+    SingleAttribute nameOrRef (Nested ds) use d
 encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
   boxed $ do
     dbgLn "Too many nested types for attribute"

@@ -49,6 +49,18 @@ flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _)
                                     _l _d) = do
   return $ error "[fSI'] Reference in attribute"
 
+flattenSchemaItem' (AttributeScheme
+                    (SingleAttribute (WithName nam) (Nested ds) use innerDoc)
+                    l outerDoc) = do
+  whenDebugging $ dbgLn "[fSI'] attribute with nested type"
+  (defs, ref) <- flattenSchemaRef ds
+  let qn = referenceQName ref
+  let attrDefn =
+        AttributeDefn nam (SingleAttributeDefn qn $ stringToAttributeUsage use)
+                      l (pickOrCombine innerDoc outerDoc)
+  fileNewDefinition attrDefn
+  dbgResult "Flattened [fSI'] to" $ defs ++ [attrDefn]
+
 flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) l d) = do
   whenDebugging $ dbgLn "[fSI'] Relaying to flattenAttributeGroupItem for "
   flattenAttributeGroupItem nr cs l d
@@ -188,21 +200,23 @@ flattenSchemaItem' s = do
 flattenAttributeGroupItem ::
   NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
   -> XSDQ [Definition]
-flattenAttributeGroupItem (WithName n) cs l d = do
-  whenDebugging $ dbgLn "[fAGI] Flattening attribute group item"
-  let names = map grabNameAndUsage cs
-  defs <- indenting $ flattenAttributes cs
-  let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
-  fileNewDefinition attrDefn
-  let res = defs ++ [attrDefn]
-  return res
-flattenAttributeGroupItem nameRef contents ln _d = do
-  boxed $ do
+flattenAttributeGroupItem nro cs l d = case nro of
+  WithName name -> flattenWithName name
+  WithRef name -> flattenWithName name
+  _ -> boxed $ do
     dbgLn "TODO [fAGI] missed case"
-    dbgBLabel "NAMEREF " nameRef
-    dbgBLabel "CONTENTS " contents
-    dbgLn $ "LN " ++ show ln
-  error "TODO flattenAttributeGroupItem unmatched"
+    dbgBLabel "NAMEREF " nro
+    dbgBLabel "CONTENTS " cs
+    dbgLn $ "LN " ++ show l
+    error "TODO flattenAttributeGroupItem unmatched"
+  where flattenWithName n = do
+          whenDebugging $ dbgLn "[fAGI] Flattening attribute group item"
+          let names = map grabNameAndUsage cs
+          defs <- indenting $ flattenAttributes cs
+          let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
+          fileNewDefinition attrDefn
+          let res = defs ++ [attrDefn]
+          return res
 
 
 flattenComplexTypeScheme ::
@@ -654,6 +668,11 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
+flattenAttribute (SingleAttribute (WithRef n) Neither _ _) = do
+  whenDebugging $ do
+    dbgLn "[fA] single attribute by ref"
+    dbgLn "- Defined elsewhere --- returning []"
+  return []
 flattenAttribute sa@(SingleAttribute (WithName n) (NameRef typ) mode d) = do
   whenDebugging $
     dbgBLabel "[fA] single attribute with type reference " sa

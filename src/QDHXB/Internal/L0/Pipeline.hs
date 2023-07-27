@@ -8,6 +8,7 @@ import Control.Monad.IO.Class
 -- import Data.Char
 import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import QDHXB.Utils.BPP
+import QDHXB.Utils.XMLLight (getCoreContent)
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate
 import QDHXB.Internal.L0.Input
@@ -61,12 +62,3 @@ translateParsedXSD xsds = do
     putStrLn "======================================== end "
 
   return decls
-
--- | Find the core `Content` corresponding to an XML scheme in the
--- list of `Content` returned from parsing an XSD file.
-getCoreContent :: [Content] -> Content
-getCoreContent ((Elem (Element (QName "?xml" _ _) _ _ _)) : ds) = case ds of
-  (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) -> e
-  _ -> error "Expected top-level <schema> element"
-getCoreContent (e@(Elem (Element (QName "schema" _ _) _ _ _)) : []) = e
-getCoreContent _ = error "Missing <?xml> element"

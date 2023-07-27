@@ -8,7 +8,8 @@ module QDHXB.Utils.XMLLight (
     isTagged,
 
     __loadElement, __loadContent, loadElementName,
-    withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper)
+    withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper,
+    partitionXMLForms, getCoreContent)
 where
 import Language.Haskell.TH (mkName, Name)
 import System.IO
@@ -192,3 +193,33 @@ withNamePrefix prefix (QName name u p) = QName (qName prefix ++ name) u p
 -- appended to the `qName` of the second `QName`.
 withNameSuffix :: QName -> QName -> QName
 withNameSuffix suffix (QName name u p) = QName (name ++ qName suffix) u p
+
+-- | Divide the list of top-level `Content` items into the interesting
+-- groups for an XSD document:
+--  (1) Leading <? ... ?> tags,
+--  (2) The top-level <schema> block, if it exists, and
+--  (3) Anything else.
+partitionXMLForms :: [Content] -> ([Content],  Maybe Content, [Content])
+partitionXMLForms = partition_forms [] Nothing []
+  where partition_forms ::
+          [Content] -> Maybe Content -> [Content] -> [Content]
+          -> ([Content],  Maybe Content, [Content])
+        partition_forms leads main other [] = (reverse leads, main, other)
+        partition_forms leads main other
+                        (c@(Elem (Element (QName ('?':_) _ _) _ _ _)):cs) =
+          partition_forms (c:leads) main other cs
+        partition_forms leads Nothing other
+                        (c@(Elem (Element (QName "schema" _ _) _ _ _)):cs) =
+          partition_forms leads (Just c) other cs
+        partition_forms _ (Just _) _
+                        (Elem (Element (QName "schema" _ _) _ _ _):_) =
+          error "Multiple top-level <schema> blocks"
+        partition_forms leads main other (c:cs) =
+          partition_forms leads main (c:other) cs
+
+-- | Find the core `Content` corresponding to an XML scheme in the
+-- list of `Content` returned from parsing an XSD file.
+getCoreContent :: [Content] -> Content
+getCoreContent cs = case partitionXMLForms cs of
+  (_, Nothing, _) -> error "Expected top-level <schema> element"
+  (_, Just c, _) -> c

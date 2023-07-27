@@ -141,6 +141,11 @@ data DataScheme =
                    (Maybe String) -- ^ ifDocumentation
   deriving Show
 
+nameOrRefOptToMaybeName :: NameOrRefOpt -> Maybe QName
+nameOrRefOptToMaybeName (WithName qn) = Just qn
+nameOrRefOptToMaybeName (WithRef qn)  = Just qn
+nameOrRefOptToMaybeName (WithNeither) = Nothing
+
 --  block Skip =
 --  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract ifLine ifDoc) =
 --  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
