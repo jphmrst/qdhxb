@@ -10,8 +10,8 @@ import Text.XML.Light.Types (Content(Elem))
 import Text.XML.Light.Input (parseXML)
 import QDHXB.Utils.XMLLight (isElem)
 import QDHXB.Internal.XSDQ (
-  XSDQ, runXSDQ, whenDebugging, whenCentralLogging, whenResetLog,
-  localLoggingStart, localLoggingEnd, putLog, resetLog)
+  XSDQ, runXSDQ, whenDebugging, whenResetLog,
+  localLoggingStart, localLoggingEnd, putLog, resetLog, whenLogging)
 import QDHXB.Internal.L0.Pipeline
 import QDHXB.Options
 
@@ -21,10 +21,9 @@ qdhxb :: QDHXBOption -> [String] -> Q [Dec]
 qdhxb opts xsds = do
   -- liftIO (getCurrentDirectory >>= putStrLn . show)
   runXSDQ opts $ do
-    whenCentralLogging $ \file -> do
-      whenResetLog $ do
-        resetLog file
-        liftIO $ appendFile file $ "Files: " ++ intercalate ", " xsds ++ "\n"
+    whenLogging $ \file -> do
+      whenResetLog $ resetLog file
+      liftIO $ appendFile file $ "Files: " ++ intercalate ", " xsds ++ "\n"
     xsdContents <- mapM loadContent xsds
     translateParsedXSD xsdContents
 
@@ -34,7 +33,7 @@ qdhxb' = qdhxb id
 
 loadContent :: String -> XSDQ [Content]
 loadContent xsdFile = do
-  localLoggingStart xsdFile
+  localLoggingStart
   putLog $ "============================== " ++ xsdFile ++ "\n"
   xsd <- liftIO $ readFile' xsdFile
   let xml :: [Content]

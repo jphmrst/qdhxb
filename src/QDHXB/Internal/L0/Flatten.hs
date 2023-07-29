@@ -668,7 +668,7 @@ flattenAttributes :: [AttributeScheme] -> XSDQ [Definition]
 flattenAttributes = fmap concat . mapM flattenAttribute
 
 flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-flattenAttribute (SingleAttribute (WithRef n) Neither _ _) = do
+flattenAttribute (SingleAttribute (WithRef _) Neither _ _) = do
   whenDebugging $ do
     dbgLn "[fA] single attribute by ref"
     dbgLn "- Defined elsewhere --- returning []"

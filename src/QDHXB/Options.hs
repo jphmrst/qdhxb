@@ -2,10 +2,7 @@
 -- | Options for QDHXB calls.
 module QDHXB.Options (
   -- * Options storage type
-  QDHXBOptionSet(QDHXBOptionSet),
-  -- ** Component accessors
-  optUseNewType, optDebugging, optDebuggingDoc, optByFileLogging,
-  optResetLogging, optLogFileMaker, optLogCentralFile,
+  QDHXBOptionSet(..),
   defaultOptionSet,
 
   -- * Options
@@ -15,7 +12,9 @@ module QDHXB.Options (
   QDHXBOption,
   -- ** Structure of renamed types
   useNewType, noUseNewType, useDebugging, useDebuggingDoc,
-  logByFile, logCentral
+  withXmlNamespacePrefix, logToFile,
+  -- ** Built-in types
+  useXmlBindings
   )
 where
 
@@ -29,6 +28,12 @@ data QDHXBOptionSet = QDHXBOptionSet {
                          -- (if `False`) should be used for type alias
                          -- declarations.  The default is `True` for
                          -- @newtype@.
+  optAddXmlBindings :: Bool, -- ^ If `True`, includes certain types
+                             -- from the XSD specification of XML.
+                             -- The default is `False`.
+  optXmlNamespacePrefixes :: [String], -- ^ Additional prefixes to be
+                                       -- associated with the XML/XSD
+                                       -- namespace.
   optDebugging :: Bool,  -- ^ Activates debugging output.  `False` by
                          -- default.
   optDebuggingDoc :: Bool,  -- ^ Activates debugging output for
@@ -36,47 +41,29 @@ data QDHXBOptionSet = QDHXBOptionSet {
                             -- effect unless the basic `optDebugging`
                             -- option is alos set; is `False` by
                             -- default.
-  optByFileLogging :: Bool,  -- ^ Activates logging for each XSD file.
-  optResetLogging :: Bool,  -- ^ Indicates whether log files should be
-                            -- reset at each call to QDHXB, or whether
-                            -- they should be extended.
-  optLogFileMaker :: String -> String,  -- ^ Function which, given the
-                                        -- file name of an XSD file to
-                                        -- be processed, returns the
-                                        -- name of the file to which a
-                                        -- log of the translation
-                                        -- should be written.
-  optLogCentralFile :: Maybe String   -- ^ Name of a central file to
-                                      -- which all logging details
-                                      -- should be written.
+  optLogToFile :: Maybe String,  -- ^ Activates logging for a call to
+                                 -- @qdhxb@.
+  optResetLogging :: Bool  -- ^ Indicates whether log files should be
+                           -- reset at each call to QDHXB, or whether
+                           -- they should be extended.
   }
 
 instance Blockable QDHXBOptionSet where
-  block (QDHXBOptionSet newTypes debuggingOn debuggingDocOn byFileLogging
-                        resetLogging _logFileMaker logCentralFile) =
+  block (QDHXBOptionSet newTypes xmlBuiltins xmlNsPrefixes
+                        debuggingOn debuggingDocOn
+                        logFile resetLogging) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
+    `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
+    `stack2` (stringToBlock $ "- xmlNamespacePrefixes " ++ show xmlNsPrefixes)
     `stack2` (stringToBlock $ "- debugging " ++ show debuggingOn)
     `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show debuggingDocOn)
-    `stack2` (stringToBlock $ "- byFileLogging " ++ show byFileLogging)
+    `stack2` (stringToBlock $ "- logFile " ++ show logFile)
     `stack2` (stringToBlock $ "- resetLogging " ++ show resetLogging)
-    `stack2` (stringToBlock $ "- logCentralFile " ++ show logCentralFile)
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
-defaultOptionSet = QDHXBOptionSet True False False False True
-                                  defaultLogFileMaker Nothing
-
--- | The default way of building a log file name --- replace a
--- trailing @".xsd"@ with @".log"@ if possible, or else append
--- @".log"@.
-defaultLogFileMaker :: String -> String
-defaultLogFileMaker str = case reverse str of
-                            'd':'s':'x':'.':rts ->
-                              reverse rts ++ ".log"
-                            'D':'S':'X':'.':rts ->
-                              reverse rts ++ ".log"
-                            _ -> str ++ ".log"
+defaultOptionSet = QDHXBOptionSet True False [] False False Nothing True
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
@@ -86,43 +73,33 @@ type QDHXBOption = QDHXBOptionSet -> QDHXBOptionSet
 -- renaming of another.  (This option is not yet implemented --- all
 -- generated types are via either @type@ or @data@.)
 useNewType :: QDHXBOption
-useNewType (QDHXBOptionSet _ dbg dbgDoc ifLogByFile
-                           resetLogs logFileMaker logCentralFile) =
-  QDHXBOptionSet True dbg dbgDoc ifLogByFile
-                 resetLogs logFileMaker logCentralFile
+useNewType opts = opts { optAddXmlBindings = True }
+
+-- | Include certain names from the XSD spec for XML in the
+useXmlBindings :: QDHXBOption
+useXmlBindings opts = opts { optAddXmlBindings = True }
+
+-- | Include certain names from the XSD spec for XML in the
+withXmlNamespacePrefix :: String -> QDHXBOption
+withXmlNamespacePrefix prefix opts =
+  opts { optXmlNamespacePrefixes = prefix : optXmlNamespacePrefixes opts }
 
 -- | Generate types aliases (@type@) when one type is simply a
 -- renaming of another.  (No other possibilities are currently
 -- available.)
 noUseNewType :: QDHXBOption
-noUseNewType (QDHXBOptionSet _ dbg dbgDoc ifLogByFile
-                             resetLogs logFileMaker logCentralFile) =
-  QDHXBOptionSet False dbg dbgDoc ifLogByFile
-                 resetLogs logFileMaker logCentralFile
+noUseNewType opts = opts { optAddXmlBindings = True }
 
 -- | Write debugging information to the screen.
 useDebugging :: QDHXBOption
-useDebugging (QDHXBOptionSet nt _ dbgDoc ifLogByFile
-                             resetLogs logFileMaker logCentralFile) =
-  QDHXBOptionSet nt True dbgDoc ifLogByFile
-                 resetLogs logFileMaker logCentralFile
+useDebugging opts = opts { optDebugging = True }
 
 -- | Include XSD comments/Haddock documentation strings in
 -- debugging/log output.
 useDebuggingDoc :: QDHXBOption
-useDebuggingDoc (QDHXBOptionSet nt dbg _ ifLogByFile
-                                resetLogs logFileMaker logCentralFile) =
-  QDHXBOptionSet nt dbg True ifLogByFile resetLogs logFileMaker logCentralFile
+useDebuggingDoc opts = opts { optDebuggingDoc = True }
 
 -- | Update the option set to specify whether per-XSD file logging
 -- should be selected.
-logByFile :: Bool -> QDHXBOption
-logByFile b (QDHXBOptionSet nt dbg dbgDoc _
-                            resetLogs logFileMaker logCentralFile) =
-  QDHXBOptionSet nt dbg dbgDoc b resetLogs logFileMaker logCentralFile
-
--- | Update the option set to name a file for single-file logging.
-logCentral :: String -> QDHXBOption
-logCentral s (QDHXBOptionSet nt dbg dbgDoc ifLogByFile
-                                 resetLogs logFileMaker _) =
-  QDHXBOptionSet nt dbg dbgDoc ifLogByFile resetLogs logFileMaker $ Just s
+logToFile :: String -> QDHXBOption
+logToFile s opts = opts { optLogToFile = Just s }

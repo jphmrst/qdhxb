@@ -6,11 +6,15 @@ module QDHXB.Internal.L1.NestedTypes(victory) where
 import QDHXB.Internal.L0.API
 import QDHXB.Options
 import qualified QDHXB.Expansions
-import qualified QDHXB.Internal.L1.XML
+-- import qualified QDHXB.Internal.L1.XML
 
--- qdhxb (useDebugging . logByFile True) [
---  "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"]
--- qdhxb' ["src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"]
+-- qdhxb (useXmlBindings . withXmlNamespacePrefix "xml"
+--         . useDebugging
+--         . logToFile "nestedTypes.log"
+--       ) [
+--   "src/QDHXB/datatypes.xsd",
+--   "src/QDHXB/xsd.xsd"
+--   ]
 
 -- |Placeholder, until the full XSD specification can actually be
 -- generated.

@@ -276,7 +276,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
     dbgBLabel "Generating from (c) UnionDefn " decl
 
   (safeCore, _, whereDecs) <- do
-    dbgLn "- Calling unionDefnComponents"
+    whenDebugging $ dbgLn "- Calling unionDefnComponents"
     indenting $ unionDefnComponents getSafeDecoderCall name pairs ln
   whenDebugging $ do
     dbgLn "- whereDecs "
@@ -1123,7 +1123,7 @@ makeChoiceConstructor name (constrSuffix, ref) = do
       useType <- containForBounds ifMin ifMax $ return decType
       whenDebugging $ dbgBLabel "- useType " useType
       decoderFn <- getTypeDecoderFn tyName
-      boxed $ do
+      whenDebugging $ do
         dbgLn "TODO makeChoiceConstructor - TypeRef case"
         dbgBLabel "NAME " name
         dbgBLabel "CONSTRSUFFIX " constrSuffix
@@ -1348,7 +1348,6 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
         let binderName :: Name
             binderName = mkName $ "binder" ++ qName constr
         decoder <- blockMakerBuilder typ
-        htype <- getTypeHaskellName typ
         return (
           binderName,
           \src -> [

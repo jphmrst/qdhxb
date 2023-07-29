@@ -30,7 +30,7 @@ translateParsedXSD xsds = do
           putLog $ "------------------------------ SOURCE\n" ++ bpp core
             ++ "\n------------------------------ "
 
-          schemaReps <- inputSchemaItems forms
+          schemaReps <- inputSchemaItems "Top" forms
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
           whenDebugging $ liftIO $ do
@@ -51,10 +51,16 @@ translateParsedXSD xsds = do
   -- Now concatenate the flattened definition lists together, and
   -- convert them all to Haskell declarations.
   let flattened = concat flatteneds
+  putLog $ " FULL FLATTENED\n" ++ bpp flattened
+    ++ "\n==============================\n"
   whenDebugging $ do
     debugXSDQ
-    liftIO $ do
-      putStrLn "======================================== GENERATE"
+    liftIO $ putStrLn "======================================== FULL FLATTENED"
+    liftIO $ putStrLn $ bpp flattened
+    liftIO $ putStrLn "----------------------------------------"
+    debugXSDQ
+    liftIO $ putStrLn "======================================== GENERATE"
+
   decls <- xsdDeclsToHaskell flattened
   putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
   whenDebugging $ liftIO $ do

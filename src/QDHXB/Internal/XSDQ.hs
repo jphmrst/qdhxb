@@ -25,8 +25,8 @@ module QDHXB.Internal.XSDQ (
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
-  -- *** XSD primitive types
-  installXsdPrimitives,
+  -- *** XML and XSD primitive types
+  installXmlPrimitives, installXsdPrimitives,
   -- * Configuration options
   getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
 
@@ -44,7 +44,7 @@ module QDHXB.Internal.XSDQ (
 
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
-  whenResetLog, whenLogging, whenCentralLogging, whenLocalLogging, putLog,
+  whenResetLog, whenLogging, whenLocalLogging, putLog,
 
   -- * Miscellaneous
   NameStore, containForBounds)
@@ -96,9 +96,7 @@ data QdxhbState = QdxhbState {
   stateCapitalizedNames :: [String],
   stateIndentation :: String,
   stateResetLog :: Bool,
-  stateGlobalLog :: (Maybe String),
-  stateLocalLog :: (Maybe String),
-  stateFileLogMaker :: (Maybe (String -> String))
+  stateLocalLog :: (Maybe String)
   }
 
 instance Blockable QdxhbState where
@@ -152,34 +150,31 @@ instance Blockable QdxhbState where
                              groupDefns)))
     `stack2` (stringToBlock $ "- Indentation \"" ++ stateIndentation st ++ "\"")
     `stack2` (stringToBlock $ "- Resetting logs: " ++ (show $ stateResetLog st))
-    `stack2` (stringToBlock $ "- Central log \""
-              ++ maybe "(inactive)" id (stateGlobalLog st) ++ "\"")
     `stack2` (stringToBlock $ "- Local log \""
               ++ maybe "(inactive)" id (stateLocalLog st) ++ "\"")
     `stack2` (stringToBlock $ "- File logging "
-              ++ maybe "inactive" (const "active") (stateFileLogMaker st))
+              ++ maybe "inactive" (const "active") (stateLocalLog st))
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
-initialQdxhbState optsF = let opts = optsF defaultOptionSet
-                          in QdxhbState {
-  stateOptions = opts,
-  stateElementTypes = [],
-  stateAttributeTypes = [],
-  stateAttributeGroups = [],
-  stateTypeDefinitions = [],
-  stateGroupDefinitions = [],
-  stateDefaults = [],
-  stateNamespacesList = [],
-  stateCapitalizedNames = nameBodies,
-  stateIndentation = "",
-  stateResetLog = optResetLogging opts,
-  stateGlobalLog = optLogCentralFile opts,
-  stateLocalLog = Nothing,
-  stateFileLogMaker = if optByFileLogging opts
-                      then (Just $ optLogFileMaker opts)
-                      else Nothing
-  }
+initialQdxhbState optsF =
+  let opts = optsF defaultOptionSet
+      initNamespaces = map (\x -> [(x, "http://www.w3.org/2001/XMLSchema")]) $
+        optXmlNamespacePrefixes opts
+  in QdxhbState {
+    stateOptions = opts,
+    stateElementTypes = [],
+    stateAttributeTypes = [],
+    stateAttributeGroups = [],
+    stateTypeDefinitions = [],
+    stateGroupDefinitions = [],
+    stateDefaults = [],
+    stateNamespacesList = initNamespaces,
+    stateCapitalizedNames = nameBodies,
+    stateIndentation = "",
+    stateResetLog = optResetLogging opts,
+    stateLocalLog = optLogToFile opts
+    }
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
@@ -274,6 +269,14 @@ debugXSDQ :: XSDQ ()
 debugXSDQ = do
   st <- liftStatetoXSDQ $ get
   liftIO $ bprintLn st
+
+-- | Adds descriptions of XSD primitive types to the `XSDQ`
+-- environment.
+installXmlPrimitives :: String -> Maybe String -> XSDQ ()
+installXmlPrimitives ns pfx = do
+  fileNewDefinition $
+    BuiltinDefn (QName "lang" (Just ns) pfx) "String"
+      stringType stringBasicDecoder
 
 -- | Adds descriptions of XSD primitive types to the `XSDQ`
 -- environment.
@@ -632,11 +635,12 @@ getAttributeOrGroupTypeForUsage (qn, _usage) = do
 -- | Return the `Definition` of an XSD attribute or attribute group
 -- from the tracking tables in the `XSDQ` state.
 getAttributeOrGroup :: QName -> XSDQ (Maybe AttributeDefn)
-getAttributeOrGroup name = do
+getAttributeOrGroup name = indenting $ do
+  whenDebugging $ dbgBLabel "[XSDQ.getAttributeOrGroup] " name
   ifSingle <- getAttributeDefn name
   case ifSingle of
-    Just _ -> return ifSingle
-    Nothing -> getAttributeGroup name
+    Just _ -> dbgResult "- returns" ifSingle
+    Nothing -> dbgResultM "- returns" $ getAttributeGroup name
 
 -- | Register the name associated with an attribute group
 -- @AttributeDefn@.
@@ -682,26 +686,30 @@ ifDebuggingDoc yes no = ifM getDebugging yes no
 -- the attributes, presumably from an XSD element schema.
 pushNamespaces :: [Attr] -> XSDQ ()
 pushNamespaces attrs = do
+  st <- liftStatetoXSDQ $ get
   liftStatetoXSDQ $ do
-    st <- get
     let (thisNS, thisDft) = decodeAttrsForNamespaces attrs
     put $ st { stateDefaults = thisDft : stateDefaults st,
                stateNamespacesList = thisNS : stateNamespacesList st }
   nss <- getNamespaces
+  let addXml = optAddXmlBindings $ stateOptions st
 
   -- If we use the XSD namespace, then load in the builting type
   -- definitions.
   forM_ nss $ \ns -> do
     forM_ ns $ \(p,u) -> do
-      when (u == "http://www.w3.org/2001/XMLSchema") $
+      when (u == "http://www.w3.org/2001/XMLSchema") $ do
+        when addXml $ installXmlPrimitives u (Just p)
         installXsdPrimitives u (Just p)
 
   whenDebugging $ do
     dft <- getDefaultNamespace
-    liftIO $ putStrLn $ "Default namespace: " ++ show dft
-    forM_ nss $ \ns -> liftIO $ do
+    liftIO $ do
+      putStrLn $ "Default namespace: " ++ show dft
       putStrLn $ "Namespaces:"
-      forM_ ns $ \(p,u) -> putStrLn $ p ++ " --> " ++ u
+    forM_ nss $ \ns ->
+      forM_ ns $ \(p,u) ->
+        liftIO $ putStrLn $ p ++ " --> " ++ u
 
 -- |Remove a namespace scope, corrsponding to finishing the processing
 -- of a file.
@@ -957,57 +965,35 @@ whenResetLog m = do
   if stateResetLog st then m else return ()
 
 -- | Run statements when any kind of logging is selected.
-whenLogging :: XSDQ () -> XSDQ ()
+whenLogging :: (String -> XSDQ ()) -> XSDQ ()
 whenLogging m = do
-  ifCentralLogging m $ whenLocalLogging m
-
--- | Select statements based on whether central logging is selected.
-ifCentralLogging :: XSDQ () -> XSDQ () -> XSDQ ()
-ifCentralLogging m n = do
-  st <- liftStatetoXSDQ get
-  case stateGlobalLog st of
-    Just _ -> m
-    Nothing -> n
-
--- | Run statements when central logging is selected.  The function
--- should accept the name of the central log file as its argument.
-whenCentralLogging :: (String -> XSDQ ()) -> XSDQ ()
-whenCentralLogging fm = do
-  st <- liftStatetoXSDQ get
-  case stateGlobalLog st of
-    Just file -> fm file
-    Nothing -> return ()
+  whenLocalLogging m
 
 -- | Run statements when per-XSD logging is selected.
-whenLocalLogging :: XSDQ () -> XSDQ ()
+whenLocalLogging :: (String -> XSDQ ()) -> XSDQ ()
 whenLocalLogging m = do
   st <- liftStatetoXSDQ get
-  case stateFileLogMaker st of
-    Just _ -> m
+  case stateLocalLog st of
+    Just f -> m f
     Nothing -> return ()
 
 -- | Run statements when per-XSD logging is selected.
-localLoggingStart :: String -> XSDQ ()
-localLoggingStart xsd = do
+localLoggingStart :: XSDQ ()
+localLoggingStart = do
   st <- liftStatetoXSDQ get
-  case stateFileLogMaker st of
-    Just f -> do
-      let logfile = f xsd
+  case stateLocalLog st of
+    Just logfile -> do
       whenResetLog $ resetLog logfile
-      liftStatetoXSDQ $ put $ st { stateLocalLog = Just logfile }
     Nothing -> return ()
 
 -- | Run statements when per-XSD logging is selected.
 localLoggingEnd :: XSDQ ()
-localLoggingEnd = do
-  st <- liftStatetoXSDQ get
-  liftStatetoXSDQ $ put $ st { stateLocalLog = Nothing }
+localLoggingEnd = return ()
 
 -- | Write a `String` to any selected logging method.
 putLog :: String -> XSDQ ()
 putLog s = do
   st <- liftStatetoXSDQ get
-  writeIf $ stateGlobalLog st
   writeIf $ stateLocalLog st
   where writer file = liftIO $ appendFile file s
         writeIf = maybe (return ()) writer

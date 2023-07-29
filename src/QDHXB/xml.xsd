@@ -3,7 +3,7 @@
 <xs:schema targetNamespace="http://www.w3.org/XML/1998/namespace" 
   xmlns:xs="http://www.w3.org/2001/XMLSchema" 
   xmlns   ="http://www.w3.org/1999/xhtml"
-  xml:lang="en">
+  xs:lang="en">
 
  <xs:annotation>
   <xs:documentation>
@@ -69,7 +69,7 @@
       for further information.
      </p>
      <p>
-      The union allows for the 'un-declaration' of xml:lang with
+      The union allows for the 'un-declaration' of xs:lang with
       the empty string.
      </p>
     </div>
@@ -142,7 +142,7 @@
        denotes an attribute whose value
        should be interpreted as if declared to be of type ID.
        This name is reserved by virtue of its definition in the
-       xml:id specification.</p>
+       xs:id specification.</p>
      
      <p>
       See <a
@@ -155,10 +155,10 @@
  </xs:attribute>
 
  <xs:attributeGroup name="specialAttrs">
-  <xs:attribute ref="xml:base"/>
-  <xs:attribute ref="xml:lang"/>
-  <xs:attribute ref="xml:space"/>
-  <xs:attribute ref="xml:id"/>
+  <xs:attribute ref="xs:base"/>
+  <xs:attribute ref="xs:lang"/>
+  <xs:attribute ref="xs:space"/>
+  <xs:attribute ref="xs:id"/>
  </xs:attributeGroup>
 
  <xs:annotation>
@@ -179,7 +179,7 @@
 	In appreciation for his vision, leadership and
 	dedication the W3C XML Plenary on this 10th day of
 	February, 2000, reserves for Jon Bosak in perpetuity
-	the XML name "xml:Father".
+	the XML name "xs:Father".
        </p>
      </blockquote>
     </div>
@@ -189,15 +189,15 @@
 
  <xs:annotation>
   <xs:documentation>
-   <div xml:id="usage" id="usage">
+   <div xs:id="usage" id="usage">
     <h2><a name="usage">About this schema document</a></h2>
 
     <div class="bodytext">
      <p>
       This schema defines attributes and an attribute group suitable
-      for use by schemas wishing to allow <code>xml:base</code>,
-      <code>xml:lang</code>, <code>xml:space</code> or
-      <code>xml:id</code> attributes on elements they define.
+      for use by schemas wishing to allow <code>xs:base</code>,
+      <code>xs:lang</code>, <code>xs:space</code> or
+      <code>xs:id</code> attributes on elements they define.
      </p>
      <p>
       To enable this, such a schema must import this schema for
@@ -223,7 +223,7 @@
      <pre>
           &lt;type . . .>
            . . .
-           &lt;attributeGroup ref="xml:specialAttrs"/>
+           &lt;attributeGroup ref="xs:specialAttrs"/>
      </pre>
      <p>
       will define a type which will schema-validate an instance element
@@ -236,7 +236,7 @@
 
  <xs:annotation>
   <xs:documentation>
-   <div id="nsversioning" xml:id="nsversioning">
+   <div id="nsversioning" xs:id="nsversioning">
     <h2><a name="nsversioning">Versioning policy for this schema document</a></h2>
     <div class="bodytext">
      <p>

@@ -19,9 +19,9 @@ import QDHXB.Internal.XSDQ
 
 -- |Rewrite otherwise-unstructured parsed XML content structures as a
 -- sequence of internal XSD representations.
-inputSchemaItems :: [Content] -> XSDQ [DataScheme]
-inputSchemaItems items = do
-  res <- inputSchemaItems' "Top" items
+inputSchemaItems :: String -> [Content] -> XSDQ [DataScheme]
+inputSchemaItems outer items = do
+  res <- inputSchemaItems' outer items
   -- dbgLn $ show res
   return res
 
@@ -32,7 +32,7 @@ inputSchemaItems' outer items = do
     dbgBLabel "  items " items
   res <- mapM (\(s, i) ->
                  indenting $ inputSchemaItem (outer ++ show i) s) $
-              zip items ([1..] :: [Int])
+              zip items disambigNums
   -- dbgLn $ show res
   return res
 
@@ -60,7 +60,7 @@ inputElement (QName "element" _ _) ats content outer ln _d = do
     dbgPt $ "inputElement for element tag"
     dbgLn $ "  outer tag " ++ outer
   included <- indenting $
-    fmap (filter nonSkip) $ inputSchemaItems $
+    fmap (filter nonSkip) $ inputSchemaItems (outer ++ "Elem")  $
       filter isNonKeyNonNotationElem content
   typeQName <- pullAttrQName "type" ats
   nameQName <- pullAttrQName "name" ats
@@ -146,7 +146,7 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
       "group" -> do
         groupName <- pullAttrQName "name" ats'
         groupRef <- pullAttrQName "ref" ats'
-        groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group")
+        groupNameOrRef <- nameOrRefOptDft groupName groupRef (outer ++ "Group1")
         givenMin <- pullAttrQName "minOccurs" ats'
         givenMax <- pullAttrQName "maxOccurs" ats'
         let useMin = case givenMin of
@@ -156,8 +156,8 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
               Nothing -> Just 1
               Just n | qName n == "unbounded" -> Nothing
               Just n -> Just $ read $ qName n
-        attrSpecs <- mapM (encodeAttributeScheme outer) atspecs'
-        contained <- inputSchemaItems' (outer ++ "Group") subctnts
+        attrSpecs <- mapM (\(spec, n) -> encodeAttributeScheme (outer ++ "Group2Attr" ++ show n) spec) $ zip atspecs' disambigNums
+        contained <- inputSchemaItems' (outer ++ "Group3") subctnts
         let content = case filter nonSkip contained of
                         [] -> Nothing
                         [x] -> Just x
@@ -317,7 +317,7 @@ inputElement (QName "sequence" _ _) ats ctnts outer ifLn ifDoc = do
   whenDebugging $ dbgLn $
     maybe "- Sequence (unnamed)" (\n -> "- Sequence \"" ++ showQName n ++ "\"")
           ifName
-  included <- indenting $ inputSchemaItems ctnts
+  included <- indenting $ inputSchemaItems (outer ++ "Seq") ctnts
   name <- useNameOrWrap ifName outer "Seq"
   dbgResult "Sequence result" $
     ComplexTypeScheme (Composing (filter nonSkip included) [])
@@ -360,7 +360,7 @@ inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
       return $
         ComplexTypeScheme (Extension base []) [] (Just name) ifLn ifDoc
     Just (e,_,_,_,_,_,_,_) -> do
-      e' <- indenting $ inputSchemaItem (outer ++ "Ext") e
+      e' <- indenting $ inputSchemaItem (outer ++ "ExtB") e
       return $
         ComplexTypeScheme (Extension base [e']) [] (Just name) ifLn ifDoc
   whenDebugging $ dbgBLabel "  Extension result " res
@@ -473,7 +473,8 @@ encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
   whenDebugging $ dbgLn $ "encodeSequenceTypeScheme outer=\"" ++ outer ++ "\""
   included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
   atrSpecs <- indenting $
-    mapM (encodeAttributeScheme $ outer ++ "Seq") attrSpecs
+    mapM (\(e, n) -> encodeAttributeScheme (outer ++ "Seq" ++ show n) e) $
+      zip attrSpecs disambigNums
   return $ Composing (filter nonSkip included) atrSpecs
 
 encodeChoiceTypeScheme ::
@@ -694,3 +695,6 @@ nameOrRefOptDft (Just _) (Just _) _ =
 nameOrRefOptDft (Just n) Nothing _ = return $ WithName n
 nameOrRefOptDft Nothing (Just r) _ = return $ WithRef r
 nameOrRefOptDft Nothing Nothing s = fmap WithName $ inDefaultNamespace s
+
+disambigNums :: [Int]
+disambigNums = [1..]
