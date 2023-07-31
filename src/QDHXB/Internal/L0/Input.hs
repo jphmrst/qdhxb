@@ -121,7 +121,7 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
 
       "sequence" -> do
         ct <- encodeSequenceTypeScheme (outer ++ "Complex") subctnts
-                                       (atspecs'++atgrspecs')
+                                       (atspecs' ++ atgrspecs')
         return $ ComplexTypeScheme ct [] name l d
 
       "choice" -> do
@@ -156,7 +156,10 @@ inputElement (QName "complexType" _ _) ats ctnts outer l d = do
               Nothing -> Just 1
               Just n | qName n == "unbounded" -> Nothing
               Just n -> Just $ read $ qName n
-        attrSpecs <- mapM (\(spec, n) -> encodeAttributeScheme (outer ++ "Group2Attr" ++ show n) spec) $ zip atspecs' disambigNums
+        attrSpecs <- mapM (\(spec, n) ->
+                             encodeAttributeScheme (outer ++ "Group2Attr"
+                                                    ++ show n) spec)
+          $ zip atspecs' disambigNums
         contained <- inputSchemaItems' (outer ++ "Group3") subctnts
         let content = case filter nonSkip contained of
                         [] -> Nothing
@@ -651,8 +654,12 @@ encodeSimpleTypeByRestriction -- Note ignoring ats
                           (const ifName) ifName
                     -- TODO --- make sure this is in target namespace
       whenDebugging $ dbgBLabel "- useName " useName
+      -- freshUseName <- freshenTypeName outer useName
+      -- freshBaseName <- freshenTypeName outer $ Just baseQName
       dbgResult "Encoding result" $
-        SimpleTypeScheme useName (SimpleRestriction baseQName) ln ifDoc
+        SimpleTypeScheme useName {- (Just freshUseName) -}
+                         (SimpleRestriction baseQName {- freshBaseName -})
+                                            ln ifDoc
     Nothing -> error "restriction without base"
 encodeSimpleTypeByRestriction ifNam _ ats s = do
   boxed $ do

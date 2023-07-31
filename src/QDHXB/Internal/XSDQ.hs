@@ -22,6 +22,7 @@ module QDHXB.Internal.XSDQ (
   -- ** Groups
   addGroupDefn, getGroupDefn, getGroupDefnOrFail,
   -- ** Types
+  freshenTypeName, getNextDisambig,
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
@@ -96,7 +97,10 @@ data QdxhbState = QdxhbState {
   stateCapitalizedNames :: [String],
   stateIndentation :: String,
   stateResetLog :: Bool,
-  stateLocalLog :: (Maybe String)
+  stateLocalLog :: (Maybe String),
+  stateNextDisambig :: Int,
+  stateDisambigString :: String,
+  stateUsedTypeNames :: [String]
   }
 
 instance Blockable QdxhbState where
@@ -155,11 +159,15 @@ instance Blockable QdxhbState where
     `stack2` (stringToBlock $ "- File logging "
               ++ maybe "inactive" (const "active") (stateLocalLog st))
 
+-- | The base URL for the XML/XSD specification
+baseXmlNamespace :: String
+baseXmlNamespace = "http://www.w3.org/2001/XMLSchema"
+
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
 initialQdxhbState optsF =
   let opts = optsF defaultOptionSet
-      initNamespaces = map (\x -> [(x, "http://www.w3.org/2001/XMLSchema")]) $
+      initNamespaces = map (\x -> [(x, baseXmlNamespace)]) $
         optXmlNamespacePrefixes opts
   in QdxhbState {
     stateOptions = opts,
@@ -173,7 +181,10 @@ initialQdxhbState optsF =
     stateCapitalizedNames = nameBodies,
     stateIndentation = "",
     stateResetLog = optResetLogging opts,
-    stateLocalLog = optLogToFile opts
+    stateLocalLog = optLogToFile opts,
+    stateNextDisambig = 1,
+    stateDisambigString = "X",
+    stateUsedTypeNames = []
     }
 
 -- | Monadic type for loading and interpreting XSD files, making
@@ -1007,3 +1018,15 @@ resetLog file = liftIO $ do
     "QDHXB "
     ++ formatTime defaultTimeLocale "%Y/%m/%d %T %Z" now
     ++ " -*- mode: text -*-\n"
+
+freshenTypeName :: String -> Maybe QName -> XSDQ QName
+freshenTypeName outer ifName =
+  inDefaultNamespace $ maybe outer id $ fmap qName ifName
+
+-- | Return the next number to be used for disambiguating type names.
+getNextDisambig :: XSDQ Int
+getNextDisambig = do
+  st <- liftStatetoXSDQ get
+  let result = stateNextDisambig st
+  liftStatetoXSDQ $ put $ st { stateNextDisambig = 1 + result }
+  return result
