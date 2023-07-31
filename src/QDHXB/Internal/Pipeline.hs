@@ -10,11 +10,11 @@ import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import QDHXB.Utils.BPP
 import QDHXB.Utils.XMLLight (getCoreContent)
 import QDHXB.Internal.XSDQ
+import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
-import QDHXB.Internal.UniqueNames
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translateParsedXSD :: Renamable ast =>
+translateParsedXSD :: AST ast =>
   (String -> [Content] -> XSDQ [ast]) -> ([ast] -> XSDQ [Definition])
   -> [[Content]] -> XSDQ [Dec]
 translateParsedXSD inputSchemaItems flattenSchemaItems xsds = do

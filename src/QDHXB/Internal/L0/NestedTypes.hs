@@ -14,7 +14,7 @@ module QDHXB.Internal.L0.NestedTypes (
 
 import Text.XML.Light.Types (QName, Line, qName)
 import Text.XML.Light.Output
-import QDHXB.Internal.UniqueNames
+import QDHXB.Internal.AST
 import QDHXB.Utils.BPP
 import QDHXB.Utils.XMLLight (withPrefix)
 
@@ -206,20 +206,20 @@ nonSkip :: DataScheme -> Bool
 nonSkip Skip = False
 nonSkip _ = True
 
-instance Renamable DataScheme where
+instance AST DataScheme where
 
   -- | TODO Traverse a single AST to collect the top-level bound
   -- names.
-  get_bound_name_strings_from _ast = []
+  getBoundNameStringsFrom _ast = []
 
   -- | TODO Rename any nonunique hidden names within the scope of the
   -- given @ast@.  This is a case over the structure of the @ast@
   -- type, and applying `ensureUniqueNames` to recursively-held lists
   -- of ASTs.
-  ensure_unique_internal_names = return
+  ensureUniqueInternalNames = return
 
   -- | TODO Apply the given substitutions to the given AST.
-  apply_substitutions' _substs = id
+  applySubstitutionsTo _substs = id
 
 
 instance Blockable DataScheme where

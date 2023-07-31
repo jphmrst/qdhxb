@@ -2,7 +2,7 @@
 
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
-module QDHXB.Internal.UniqueNames (Renamable(..), ensureUniqueNames) where
+module QDHXB.Internal.AST (AST(..), ensureUniqueNames) where
 
 import Text.XML.Light.Output
 import Text.XML.Light.Types
@@ -10,26 +10,26 @@ import QDHXB.Internal.XSDQ
 import QDHXB.Utils.BPP
 
 -- | Class of abstract syntax trees @ast@ which
-class (Blockable ast, Blockable [ast]) => Renamable ast where
+class (Blockable ast, Blockable [ast]) => AST ast where
 
   -- | Traverse a list of ASTs to collect the top-level bound names.
-  get_bound_name_strings :: [ast] -> [String]
-  get_bound_name_strings = map concat . map get_bound_name_strings_from
+  getBoundNameStrings :: [ast] -> [String]
+  getBoundNameStrings = map concat . map getBoundNameStringsFrom
 
   -- | Traverse a single AST to collect the top-level bound names.
-  get_bound_name_strings_from :: ast -> [String]
+  getBoundNameStringsFrom :: ast -> [String]
 
   -- | Rename any nonunique hidden names within the scope of the given
   -- @ast@.  This is a case over the structure of the @ast@ type, and
   -- applying `ensureUniqueNames` to recursively-held lists of ASTs.
-  ensure_unique_internal_names :: ast -> XSDQ ast
+  ensureUniqueInternalNames :: ast -> XSDQ ast
 
   -- | Apply the given substitutions to the given ASTs.
-  apply_substitutions :: [(String, String)] -> [ast] -> [ast]
-  apply_substitutions substs = map (apply_substitutions' substs)
+  applySubstitutions :: [(String, String)] -> [ast] -> [ast]
+  applySubstitutions substs = map (applySubstitutionsTo substs)
 
   -- | Apply the given substitutions to the given AST.
-  apply_substitutions' :: [(String, String)] -> ast -> ast
+  applySubstitutionsTo :: [(String, String)] -> ast -> ast
 
 -- | Pipeline step renaming multiply-used names in different nested
 -- scopes.  Since Haskell does not have nested scoping of types and
@@ -37,14 +37,14 @@ class (Blockable ast, Blockable [ast]) => Renamable ast where
 -- declarations.  So subsequent bindings of the same name must be
 -- renamed before we lose the structure of nested scopes in the
 -- `QDHXB.Internal.L0.Flatten` step.
-ensureUniqueNames :: Renamable ast => [ast] -> XSDQ [ast]
+ensureUniqueNames :: AST ast => [ast] -> XSDQ [ast]
 ensureUniqueNames dss = do
   -- First rename any nonunique hidden names within the scope of each
   -- `DataScheme` in the input list.
-  dss' <- mapM ensure_unique_internal_names dss
+  dss' <- mapM ensureUniqueInternalNames dss
 
   -- Next harvest the top-level bound names in the `DataScheme` list.
-  let bound_names = get_bound_name_strings dss'
+  let bound_names = getBoundNameStrings dss'
 
   -- Log the fresh names, and issue a substitution for any which are
   -- already used.
@@ -53,7 +53,7 @@ ensureUniqueNames dss = do
   -- Now apply these substitutions.
   let dss'' = case substs of
         [] -> dss'
-        _ -> apply_substitutions substs dss'
+        _ -> applySubstitutions substs dss'
 
   return dss''
 
