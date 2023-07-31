@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
 
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
@@ -7,9 +7,10 @@ module QDHXB.Internal.UniqueNames (Renamable(..), ensureUniqueNames) where
 import Text.XML.Light.Output
 import Text.XML.Light.Types
 import QDHXB.Internal.XSDQ
+import QDHXB.Utils.BPP
 
 -- | Class of abstract syntax trees @ast@ which
-class Renamable ast where
+class (Blockable ast, Blockable [ast]) => Renamable ast where
 
   -- | Traverse a list of ASTs to collect the top-level bound names.
   get_bound_name_strings :: [ast] -> [String]

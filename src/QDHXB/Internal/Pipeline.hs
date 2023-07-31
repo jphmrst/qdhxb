@@ -1,6 +1,6 @@
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
-module QDHXB.Internal.L0.Pipeline (translateParsedXSD) where
+module QDHXB.Internal.Pipeline (translateParsedXSD) where
 
 import Language.Haskell.TH
 -- import System.Directory
@@ -12,12 +12,12 @@ import QDHXB.Utils.XMLLight (getCoreContent)
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate
 import QDHXB.Internal.UniqueNames
-import QDHXB.Internal.L0.Input
-import QDHXB.Internal.L0.Flatten
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translateParsedXSD :: [[Content]] -> XSDQ [Dec]
-translateParsedXSD xsds = do
+translateParsedXSD :: Renamable ast =>
+  (String -> [Content] -> XSDQ [ast]) -> ([ast] -> XSDQ [Definition])
+  -> [[Content]] -> XSDQ [Dec]
+translateParsedXSD inputSchemaItems flattenSchemaItems xsds = do
   let cores = map getCoreContent xsds
   flatteneds <- mapM (
     \core ->

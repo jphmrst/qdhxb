@@ -12,7 +12,9 @@ import QDHXB.Utils.XMLLight (isElem)
 import QDHXB.Internal.XSDQ (
   XSDQ, runXSDQ, whenDebugging, whenResetLog,
   localLoggingStart, localLoggingEnd, putLog, resetLog, whenLogging)
-import QDHXB.Internal.L0.Pipeline
+import QDHXB.Internal.L0.Input
+import QDHXB.Internal.L0.Flatten
+import QDHXB.Internal.Pipeline
 import QDHXB.Options
 
 -- | Load the given XSD files, translating each into Haskell
@@ -25,7 +27,7 @@ qdhxb opts xsds = do
       whenResetLog $ resetLog file
       liftIO $ appendFile file $ "Files: " ++ intercalate ", " xsds ++ "\n"
     xsdContents <- mapM loadContent xsds
-    translateParsedXSD xsdContents
+    translateParsedXSD inputSchemaItems flattenSchemaItems xsdContents
 
 -- | Load and translate the given XSD files with the default options.
 qdhxb' :: [String] -> Q [Dec]
