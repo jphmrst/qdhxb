@@ -1,3 +1,4 @@
+{-# LANGUAGE ExplicitForAll #-}
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
 module QDHXB.Internal.Pipeline (translateParsedXSD) where
@@ -14,10 +15,9 @@ import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translateParsedXSD :: AST ast =>
-  (String -> [Content] -> XSDQ [ast]) -> ([ast] -> XSDQ [Definition])
-  -> [[Content]] -> XSDQ [Dec]
-translateParsedXSD inputSchemaItems flattenSchemaItems xsds = do
+translateParsedXSD :: forall ast . AST ast =>
+  (String -> [Content] -> XSDQ [ast]) -> [[Content]] -> XSDQ [Dec]
+translateParsedXSD inputSchemaItems xsds = do
   let cores = map getCoreContent xsds
   flatteneds <- mapM (
     \core ->
@@ -49,7 +49,7 @@ translateParsedXSD inputSchemaItems flattenSchemaItems xsds = do
 
           whenDebugging $ liftIO $ putStrLn
             "======================================== FLATTEN"
-          ir <- flattenSchemaItems renamedSchemaReps
+          ir <- flatten renamedSchemaReps
           putLog $ " FLATTENED INPUT\n" ++ bpp ir
             ++ "\n------------------------------ "
           whenDebugging $ liftIO $ do

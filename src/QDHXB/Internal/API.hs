@@ -23,9 +23,8 @@ type API = (QDHXBOption -> [String] -> Q [Dec], [String] -> Q [Dec])
 
 -- | Define the two API functions (with and without options) for a
 -- given XSD `AST` implementation.
-apiFunctions :: AST ast =>
-  (String -> [Content] -> XSDQ [ast]) -> ([ast] -> XSDQ [Definition]) -> API
-apiFunctions inputSchemaItems flattenSchemaItems = (qdhxbFn, qdhxbFn')
+apiFunctions :: AST ast => (String -> [Content] -> XSDQ [ast]) -> API
+apiFunctions inputSchemaItems = (qdhxbFn, qdhxbFn')
   where -- | Load the given XSD files, translating each into Haskell
         -- declarations.
         qdhxbFn :: QDHXBOption -> [String] -> Q [Dec]
@@ -37,7 +36,7 @@ apiFunctions inputSchemaItems flattenSchemaItems = (qdhxbFn, qdhxbFn')
               liftIO $ appendFile file $
                 "Files: " ++ intercalate ", " xsds ++ "\n"
             xsdContents <- mapM load_content xsds
-            translateParsedXSD inputSchemaItems flattenSchemaItems xsdContents
+            translateParsedXSD inputSchemaItems xsdContents
 
         -- | Load and translate the given XSD files with the default
         -- options.

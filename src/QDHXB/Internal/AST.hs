@@ -7,6 +7,7 @@ module QDHXB.Internal.AST (AST(..), ensureUniqueNames) where
 import Text.XML.Light.Output
 import Text.XML.Light.Types
 import QDHXB.Internal.XSDQ
+import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 
 -- | Class of abstract syntax trees @ast@ which
@@ -30,6 +31,10 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
   -- | Apply the given substitutions to the given AST.
   applySubstitutionsTo :: [(String, String)] -> ast -> ast
+
+  -- | Rewrite the nested AST into short, flat definitions closer to
+  -- Haskell declarations.
+  flatten :: [ast] -> XSDQ [Definition]
 
 -- | Pipeline step renaming multiply-used names in different nested
 -- scopes.  Since Haskell does not have nested scoping of types and
