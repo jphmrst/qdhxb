@@ -11,6 +11,7 @@ import QDHXB.Utils.BPP
 import QDHXB.Utils.XMLLight (getCoreContent)
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate
+import QDHXB.Internal.UniqueNames
 import QDHXB.Internal.L0.Input
 import QDHXB.Internal.L0.Flatten
 
@@ -36,9 +37,19 @@ translateParsedXSD xsds = do
           whenDebugging $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " schemaReps
-            putStrLn "======================================== FLATTEN"
 
-          ir <- flattenSchemaItems schemaReps
+          whenDebugging $ liftIO $ putStrLn
+              "======================================== RENAMED NESTED INPUT"
+          renamedSchemaReps <- ensureUniqueNames schemaReps
+          putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
+            ++ "\n------------------------------ "
+          whenDebugging $ liftIO $ do
+            putStrLn "----------------------------------------"
+            bLabelPrintln "Final: " renamedSchemaReps
+
+          whenDebugging $ liftIO $ putStrLn
+            "======================================== FLATTEN"
+          ir <- flattenSchemaItems renamedSchemaReps
           putLog $ " FLATTENED INPUT\n" ++ bpp ir
             ++ "\n------------------------------ "
           whenDebugging $ liftIO $ do
