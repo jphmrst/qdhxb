@@ -155,14 +155,18 @@ nameOrRefOptToMaybeName (WithName qn) = Just qn
 nameOrRefOptToMaybeName (WithRef qn)  = Just qn
 nameOrRefOptToMaybeName (WithNeither) = Nothing
 
---  block Skip =
---  block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract ifLine ifDoc) =
---  block (AttributeScheme ifName ifType ifRef usage ifLine ifDoc) =
---  block (ComplexTypeScheme form attrs ifName ifLine ifDoc) =
---  block (SimpleTypeScheme name detail ifDoc) =
---  block (GroupScheme base ref typeScheme ifLine ifDoc) =
---  block (ChoiceScheme base ref typeScheme ifLine ifDoc) =
---  block (UnprocessedXML ifName ifLine ifDoc) =
+--  Skip ->
+--  (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract _ _) ->
+--  (AttributeScheme (SingleAttribute nameOrRef ifType _ _) _ _) ->
+--  (AttributeScheme (AttributeGroup nameOrRef attrDefs _) _ _) ->
+--  (ComplexTypeScheme form attrs ifName _ _) ->
+--  (SimpleTypeScheme name (Synonym base) _ _) ->
+--  (SimpleTypeScheme name (SimpleRestriction base) _ _) ->
+--  (SimpleTypeScheme name (Union nesteds members) _ _) ->
+--  (SimpleTypeScheme name (List ifElemType ifNested) _ _) ->
+--  (GroupScheme nameOrRef typeScheme _ _) ->
+--  (ChoiceScheme nameOrRef typeScheme _ _) ->
+--  (UnprocessedXML ifName _ _) ->
 
 
 quoteShowQName :: QName -> String
@@ -213,7 +217,7 @@ labelOf (ChoiceScheme WithNeither _n _l _d) = Nothing
 nonSkip :: DataScheme -> Bool
 nonSkip Skip = False
 nonSkip _ = True
-
+
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
   block (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract _ifLine ifDoc) =
@@ -268,7 +272,7 @@ instance Blockable DataScheme where
 
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
     "Unprocessed XML" ++ maybe "" quoteShowQName ifName
-
+
 instance Blockable NameOrRefOpt where
   block (WithName n) = labelBlock "name=" $ block n
   block (WithRef r)  = labelBlock "ref="  $ block r
@@ -340,12 +344,24 @@ instance Blockable PrimaryBundle where
     labelBlock "name " $ block q,
     labelBlock "attrs " $ block a,
     labelBlock "subcontents " $ block $ filter isElem c]
-
+
 instance AST DataScheme where
 
   -- | TODO Traverse a single AST to collect the top-level bound
   -- names.
-  getBoundNameStringsFrom _ast = []
+  getBoundNameStringsFrom ast = case ast of
+    Skip -> []
+    (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract _ _) -> []
+    (AttributeScheme (SingleAttribute nameOrRef ifType _ _) _ _) -> []
+    (AttributeScheme (AttributeGroup nameOrRef attrDefs _) _ _) -> []
+    (ComplexTypeScheme form attrs ifName _ _) -> []
+    (SimpleTypeScheme name (Synonym base) _ _) -> []
+    (SimpleTypeScheme name (SimpleRestriction base) _ _) -> []
+    (SimpleTypeScheme name (Union nesteds members) _ _) -> []
+    (SimpleTypeScheme name (List ifElemType ifNested) _ _) -> []
+    (GroupScheme nameOrRef typeScheme _ _) -> []
+    (ChoiceScheme nameOrRef typeScheme _ _) -> []
+    (UnprocessedXML ifName _ _) -> []
 
   -- | TODO Rename any nonunique hidden names within the scope of the
   -- given @ast@.  This is a case over the structure of the @ast@
