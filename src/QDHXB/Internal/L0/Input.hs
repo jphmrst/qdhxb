@@ -17,7 +17,7 @@ import QDHXB.Utils.XMLLight
 import QDHXB.Internal.L0.NestedTypes
 import QDHXB.Internal.XSDQ
 
--- |Rewrite otherwise-unstructured parsed XML content structures as a
+-- | Rewrite otherwise-unstructured parsed XML content structures as a
 -- sequence of internal XSD representations.
 inputSchemaItems :: String -> [Content] -> XSDQ [DataScheme]
 inputSchemaItems outer items = do
@@ -584,12 +584,6 @@ encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
 
 type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
                             [Attr], [Content], Maybe Line)
-
-instance Blockable PrimaryBundle where
-  block (_,_,_,_,q,a,c,_) = stackBlocks [
-    labelBlock "name " $ block q,
-    labelBlock "attrs " $ block a,
-    labelBlock "subcontents " $ block $ filter isElem c]
 
 -- | Separate the innards of a complexType element into:
 --
