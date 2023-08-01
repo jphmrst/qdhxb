@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TypeApplications, AllowAmbiguousTypes #-}
 
 -- | Top-level calls
 module QDHXB.Internal.API (apiFunctions, API) where
@@ -23,8 +24,8 @@ type API = (QDHXBOption -> [String] -> Q [Dec], [String] -> Q [Dec])
 
 -- | Define the two API functions (with and without options) for a
 -- given XSD `AST` implementation.
-apiFunctions :: AST ast => (String -> [Content] -> XSDQ [ast]) -> API
-apiFunctions inputSchemaItems = (qdhxbFn, qdhxbFn')
+apiFunctions :: forall ast . AST ast => API
+apiFunctions = (qdhxbFn, qdhxbFn')
   where -- | Load the given XSD files, translating each into Haskell
         -- declarations.
         qdhxbFn :: QDHXBOption -> [String] -> Q [Dec]
@@ -36,7 +37,7 @@ apiFunctions inputSchemaItems = (qdhxbFn, qdhxbFn')
               liftIO $ appendFile file $
                 "Files: " ++ intercalate ", " xsds ++ "\n"
             xsdContents <- mapM load_content xsds
-            translateParsedXSD inputSchemaItems xsdContents
+            translateParsedXSD @ast xsdContents
 
         -- | Load and translate the given XSD files with the default
         -- options.

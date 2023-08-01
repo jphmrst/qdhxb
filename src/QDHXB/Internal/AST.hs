@@ -13,6 +13,10 @@ import QDHXB.Utils.BPP
 -- | Class of abstract syntax trees @ast@ which
 class (Blockable ast, Blockable [ast]) => AST ast where
 
+  -- | Rewrite otherwise-unstructured parsed XML content as a sequence
+  -- of ASTs.
+  decodeXML :: [Content] -> XSDQ [ast]
+
   -- | Traverse a list of ASTs to collect the top-level bound names.
   getBoundNameStrings :: [ast] -> [String]
   getBoundNameStrings = map concat . map getBoundNameStringsFrom

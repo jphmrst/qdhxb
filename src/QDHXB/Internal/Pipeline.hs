@@ -1,4 +1,4 @@
-{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE ScopedTypeVariables, AllowAmbiguousTypes #-}
 
 -- | Top-level XSD-to-Haskell rewriting pipeline.
 module QDHXB.Internal.Pipeline (translateParsedXSD) where
@@ -15,9 +15,8 @@ import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translateParsedXSD :: forall ast . AST ast =>
-  (String -> [Content] -> XSDQ [ast]) -> [[Content]] -> XSDQ [Dec]
-translateParsedXSD inputSchemaItems xsds = do
+translateParsedXSD :: forall ast . AST ast => [[Content]] -> XSDQ [Dec]
+translateParsedXSD xsds = do
   let cores = map getCoreContent xsds
   flatteneds <- mapM (
     \core ->
@@ -31,7 +30,7 @@ translateParsedXSD inputSchemaItems xsds = do
           putLog $ "------------------------------ SOURCE\n" ++ bpp core
             ++ "\n------------------------------ "
 
-          schemaReps <- inputSchemaItems "Top" forms
+          schemaReps <- (decodeXML forms :: XSDQ [ast])
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
           whenDebugging $ liftIO $ do
