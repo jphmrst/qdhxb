@@ -35,7 +35,7 @@ apiFunctions = (qdhxbFn, qdhxbFn')
               liftIO $ appendFile file $
                 "Files: " ++ intercalate ", " xsds ++ "\n"
             xsdContents <- mapM load_content xsds
-            translateParsedXSD @ast xsdContents
+            translate_parsed_xsd @ast xsdContents
 
         -- | Load and translate the given XSD files with the default
         -- options.
@@ -54,8 +54,8 @@ load_content xsdFile = do
   return res
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translateParsedXSD :: forall ast . AST ast => [[Content]] -> XSDQ [Dec]
-translateParsedXSD xsds = do
+translate_parsed_xsd :: forall ast . AST ast => [[Content]] -> XSDQ [Dec]
+translate_parsed_xsd xsds = do
   let cores = map getCoreContent xsds
   flatteneds <- mapM (
     \core ->
