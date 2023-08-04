@@ -3,7 +3,7 @@
 module QDHXB.Utils.Misc (
   applyFst, applySnd,
   compressMaybe, qFirstToUpper, qTransformName, spaceSep, chomp, pickOrCombine,
-  ifAtLine
+  ifAtLine, maybeToList
   ) where
 import Data.Char (isSpace)
 import Text.XML.Light.Types
@@ -68,3 +68,7 @@ pickOrCombine (Just y) (Just z) = Just $ y ++ "\n\n" ++ z
 -- file (and an empty string otherwise).
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
+
+maybeToList :: Maybe a -> [a]
+maybeToList Nothing = []
+maybeToList (Just n) = [n]

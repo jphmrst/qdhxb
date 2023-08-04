@@ -22,10 +22,12 @@ module QDHXB.Internal.XSDQ (
   -- ** Groups
   addGroupDefn, getGroupDefn, getGroupDefnOrFail,
   -- ** Types
-  freshenTypeName, getNextDisambig,
+  freshenTypeName, getNextDisambig, getDisambigString, getDisambigString,
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
+  addUsedTypeName, typeNameIsInUse,
+
   -- *** XML and XSD primitive types
   installXmlPrimitives, installXsdPrimitives,
   -- * Configuration options
@@ -273,6 +275,19 @@ anyTypeQName = do
   where get_anyType ((qn, BuiltinDefn (QName "anyType" _ _) _ _ _):_) = qn
         get_anyType (_:env) = get_anyType env
         get_anyType [] = error "Bad call to anyTypeQName"
+
+-- | Check if a type name is already in use.
+typeNameIsInUse :: QName -> XSDQ Bool
+typeNameIsInUse qn = do
+  st <- liftStatetoXSDQ $ get
+  return $ elem (qName qn) (stateUsedTypeNames st)
+
+-- | Note another in-use type name.
+addUsedTypeName :: QName -> XSDQ ()
+addUsedTypeName qn = do
+  st <- liftStatetoXSDQ $ get
+  liftStatetoXSDQ $ put $
+    st { stateUsedTypeNames = qName qn : stateUsedTypeNames st }
 
 -- | Write the current state of the `XSDQ` internals to the standard
 -- output.
@@ -1030,3 +1045,6 @@ getNextDisambig = do
   let result = stateNextDisambig st
   liftStatetoXSDQ $ put $ st { stateNextDisambig = 1 + result }
   return result
+
+getDisambigString :: XSDQ String
+getDisambigString = fmap stateDisambigString $ liftStatetoXSDQ get
