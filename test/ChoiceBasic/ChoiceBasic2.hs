@@ -1,7 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module ChoiceBasic.ChoiceBasic2 where
-import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
