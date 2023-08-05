@@ -22,7 +22,7 @@ module QDHXB.Internal.XSDQ (
   -- ** Groups
   addGroupDefn, getGroupDefn, getGroupDefnOrFail,
   -- ** Types
-  freshenTypeName, getNextDisambig, getDisambigString, getDisambigString,
+  freshenTypeName, getNextDisambig, getDisambigString,
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
@@ -308,9 +308,9 @@ installXmlPrimitives ns pfx = do
 -- environment.
 installXsdPrimitives :: String -> Maybe String -> XSDQ ()
 installXsdPrimitives ns pfx = do
-  let anyTypeQName = QName "anyType" (Just ns) pfx
+  let anyTypeQN = QName "anyType" (Just ns) pfx
   fileNewDefinition $
-    BuiltinDefn anyTypeQName "String" stringType stringBasicDecoder
+    BuiltinDefn anyTypeQN "String" stringType stringBasicDecoder
   fileNewDefinition $
     BuiltinDefn (QName "anySimpleType" (Just ns) pfx) "String"
       stringType stringBasicDecoder
