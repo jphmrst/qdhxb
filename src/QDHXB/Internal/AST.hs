@@ -26,6 +26,10 @@ type Substitutions = [(QName, QName)]
 -- argument.
 data MaybeUpdated a = Same { resultOnly :: a } | Updated { resultOnly :: a }
 
+instance Blockable a => Blockable (MaybeUpdated a) where
+  block (Same v) = stringToBlock "[Unchanged]" `stack2` block v
+  block (Updated v) = stringToBlock "[Updated]" `stack2` block v
+
 instance Functor MaybeUpdated where
   fmap f (Same x) = Same $ f x
   fmap f (Updated x) = Updated $ f x
@@ -92,6 +96,8 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- whether the result and argument differ.
   ensureUniqueNames' :: [ast] -> XSDQ (MaybeUpdated [ast])
   ensureUniqueNames' dss = do
+    whenDebugging $ dbgLn "Starting ensureUniqueNames'"
+
     -- First rename any nonunique hidden names within the scope of
     -- each `DataScheme` in the input list.
     dssR' <- fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
@@ -100,21 +106,26 @@ class (Blockable ast, Blockable [ast]) => AST ast where
     -- Next harvest the top-level bound names in the `DataScheme`
     -- list.
     let bound_names = getBoundNameStrings dss'
+    whenDebugging $ dbgBLabel "- bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
     substs <- make_needed_substitutions bound_names
+    whenDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
     let dssR'' = case substs of
           [] -> dssR'
           _ -> applySubstitutions substs dss'
 
-    return $ assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
+    dbgResult "- result: " $
+      assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
 
   -- | Special case of `ensureUniqueNames'` for a single @ast@.
   ensureUniqueNames1 :: ast -> XSDQ (MaybeUpdated ast)
   ensureUniqueNames1 ds = do
+    whenDebugging $ dbgBLabel "- ensureUniqueNames1 on " $ debugSlug ds
+
     -- First rename any nonunique hidden names within the scope of the
     -- `DataScheme`.
     dsR' <- ensureUniqueInternalNames ds
@@ -145,11 +156,16 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- functions in the `AST` class.  You know it's top-level because
   -- the intermediate-copy-avoiding `MaybeUpdated` tag is removed!
   ensureUniqueNames :: [ast] -> XSDQ [ast]
-  ensureUniqueNames dss = fmap resultOnly $ ensureUniqueNames' dss
+  ensureUniqueNames dss = do
+    whenDebugging $ dbgLn "Starting ensureUniqueNames"
+    fmap resultOnly $ ensureUniqueNames' dss
 
   -- | Rewrite the nested AST into short, flat definitions closer to
   -- Haskell declarations.
   flatten :: [ast] -> XSDQ [Definition]
+
+  -- | For debugging
+  debugSlug :: ast -> String
 
 -- | TODO Process a list of names with respect to the current `XSDQ`
 -- state: log the fresh names as in use, and issue a substitution for

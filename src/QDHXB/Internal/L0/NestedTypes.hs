@@ -20,8 +20,7 @@ import Text.XML.Light.Output
 import QDHXB.Internal.AST
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
-import QDHXB.Utils.Misc (
-  pickOrCombine, ifAtLine, applyFst, maybeToList)
+import QDHXB.Utils.Misc (pickOrCombine, ifAtLine, applyFst)
 import QDHXB.Utils.BPP
 import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.XMLLight
@@ -35,6 +34,13 @@ data NameOrRefOpt =
   | WithRef QName -- ^ Case for having a @ref@  but no @name@
   | WithNeither   -- ^ Case for neither
   deriving Show
+
+{-
+nameOrRefOptToMaybeName :: NameOrRefOpt -> Maybe QName
+nameOrRefOptToMaybeName (WithName qn) = Just qn
+nameOrRefOptToMaybeName (WithRef qn)  = Just qn
+nameOrRefOptToMaybeName (WithNeither) = Nothing
+-}
 
 -- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
 -- values.  The first argument corresponds to a possible @name@
@@ -101,12 +107,12 @@ subst_sts substs sts@(List ifElemTypeQName ifNestedTypeDS) =
 -- | TODO Local version of `ensureUniqueInternalNames` for
 -- `SimpleTypeScheme`s.
 unique_internals_sts :: SimpleTypeScheme -> XSDQ (MaybeUpdated SimpleTypeScheme)
-unique_internals_sts sts@(Synonym baseType) = return $ Same sts
-unique_internals_sts sts@(SimpleRestriction baseType) = return $ Same sts
+unique_internals_sts sts@(Synonym _) = return $ Same sts
+unique_internals_sts sts@(SimpleRestriction _) = return $ Same sts
 unique_internals_sts sts@(Union dss typeQNames) = do
-  dss' <- fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
+  dss' <- indenting $ fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
   return $ assembleIfUpdated [Upd dss'] sts $ Union (resultOnly dss') typeQNames
-unique_internals_sts sts@(List ifElemTypeQName ifNestedTypeDS) = do
+unique_internals_sts sts@(List _ifElemTypeQName _ifNestedTypeDS) = do
   return $ Same sts
   {- TODO Weird bug here
   ds' <- case ifNestedTypeDS of
@@ -142,7 +148,7 @@ substQNameOr ss qo@(NameRef qn) =
 unique_internals_QNameOr :: QNameOr -> XSDQ (MaybeUpdated QNameOr)
 unique_internals_QNameOr qno@(NameRef _) = return $ Same qno
 unique_internals_QNameOr qno@(Nested ds) = do
-  ds' <- ensureUniqueNames1 ds
+  ds' <- indenting $ ensureUniqueNames1 ds
   return $ assembleIfUpdated [Upd ds'] qno $ Nested (resultOnly ds')
 unique_internals_QNameOr qno@Neither = return $ Same qno
 
@@ -205,11 +211,25 @@ subst_cts ss cts@(Group nameOrRef ifDS ifMin ifMax) =
 -- `ComplexTypeScheme`.
 unique_internals_cts ::
   ComplexTypeScheme -> XSDQ (MaybeUpdated ComplexTypeScheme)
-unique_internals_cts cts@(Composing dss attrSchs) = return $ Same cts
-unique_internals_cts cts@(ComplexRestriction qn) = return $ Same cts
-unique_internals_cts cts@(Extension qn dss) = return $ Same cts
-unique_internals_cts cts@(Choice ifQn dss) = return $ Same cts
-unique_internals_cts cts@(Group nameOrRef ifDS ifMin ifMax) = return $ Same cts
+unique_internals_cts cts@(Composing dss attrSchs) = do
+  dss' <- indenting $ ensureUniqueNames' dss
+  attrSchs' <- indenting $ fmap hoistUpdate $
+    mapM unique_internals_attr_scheme attrSchs
+  return $ assembleIfUpdated [Upd dss', Upd attrSchs'] cts $
+    Composing (resultOnly dss') (resultOnly attrSchs')
+unique_internals_cts cts@(ComplexRestriction _) = return $ Same cts
+unique_internals_cts cts@(Extension qn dss) = do
+  dss' <- indenting $ ensureUniqueNames' dss
+  return $ assembleIfUpdated [Upd dss'] cts $ Extension qn $ resultOnly dss'
+unique_internals_cts cts@(Choice ifQn dss) = do
+  dss' <- indenting $ ensureUniqueNames' dss
+  return $ assembleIfUpdated [Upd dss'] cts $ Choice ifQn $ resultOnly dss'
+unique_internals_cts cts@(Group nameOrRef ifDS ifMin ifMax) = do
+  ifDS' <- maybe (return $ Same ifDS)
+                 (indenting . fmap (fmap Just) . ensureUniqueNames1)
+                 ifDS
+  return $ assembleIfUpdated [Upd ifDS'] cts $
+    Group nameOrRef (resultOnly ifDS') ifMin ifMax
 
 -- | Details of attributes
 data AttributeScheme =
@@ -221,8 +241,11 @@ data AttributeScheme =
   | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
-                   (Maybe String) -- ^ idDoc
+                   (Maybe String) -- ^ ifDoc
   deriving Show
+
+-- SingleAttribute nameOrRef ifTypeOr mode ifDoc
+-- AttributeGroup nameOrRef attrSchs ifDoc
 
 subst_attr_scheme ::
   Substitutions -> AttributeScheme -> MaybeUpdated AttributeScheme
@@ -241,15 +264,21 @@ unique_internals_attr_scheme ::
   AttributeScheme -> XSDQ (MaybeUpdated AttributeScheme)
 unique_internals_attr_scheme attrsc@(SingleAttribute nameOrRef ifType
                                                             mode ifDoc) = do
-  ifType' <- unique_internals_QNameOr ifType
+  ifType' <- indenting $ unique_internals_QNameOr ifType
   return $ assembleIfUpdated [Upd ifType'] attrsc $
     SingleAttribute nameOrRef (resultOnly ifType') mode ifDoc
 unique_internals_attr_scheme ag@(AttributeGroup nameOrRef attrDefs
                                                        ifDoc) = do
-  attrDefs' <- fmap hoistUpdate $
+  attrDefs' <- indenting $ fmap hoistUpdate $
     mapM unique_internals_attr_scheme attrDefs
   return $ assembleIfUpdated [Upd attrDefs'] ag $
     AttributeGroup nameOrRef (resultOnly attrDefs') ifDoc
+
+bound_names_attrsch :: AttributeScheme -> [QName]
+bound_names_attrsch (SingleAttribute nameOrRef _ _ _) =
+  nameonly_to_qnamelist nameOrRef
+bound_names_attrsch (AttributeGroup nameOrRef attrSchs _) =
+  nameonly_to_qnamelist nameOrRef ++ concat (map bound_names_attrsch attrSchs)
 
 
 -- | Main representation of possibly-nested XSD definitions.
@@ -290,11 +319,6 @@ data DataScheme =
                    (Maybe Line) -- ^ ifLine
                    (Maybe String) -- ^ ifDocumentation
   deriving Show
-
-nameOrRefOptToMaybeName :: NameOrRefOpt -> Maybe QName
-nameOrRefOptToMaybeName (WithName qn) = Just qn
-nameOrRefOptToMaybeName (WithRef qn)  = Just qn
-nameOrRefOptToMaybeName (WithNeither) = Nothing
 
 --  Skip ->
 --  (ElementScheme ctnts ifName ifType ifRef ifId ifMin ifMax isAbstract _ _) ->
@@ -496,55 +520,58 @@ instance AST DataScheme where
   getBoundNameStringsFrom ast = case ast of
     Skip -> []
     (ElementScheme _ ifName _ _ _ _ _ _ _ _) -> maybeqname_to_qnamelist ifName
-    (AttributeScheme (SingleAttribute nameOrRef _ _ _) _ _) ->
-      nameonly_to_qnamelist nameOrRef
-    (AttributeScheme (AttributeGroup nameOrRef _ _) _ _) ->
-      nameonly_to_qnamelist nameOrRef
+    (AttributeScheme spec _ _) -> bound_names_attrsch spec
     (ComplexTypeScheme _ _ ifName _ _) -> maybeqname_to_qnamelist ifName
     (SimpleTypeScheme ifName _ _ _) -> maybeqname_to_qnamelist ifName
     (GroupScheme nameOrRef _ _ _) -> nameonly_to_qnamelist nameOrRef
     (ChoiceScheme nameOrRef _ _ _) -> nameonly_to_qnamelist nameOrRef
     (UnprocessedXML ifName _ _) -> maybeqname_to_qnamelist ifName
 
-  -- | Rename any nonunique hidden names within the scope of the
-  -- given @ast@, but not defined at top-level.  Used by
+  -- | Rename any nonunique hidden names within the scope of the given
+  -- @ast@, but not defined at top-level.  Used by
   -- `QDHXB.Internal.AST.ensureUniqueNames`.  This is a case over the
-  -- structure of the @ast@ type, and applying `ensureUniqueNames` to
-  -- recursively-held lists of ASTs.
+  -- structure of the @ast@ type, and applying `ensureUniqueNames` or
+  -- `ensureUniqueNames1` to recursively-held lists of ASTs.
   ensureUniqueInternalNames dss@Skip = return $ Same dss
   ensureUniqueInternalNames dss@((ElementScheme ifDS ifName ifType ifRef ifId
                                                 ifMin ifMax isAbstract
                                                 ifLn ifDoc)) = do
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
     ifDS' <- maybe (return $ Same ifDS)
                    (fmap (fmap Just) . ensureUniqueNames1) ifDS
     return $ assembleIfUpdated [Upd ifDS'] dss $
                ElementScheme (resultOnly ifDS') ifName ifType ifRef ifId
                              ifMin ifMax isAbstract ifLn ifDoc
   ensureUniqueInternalNames ats@(AttributeScheme scheme ifLn ifDoc) = do
-    scheme' <- unique_internals_attr_scheme scheme
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug ats
+    scheme' <- indenting $ unique_internals_attr_scheme scheme
     return $ assembleIfUpdated [Upd scheme'] ats $
       AttributeScheme (resultOnly scheme') ifLn ifDoc
   ensureUniqueInternalNames dss@(ComplexTypeScheme form attrs ifName
                                                    ifLn ifDoc) = do
-    form' <- unique_internals_cts form
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    form' <- indenting $ unique_internals_cts form
     return $ assembleIfUpdated [Upd form'] dss $
       ComplexTypeScheme (resultOnly form') attrs ifName ifLn ifDoc
   ensureUniqueInternalNames dss@(SimpleTypeScheme name sts ifLn ifDoc) = do
-    sts' <- unique_internals_sts sts
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    sts' <- indenting $ unique_internals_sts sts
     return $ assembleIfUpdated [Upd sts'] dss $
       SimpleTypeScheme name (resultOnly sts') ifLn ifDoc
   ensureUniqueInternalNames dss@(GroupScheme nameOrRef ifCts ifLn ifDoc) = do
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
     cts' <- case ifCts of
               Just cts -> do
-                cts'' <- unique_internals_cts cts
+                cts'' <- indenting $ unique_internals_cts cts
                 return $ fmap Just cts''
               Nothing -> return $ Same ifCts
     return $ assembleIfUpdated [Upd cts'] dss $
       GroupScheme nameOrRef (resultOnly cts') ifLn ifDoc
   ensureUniqueInternalNames dss@(ChoiceScheme nameOrRef ifCts ifLn ifDoc) = do
+    whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
     cts' <- case ifCts of
               Just cts -> do
-                cts'' <- unique_internals_cts cts
+                cts'' <- indenting $ unique_internals_cts cts
                 return $ fmap Just cts''
               Nothing -> return $ Same ifCts
     return $ assembleIfUpdated [Upd cts'] dss $
@@ -2045,6 +2072,22 @@ instance AST DataScheme where
 
       disambigNums :: [Int]
       disambigNums = [1..]
+
+  debugSlug Skip = "Skip"
+  debugSlug (ElementScheme _ ifName _ _ _ _ _ _ _ _) =
+    maybe "element (unnamed)" (("element " ++) . qName) ifName
+  debugSlug (AttributeScheme (SingleAttribute nameOrRef _ _ _) _ _) =
+    "attribute " ++ show nameOrRef
+  debugSlug (AttributeScheme (AttributeGroup nameOrRef _ _) _ _) =
+    "attribute group " ++ show nameOrRef
+  debugSlug (ComplexTypeScheme _ _ ifName _ _) =
+    maybe "complex type (unnamed)" (("complex type " ++) . qName) ifName
+  debugSlug (SimpleTypeScheme ifName _ _ _) =
+    maybe "simple type (unnamed)" (("simple type " ++) . qName) ifName
+  debugSlug (GroupScheme nameOrRef _ _ _) = "group " ++ show nameOrRef
+  debugSlug (ChoiceScheme nameOrRef _ _ _) = "choice " ++ show nameOrRef
+  debugSlug (UnprocessedXML ifName _ _) =
+    maybe "raw XML (unnamed)" (("raw XML " ++) . qName) ifName
 
 -- TH calls must be after the big mutually-recursive blocks
 
