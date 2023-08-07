@@ -516,8 +516,8 @@ instance Blockable QNameOr where
 instance Blockable [DataScheme] where block = verticalBlockListFn
 instance Blockable [AttributeScheme] where block = verticalBlockListFn
 
-type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
-                      [Attr], [Content], Maybe Line)
+newtype PrimaryBundle = PB (Content, String, Maybe String, Maybe String, QName,
+                            [Attr], [Content], Maybe Line)
 
 nameonly_to_stringlist :: NameOrRefOpt -> [String]
 nameonly_to_stringlist (WithName qn) = [qName qn]
@@ -528,7 +528,7 @@ maybeqname_to_stringlist (Just qn) = [qName qn]
 maybeqname_to_stringlist _ = []
 
 instance Blockable PrimaryBundle where
-  block (_,_,_,_,q,a,c,_) = stackBlocks [
+  block (PB (_,_,_,_,q,a,c,_)) = stackBlocks [
     labelBlock "name " $ block q,
     labelBlock "attrs " $ block a,
     labelBlock "subcontents " $ block $ filter isElem c]
@@ -1498,7 +1498,8 @@ instance AST DataScheme where
             atrSpecs <- mapM (encodeAttributeScheme $ outer ++ "Cplx") $
                           atspecs' ++ atgrspecs'
             return $ CTS (Composing [] atrSpecs) [] name l d
-          Just (_, tag, _uri, _pfx, qn, ats', subctnts, _) -> case tag of
+          Just (PB (_, tag, _uri, _pfx, qn, ats', subctnts, _)) ->
+            case tag of
 
             "sequence" -> do
               ct <- encodeSequenceTypeScheme (outer ++ "Complex") subctnts
@@ -1518,12 +1519,13 @@ instance AST DataScheme where
                 "      inputElement > complexType > case \"complexContent\""
               (pr', _, _) <- separateComplexContents subctnts l
               case pr' of
-                Just (_, _, _, _, sqn, sats', ssubctnts, ssline) ->
+                Just (PB (_, _, _, _, sqn, sats', ssubcs, ssln)) ->
                   inputElement sqn (ats ++ sats')
-                               (filter isNonKeyNonNotationElem ssubctnts)
-                               (outer ++ "Complex") ssline Nothing
+                               (filter isNonKeyNonNotationElem ssubcs)
+                               (outer ++ "Complex") ssln Nothing
                 Nothing -> error
-                  ("Complex content must have primary subcontents" ++ ifAtLine l)
+                  ("Complex content must have primary subcontents"
+                   ++ ifAtLine l)
 
             "group" -> do
               groupName <- pullAttrQName "name" ats'
@@ -1754,7 +1756,7 @@ instance AST DataScheme where
           Nothing -> do
             return $
               CTS (Extension base []) [] (Just name) ifLn ifDoc
-          Just (e,_,_,_,_,_,_,_) -> do
+          Just (PB (e,_,_,_,_,_,_,_)) -> do
             e' <- indenting $ inputSchemaItem (outer ++ "ExtB") e
             return $
               CTS (Extension base [e']) [] (Just name) ifLn ifDoc
@@ -2011,9 +2013,9 @@ instance AST DataScheme where
                     "documentation" -> separateComplexContents' pr as ags xs
                     _ -> case pr of
                       Nothing -> separateComplexContents'
-                                   (Just (e, n, u, p, q, a, c, l))
+                                   (Just (PB (e, n, u, p, q, a, c, l)))
                                    as ags xs
-                      Just (_, n', _, _, _, _, _, _) -> error $
+                      Just (PB (_, n', _, _, _, _, _, _)) -> error $
                         "Multiple primary sub-elements " ++ n' ++ " and " ++ n
                         ++ " as complexType contents"
                         ++ maybe "" ((" at line " ++) . show) ifLn
