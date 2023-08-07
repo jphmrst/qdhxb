@@ -27,5 +27,5 @@ module QDHXB (
 
   ) where
 
-import QDHXB.Internal.L0.API
+import QDHXB.Internal.L0 (qdhxb, qdhxb')
 import QDHXB.Options

@@ -3,7 +3,7 @@
 -- |The full XSD specification, bootstrapped here for the full
 -- exported implementation.
 module QDHXB.Internal.L1.NestedTypes(victory) where
-import QDHXB.Internal.L0.API
+import QDHXB.Internal.L0
 import QDHXB.Options
 import qualified QDHXB.Expansions
 -- import qualified QDHXB.Internal.L1.XML

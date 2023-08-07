@@ -1,8 +1,9 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
+{-# LANGUAGE TypeApplications #-} -- For apiFunctions
 
 -- | Manual translation of an XSD file into the nested-definition
--- internal @ScheleRef@ representation.
-module QDHXB.Internal.L0.NestedTypes (
+-- internal @DataScheme@ representation.
+module QDHXB.Internal.L0 (
   -- * Containers for different alternative values
   -- ** A name, a reference, or neither
   NameOrRefOpt(..), nameOrRefOpt,
@@ -16,14 +17,18 @@ module QDHXB.Internal.L0.NestedTypes (
   -- ** Attributes
   AttributeScheme(..),
   -- * Main AST
-  DataScheme(..), nonSkip, labelOf
+  DataScheme(..), nonSkip, labelOf,
+  -- * API functions with this intermediate representtion
+  qdhxb, qdhxb'
 ) where
 
-import Language.Haskell.TH (newName, nameBase)
+import Language.Haskell.TH (newName, nameBase, Q, Dec)
 import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Types
 import Text.XML.Light.Output
+import QDHXB.Options
+import QDHXB.Internal.API
 import QDHXB.Internal.AST
 import QDHXB.Internal.Types
 import QDHXB.Internal.XSDQ
@@ -2131,3 +2136,10 @@ verticalBlockablePair [t|QName|] [t|DataScheme|]
 verticalBlockList [t|SimpleTypeScheme|]
 verticalBlockList [t|(QName, DataScheme)|]
 verticalBlockList [t|ComplexTypeScheme|]
+
+-- | Load the given XSD files, translating each into Haskell
+-- declarations.
+qdhxb :: QDHXBOption -> [String] -> Q [Dec]
+-- | Load and translate the given XSD files with the default options.
+qdhxb' :: [String] -> Q [Dec]
+(qdhxb, qdhxb') = apiFunctions @DataScheme

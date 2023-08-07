@@ -2,7 +2,7 @@
 
 -- |The notional XML XSD specification.
 module QDHXB.Internal.L1.XML(victory) where
-import QDHXB.Internal.L0.API
+import QDHXB.Internal.L0
 import QDHXB.Options
 import qualified QDHXB.Expansions
 
