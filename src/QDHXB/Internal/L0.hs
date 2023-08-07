@@ -306,8 +306,9 @@ bound_names_attrsch (AttributeGroup nameOrRef attrSchs _) =
 
 -- | Main representation of possibly-nested XSD definitions.
 data DataScheme =
-  Skip
-  | ElementScheme (Maybe DataScheme) -- ^ contents
+  Skip -- ^ Placeholder for an empty tree
+  | ElementScheme -- ^ An @<element>@ specification
+                  (Maybe DataScheme) -- ^ contents
                   (Maybe QName) -- ^ ifName
                   (Maybe QName) -- ^ ifType
                   (Maybe QName) -- ^ ifRef
@@ -318,35 +319,41 @@ data DataScheme =
                   Bool -- ^ isAbstract
                   (Maybe Line) -- ^ ifLine
                   (Maybe String) -- ^ ifDocumentation
-  | AttributeScheme AttributeScheme -- ^ Single vs. group
+  | AttributeScheme -- ^ Attributes and attribute groups
+                    AttributeScheme -- ^ Single vs. group
                     -- String -- ^ `String` name of implementing class
                     (Maybe Line) -- ^ ifLine
                     (Maybe String) -- ^ ifDocumentation
-  | CTS ComplexTypeScheme -- ^ typeDetail
-                      [AttributeScheme] -- ^ addlAttrs
-                      -- TODO --- Go back and populate this field
-                      (Maybe QName) -- ^ ifName
-                      -- String -- ^ `String` name of implementing class
-                      (Maybe Line) -- ^ ifLine
-                      (Maybe String) -- ^ ifDocumentation
-  | STS (Maybe QName) -- ^ ifName
-                     -- String -- ^ `String` name of implementing class
-                     SimpleTypeScheme -- ^ Details
-                     (Maybe Line) -- ^ ifLine
-                     (Maybe String) -- ^ ifDocumentation
-  | GroupScheme NameOrRefOpt -- ^ name or reference, or possibly neither
-                -- String -- ^ `String` name of implementing class
+  | CTS -- ^ Other complex type definitions
+        ComplexTypeScheme -- ^ typeDetail
+        [AttributeScheme] -- ^ addlAttrs
+        {- TODO --- Go back and populate this field -}
+        (Maybe QName) -- ^ ifName
+        {- TODO? String -- ^ `String` name of implementing class --- but maybe
+           not for XSD-internal type names? -}
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ ifDocumentation
+  | STS -- ^ One of the various simple type definitions
+        (Maybe QName) -- ^ ifName
+        {- TODO? String -- ^ `String` name of implementing class --- but maybe
+           not for XSD-internal type names? -}
+        SimpleTypeScheme -- ^ Details
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ ifDocumentation
+  | GroupScheme -- ^ A @<group>@ element.
+                NameOrRefOpt -- ^ name or reference, or possibly neither
                 (Maybe ComplexTypeScheme) -- ^ contents
-                -- TODO String -- ^ Implementation type name
+                {- TODO String -- ^ Implementation type name -}
                 (Maybe Line) -- ^ ifLine
                 (Maybe String) -- ^ ifDocumentation
-  | ChoiceScheme NameOrRefOpt -- ^ name or reference, or possibly neither
-                 -- String -- ^ `String` name of implementing class
+  | ChoiceScheme -- ^ A @<choice>@ element.
+                 NameOrRefOpt -- ^ name or reference, or possibly neither
                  (Maybe ComplexTypeScheme) -- ^ contents
-                 -- TODO String -- ^ Implementation type name
+                 {- TODO String -- ^ Implementation type name -}
                  (Maybe Line) -- ^ ifLine
                  (Maybe String) -- ^ ifDocumentation
-  | UnprocessedXML (Maybe QName) -- ^ name
+  | UnprocessedXML -- ^ When raw XML is dropped in
+                   (Maybe QName) -- ^ name
                    (Maybe Line) -- ^ ifLine
                    (Maybe String) -- ^ ifDocumentation
   deriving Show
