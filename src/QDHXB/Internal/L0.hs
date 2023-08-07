@@ -258,11 +258,15 @@ data AttributeScheme =
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
                   -- String -- ^ TODO Implementation type name
-                  (Maybe String) -- ^ ifDoc
+                  (Maybe String) -- ^ Documentation, typically from an
+                                 -- @<annotation>@ element, if
+                                 -- provided.
   | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
-                   (Maybe String) -- ^ ifDoc
+                   (Maybe String) -- ^ Documentation, typically from
+                                  -- an @<annotation>@ element, if
+                                  -- provided.
   deriving Show
 
 -- SingleAttribute nameOrRef ifTypeOr mode ifDoc
@@ -308,22 +312,38 @@ bound_names_attrsch (AttributeGroup nameOrRef attrSchs _) =
 data DataScheme =
   Skip -- ^ Placeholder for an empty tree
   | ElementScheme -- ^ An @<element>@ specification
-                  (Maybe DataScheme) -- ^ contents
-                  (Maybe QName) -- ^ ifName
-                  (Maybe QName) -- ^ ifType
-                  (Maybe QName) -- ^ ifRef
+                  (Maybe DataScheme) -- ^ Nested specification of the
+                                     -- element type, or @Nothing@ if
+                                     -- omitted.
+                  (Maybe QName) -- ^ Qualified name of the element
+                                -- (from the @name@ attribute), if one
+                                -- is given.
+                  (Maybe QName) -- ^ Qualified name of the type of the
+                                -- element (from the @type@
+                                -- attribute), if one is given.
+                  (Maybe QName) -- ^ Qualified name of the defining
+                                -- reference of the element (from the
+                                -- @ref@ attribute), if one is given.
                   (Maybe String) -- ^ ifId
                   String -- ^ `String` name of implementing class
                   (Maybe Int) -- ^ ifMin
                   (Maybe Int) -- ^ ifMax
                   Bool -- ^ isAbstract
-                  (Maybe Line) -- ^ ifLine
-                  (Maybe String) -- ^ ifDocumentation
+                  (Maybe Line) -- ^ Associated line number in the
+                               -- defining file, if returned from the
+                               -- underlying XML parser.
+                  (Maybe String) -- ^ Documentation, typically from an
+                                 -- @<annotation>@ element, if
+                                 -- provided.
   | AttributeScheme -- ^ Attributes and attribute groups
                     AttributeScheme -- ^ Single vs. group
                     -- String -- ^ `String` name of implementing class
-                    (Maybe Line) -- ^ ifLine
-                    (Maybe String) -- ^ ifDocumentation
+                    (Maybe Line) -- ^ Associated line number in the
+                                 -- defining file, if returned from
+                                 -- the underlying XML parser.
+                    (Maybe String) -- ^ Documentation, typically from
+                                   -- an @<annotation>@ element, if
+                                   -- provided.
   | CTS -- ^ Other complex type definitions
         ComplexTypeScheme -- ^ typeDetail
         [AttributeScheme] -- ^ addlAttrs
@@ -331,31 +351,46 @@ data DataScheme =
         (Maybe QName) -- ^ ifName
         {- TODO? String -- ^ `String` name of implementing class --- but maybe
            not for XSD-internal type names? -}
-        (Maybe Line) -- ^ ifLine
-        (Maybe String) -- ^ ifDocumentation
+        (Maybe Line) -- ^ Associated line number in the defining file,
+                     -- if returned from the underlying XML parser.
+        (Maybe String) -- ^ Documentation, typically from an
+                       -- @<annotation>@ element, if provided.
   | STS -- ^ One of the various simple type definitions
         (Maybe QName) -- ^ ifName
         {- TODO? String -- ^ `String` name of implementing class --- but maybe
            not for XSD-internal type names? -}
         SimpleTypeScheme -- ^ Details
-        (Maybe Line) -- ^ ifLine
-        (Maybe String) -- ^ ifDocumentation
+        (Maybe Line) -- ^ Associated line number in the defining file,
+                     -- if returned from the underlying XML parser.
+        (Maybe String) -- ^ Documentation, typically from an
+                       -- @<annotation>@ element, if provided.
   | GroupScheme -- ^ A @<group>@ element.
                 NameOrRefOpt -- ^ name or reference, or possibly neither
                 (Maybe ComplexTypeScheme) -- ^ contents
                 {- TODO String -- ^ Implementation type name -}
-                (Maybe Line) -- ^ ifLine
-                (Maybe String) -- ^ ifDocumentation
+                (Maybe Line) -- ^ Associated line number in the
+                             -- defining file, if returned from the
+                             -- underlying XML parser.
+                (Maybe String) -- ^ Documentation, typically from an
+                               -- @<annotation>@ element, if provided.
   | ChoiceScheme -- ^ A @<choice>@ element.
                  NameOrRefOpt -- ^ name or reference, or possibly neither
                  (Maybe ComplexTypeScheme) -- ^ contents
                  {- TODO String -- ^ Implementation type name -}
-                 (Maybe Line) -- ^ ifLine
-                 (Maybe String) -- ^ ifDocumentation
+                 (Maybe Line) -- ^ Associated line number in the
+                              -- defining file, if returned from the
+                              -- underlying XML parser.
+                 (Maybe String) -- ^ Documentation, typically from an
+                                -- @<annotation>@ element, if
+                                -- provided.
   | UnprocessedXML -- ^ When raw XML is dropped in
                    (Maybe QName) -- ^ name
-                   (Maybe Line) -- ^ ifLine
-                   (Maybe String) -- ^ ifDocumentation
+                   (Maybe Line) -- ^ Associated line number in the
+                                -- defining file, if returned from the
+                                -- underlying XML parser.
+                   (Maybe String) -- ^ Documentation, typically from an
+                                  -- @<annotation>@ element, if
+                                  -- provided.
   deriving Show
 
 {-
