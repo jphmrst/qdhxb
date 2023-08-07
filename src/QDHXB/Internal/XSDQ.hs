@@ -277,17 +277,17 @@ anyTypeQName = do
         get_anyType [] = error "Bad call to anyTypeQName"
 
 -- | Check if a type name is already in use.
-typeNameIsInUse :: QName -> XSDQ Bool
-typeNameIsInUse qn = do
+typeNameIsInUse :: String -> XSDQ Bool
+typeNameIsInUse s = do
   st <- liftStatetoXSDQ $ get
-  return $ elem (qName qn) (stateUsedTypeNames st)
+  return $ elem s (stateUsedTypeNames st)
 
 -- | Note another in-use type name.
-addUsedTypeName :: QName -> XSDQ ()
-addUsedTypeName qn = do
+addUsedTypeName :: String -> XSDQ ()
+addUsedTypeName s = do
   st <- liftStatetoXSDQ $ get
   liftStatetoXSDQ $ put $
-    st { stateUsedTypeNames = qName qn : stateUsedTypeNames st }
+    st { stateUsedTypeNames = s : stateUsedTypeNames st }
 
 -- | Write the current state of the `XSDQ` internals to the standard
 -- output.
@@ -1034,6 +1034,8 @@ resetLog file = liftIO $ do
     ++ formatTime defaultTimeLocale "%Y/%m/%d %T %Z" now
     ++ " -*- mode: text -*-\n"
 
+-- | TODO Return a previously-unused type name for an outer wrapper,
+-- and (possibly) a given `QName`.
 freshenTypeName :: String -> Maybe QName -> XSDQ QName
 freshenTypeName outer ifName =
   inDefaultNamespace $ maybe outer id $ fmap qName ifName
@@ -1046,5 +1048,7 @@ getNextDisambig = do
   liftStatetoXSDQ $ put $ st { stateNextDisambig = 1 + result }
   return result
 
+-- | Get the `String` to be prepended to the disambiguation number
+-- when creating distinct type and constructor names.
 getDisambigString :: XSDQ String
 getDisambigString = fmap stateDisambigString $ liftStatetoXSDQ get

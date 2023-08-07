@@ -262,3 +262,7 @@ instance Blockable SourceUnpackedness where block = stringToBlock . show
 instance Blockable SourceStrictness where block = stringToBlock . show
 instance Blockable BangType where block = horizontalBlockablePairFn
 instance Blockable [BangType] where block = verticalBlockListFn
+
+instance Blockable [String] where block = verticalBlockListFn
+instance Blockable (String, String) where block = horizontalBlockablePairFn
+instance Blockable [(String, String)] where block = verticalBlockListFn

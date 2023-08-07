@@ -69,6 +69,8 @@ pickOrCombine (Just y) (Just z) = Just $ y ++ "\n\n" ++ z
 ifAtLine :: Maybe Line -> String
 ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
 
+-- | Convert a `Maybe` value to a list (which is either empty or
+-- singleton).
 maybeToList :: Maybe a -> [a]
 maybeToList Nothing = []
 maybeToList (Just n) = [n]

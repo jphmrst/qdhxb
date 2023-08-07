@@ -1,15 +1,26 @@
 
 -- | Utilities based on the @XMLLight@ library.
 module QDHXB.Utils.XMLLight (
-  pullAttr, pullAttrFrom, pullContent, pullContentFrom,
-    pullCRef, pullCRefContent, pullCRefOf,
-    getAnnotationDoc, getAnnotationDocFrom,
-    filterTagged, isElem, isNonKeyElem, isNonKeyNonNotationElem, isFocusElem,
-    isTagged,
-
-    __loadElement, __loadContent, loadElementName,
-    withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper,
-    partitionXMLForms, getCoreContent)
+  -- * Top-level separation of an XSD file into its primary sections
+  partitionXMLForms, getCoreContent,
+  -- * Extracting parts of `Content` and other document representations
+  -- ** Attributes
+  pullAttr, pullAttrFrom,
+  -- ** `Content` lists
+  pullContent, getAnnotationDocFrom, filterTagged,
+  -- ** Subcomponents of a single `Content`
+  pullContentFrom, pullCRef, pullCRefContent, pullCRefOf,
+  getAnnotationDoc,
+  -- ** Loading from a file
+  __loadElement, __loadContent,
+  -- * Introspection on names
+  loadElementName,
+  -- ** Predictates on `Content`s
+  isElem, isNonKeyElem, isNonKeyNonNotationElem,
+  isFocusElem, isTagged,
+  -- * Manipulating `QName`s
+  withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper,
+  inSameNamspace)
 where
 import Language.Haskell.TH (mkName, Name)
 import System.IO
@@ -223,3 +234,7 @@ getCoreContent :: [Content] -> Content
 getCoreContent cs = case partitionXMLForms cs of
   (_, Nothing, _) -> error "Expected top-level <schema> element"
   (_, Just c, _) -> c
+
+-- | Build a new `QName` in the same namespace as an existing `QName`.
+inSameNamspace :: String -> QName -> QName
+inSameNamspace str (QName _ url pfx) = QName str url pfx

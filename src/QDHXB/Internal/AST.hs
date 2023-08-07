@@ -4,7 +4,7 @@
 
 -- | Translate parsed but otherwise unstructured XSD into the first
 -- internal representation, allowing nested type definitions.
-module QDHXB.Internal.AST (MaybeUpdated(..), hoistUpdate,
+module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
                            Upd(..), assembleIfUpdated,
                            Substitutions, substQName,
                            AST(..)) where
@@ -12,14 +12,14 @@ module QDHXB.Internal.AST (MaybeUpdated(..), hoistUpdate,
 -- import Text.XML.Light.Output
 import Data.Kind (Type)
 import Text.XML.Light.Types
-import QDHXB.Utils.XMLLight (withSuffix)
+import QDHXB.Utils.XMLLight (inSameNamspace)
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
 
 -- | Finite set of substitutions of one `QName` for another.
-type Substitutions = [(QName, QName)]
+type Substitutions = [(String, String)]
 
 -- | Helper datatype noting whether some values was changed by a
 -- process, or whether a function result differs from a corresponding
@@ -57,6 +57,9 @@ instance Hoistable Maybe where
 -- https://jozefg.bitbucket.io/posts/2014-01-14-existential.html
 data Upd = forall a . Upd (MaybeUpdated a)
 
+-- | Given several possible updates as `MaybeUpdated` values, assemble
+-- a new value from updated components, or return a previous value if
+-- no updates existed.
 assembleIfUpdated :: [Upd] -> b -> b -> MaybeUpdated b
 assembleIfUpdated elems ifPrev ifNew =
   if hasUpdate elems then Updated ifNew else Same ifPrev
@@ -73,11 +76,11 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   decodeXML :: [Content] -> XSDQ [ast]
 
   -- | Traverse a list of ASTs to collect the top-level bound names.
-  getBoundNameStrings :: [ast] -> [QName]
+  getBoundNameStrings :: [ast] -> [String]
   getBoundNameStrings = concat . map getBoundNameStringsFrom
 
   -- | Traverse a single AST to collect the top-level bound names.
-  getBoundNameStringsFrom :: ast -> [QName]
+  getBoundNameStringsFrom :: ast -> [String]
 
   -- | Rename any nonunique hidden names within the scope of the given
   -- @ast@.  This is a case over the structure of the @ast@ type, and
@@ -167,13 +170,13 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- | For debugging
   debugSlug :: ast -> String
 
--- | TODO Process a list of names with respect to the current `XSDQ`
--- state: log the fresh names as in use, and issue a substitution for
--- any which are already used.
-make_needed_substitutions :: [QName] -> XSDQ Substitutions
+-- | Process a list of names with respect to the current `XSDQ` state:
+-- log the fresh names as in use, and issue a substitution for any
+-- which are already used.
+make_needed_substitutions :: [String] -> XSDQ Substitutions
 make_needed_substitutions = make_needed_substitutions' []
   where make_needed_substitutions' ::
-          Substitutions -> [QName] -> XSDQ Substitutions
+          Substitutions -> [String] -> XSDQ Substitutions
         make_needed_substitutions' acc [] = return acc
         make_needed_substitutions' acc (x:xs) = do
           inUse <- typeNameIsInUse x
@@ -181,15 +184,21 @@ make_needed_substitutions = make_needed_substitutions' []
             then do
               n <- getNextDisambig
               suffix <- getDisambigString
-              let fresh = withSuffix (suffix ++ show n) x
+              let fresh = x ++ suffix ++ show n
               addUsedTypeName fresh
               make_needed_substitutions' ((x,fresh):acc) xs
             else do
               addUsedTypeName x
               make_needed_substitutions' acc xs
 
+-- | Apply a substitution to a `String`.
+substString :: Substitutions -> String -> MaybeUpdated String
+substString [] q = Same q
+substString ((q1,q2):_) q | q == q1 = Updated q2
+substString (_:substs) q = substString substs q
+
 -- | Apply a substitution to a `QName`.
 substQName :: Substitutions -> QName -> MaybeUpdated QName
 substQName [] q = Same q
-substQName ((q1,q2):_) q | q == q1 = Updated q2
+substQName ((q1,q2):_) q | qName q == q1 = Updated $ inSameNamspace q2 q
 substQName (_:substs) q = substQName substs q
