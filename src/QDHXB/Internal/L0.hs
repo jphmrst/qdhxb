@@ -1,8 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-} -- For apiFunctions
 
--- | Manual translation of an XSD file into the nested-definition
--- internal @DataScheme@ representation.
+-- | Manual intermediate representation for nested XSD structures as
+-- read in from a file to be translated into Haskell types and
+-- functions.  This representation is used internally only, to
+-- bootstrap a more complete IR from the XSD specification.
 module QDHXB.Internal.L0 (
   -- * Containers for different alternative values
   -- ** A name, a reference, or neither
