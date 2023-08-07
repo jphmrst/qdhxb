@@ -7,7 +7,7 @@ import QDHXB
 import qualified QDHXB.Expansions
 
 -- TODO Can't handle using the same name in different XML scopes
-qdhxb (useDebugging) ["test/CustomersOrders/customersorders.xsd"]
+-- qdhxb (useDebugging) ["test/CustomersOrders/customersorders.xsd"]
 -- qdhxb' ["test/CustomersOrders/customersorders.xsd"]
 
 testCustomersOrders1 :: TLT IO ()

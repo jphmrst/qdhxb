@@ -257,15 +257,15 @@ data AttributeScheme =
                   QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
-                  -- String -- ^ TODO Implementation type name
+                  {- String -- ^ TODO Implementation type name -}
                   (Maybe String) -- ^ Documentation, typically from an
-                                 -- @<annotation>@ element, if
+                                 -- @annotation@ element, if
                                  -- provided.
   | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
                                       -- attribute groups
                    (Maybe String) -- ^ Documentation, typically from
-                                  -- an @<annotation>@ element, if
+                                  -- an @annotation@ element, if
                                   -- provided.
   deriving Show
 
@@ -333,7 +333,7 @@ data DataScheme =
                                -- defining file, if returned from the
                                -- underlying XML parser.
                   (Maybe String) -- ^ Documentation, typically from an
-                                 -- @<annotation>@ element, if
+                                 -- @annotation@ element, if
                                  -- provided.
   | AttributeScheme -- ^ Attributes and attribute groups
                     AttributeScheme -- ^ Single vs. group
@@ -342,8 +342,8 @@ data DataScheme =
                                  -- defining file, if returned from
                                  -- the underlying XML parser.
                     (Maybe String) -- ^ Documentation, typically from
-                                   -- an @<annotation>@ element, if
-                                   -- provided.
+                                   -- an @annotation@ element,
+                                   -- if provided.
   | CTS -- ^ Other complex type definitions
         ComplexTypeScheme -- ^ typeDetail
         [AttributeScheme] -- ^ addlAttrs
@@ -354,7 +354,7 @@ data DataScheme =
         (Maybe Line) -- ^ Associated line number in the defining file,
                      -- if returned from the underlying XML parser.
         (Maybe String) -- ^ Documentation, typically from an
-                       -- @<annotation>@ element, if provided.
+                       -- @annotation@ element, if provided.
   | STS -- ^ One of the various simple type definitions
         (Maybe QName) -- ^ ifName
         {- TODO? String -- ^ `String` name of implementing class --- but maybe
@@ -363,7 +363,7 @@ data DataScheme =
         (Maybe Line) -- ^ Associated line number in the defining file,
                      -- if returned from the underlying XML parser.
         (Maybe String) -- ^ Documentation, typically from an
-                       -- @<annotation>@ element, if provided.
+                       -- @annotation@ element, if provided.
   | GroupScheme -- ^ A @<group>@ element.
                 NameOrRefOpt -- ^ name or reference, or possibly neither
                 (Maybe ComplexTypeScheme) -- ^ contents
@@ -372,7 +372,7 @@ data DataScheme =
                              -- defining file, if returned from the
                              -- underlying XML parser.
                 (Maybe String) -- ^ Documentation, typically from an
-                               -- @<annotation>@ element, if provided.
+                               -- @annotation@ element, if provided.
   | ChoiceScheme -- ^ A @<choice>@ element.
                  NameOrRefOpt -- ^ name or reference, or possibly neither
                  (Maybe ComplexTypeScheme) -- ^ contents
@@ -381,16 +381,16 @@ data DataScheme =
                               -- defining file, if returned from the
                               -- underlying XML parser.
                  (Maybe String) -- ^ Documentation, typically from an
-                                -- @<annotation>@ element, if
+                                -- @annotation@ element, if
                                 -- provided.
   | UnprocessedXML -- ^ When raw XML is dropped in
                    (Maybe QName) -- ^ name
                    (Maybe Line) -- ^ Associated line number in the
                                 -- defining file, if returned from the
                                 -- underlying XML parser.
-                   (Maybe String) -- ^ Documentation, typically from an
-                                  -- @<annotation>@ element, if
-                                  -- provided.
+                   (Maybe String) -- ^ Documentation, typically from
+                                  -- an @annotation@ element,
+                                  -- if provided.
   deriving Show
 
 {-
