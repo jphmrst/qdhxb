@@ -6,7 +6,7 @@
 -- internal representation, allowing nested type definitions.
 module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
                            Upd(..), assembleIfUpdated,
-                           Substitutions, substQName,
+                           Substitutions, substString, substQName,
                            AST(..)) where
 
 -- import Text.XML.Light.Output

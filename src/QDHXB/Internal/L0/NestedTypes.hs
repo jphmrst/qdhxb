@@ -243,6 +243,7 @@ data AttributeScheme =
                   QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
+                  -- String -- ^ TODO Implementation type name
                   (Maybe String) -- ^ ifDoc
   | AttributeGroup NameOrRefOpt -- ^ Name or reference, or neither
                    [AttributeScheme]  -- ^ included attributes and
@@ -322,11 +323,13 @@ data DataScheme =
   | GroupScheme NameOrRefOpt -- ^ name or reference, or possibly neither
                 -- String -- ^ `String` name of implementing class
                 (Maybe ComplexTypeScheme) -- ^ contents
+                -- TODO String -- ^ Implementation type name
                 (Maybe Line) -- ^ ifLine
                 (Maybe String) -- ^ ifDocumentation
   | ChoiceScheme NameOrRefOpt -- ^ name or reference, or possibly neither
                  -- String -- ^ `String` name of implementing class
                  (Maybe ComplexTypeScheme) -- ^ contents
+                 -- TODO String -- ^ Implementation type name
                  (Maybe Line) -- ^ ifLine
                  (Maybe String) -- ^ ifDocumentation
   | UnprocessedXML (Maybe QName) -- ^ name
@@ -516,21 +519,9 @@ instance Blockable [AttributeScheme] where block = verticalBlockListFn
 type PrimaryBundle = (Content, String, Maybe String, Maybe String, QName,
                       [Attr], [Content], Maybe Line)
 
-{-
-nameonly_to_qnamelist :: NameOrRefOpt -> [QName]
-nameonly_to_qnamelist (WithName qn) = [qn]
-nameonly_to_qnamelist _ = []
--}
-
 nameonly_to_stringlist :: NameOrRefOpt -> [String]
 nameonly_to_stringlist (WithName qn) = [qName qn]
 nameonly_to_stringlist _ = []
-
-{-
-maybeqname_to_qnamelist :: Maybe QName -> [QName]
-maybeqname_to_qnamelist (Just qn) = [qn]
-maybeqname_to_qnamelist _ = []
--}
 
 maybeqname_to_stringlist :: Maybe QName -> [String]
 maybeqname_to_stringlist (Just qn) = [qName qn]
@@ -563,14 +554,14 @@ instance AST DataScheme where
   -- `ensureUniqueNames1` to recursively-held lists of ASTs.
   ensureUniqueInternalNames dss@Skip = return $ Same dss
   ensureUniqueInternalNames dss@((ElementScheme ifDS ifName ifType ifRef ifId
-                                                _impl ifMin ifMax isAbstract
+                                                impl ifMin ifMax isAbstract
                                                 ifLn ifDoc)) = do
     whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug dss
     ifDS' <- maybe (return $ Same ifDS)
                    (fmap (fmap Just) . ensureUniqueNames1) ifDS
     return $ assembleIfUpdated [Upd ifDS'] dss $
                ElementScheme (resultOnly ifDS') ifName ifType ifRef ifId
-                             _impl ifMin ifMax isAbstract ifLn ifDoc
+                             impl ifMin ifMax isAbstract ifLn ifDoc
   ensureUniqueInternalNames ats@(AttributeScheme scheme ifLn ifDoc) = do
     whenDebugging $ dbgLn $ "ensureUniqueInternalNames for " ++ debugSlug ats
     scheme' <- indenting $ unique_internals_attr_scheme scheme
@@ -613,17 +604,17 @@ instance AST DataScheme where
   applySubstitutionsTo substs ast = case ast of
     Skip -> Same ast
     (ElementScheme ifCtnt ifName ifType ifRef ifId
-                   _impl ifMin ifMax isAbstract ifLn ifDoc) ->
+                   impl ifMin ifMax isAbstract ifLn ifDoc) ->
       let ifCtnt' = hoistUpdate $ fmap (applySubstitutionsTo substs) ifCtnt
+          impl' = substString substs impl
           sq = substQName substs
-          ifName' = hoistUpdate $ fmap sq ifName
           ifType' = hoistUpdate $ fmap sq ifType
           ifRef' = hoistUpdate $ fmap sq ifRef
-      in assembleIfUpdated [Upd ifCtnt', Upd ifName', Upd ifType', Upd ifRef']
+      in assembleIfUpdated [Upd ifCtnt', Upd impl', Upd ifType', Upd ifRef']
                            ast $
-           ElementScheme (resultOnly ifCtnt') (resultOnly ifName')
-                         (resultOnly ifType') (resultOnly ifRef')
-                         ifId _impl ifMin ifMax isAbstract ifLn ifDoc
+           ElementScheme (resultOnly ifCtnt') ifName (resultOnly ifType')
+                         (resultOnly ifRef') ifId (resultOnly impl')
+                         ifMin ifMax isAbstract ifLn ifDoc
     (AttributeScheme aspec ifLn ifDoc) ->
       let aspec' = subst_attr_scheme substs aspec
       in assembleIfUpdated [Upd aspec'] ast $
