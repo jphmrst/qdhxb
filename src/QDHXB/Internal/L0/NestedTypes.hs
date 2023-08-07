@@ -3,13 +3,20 @@
 -- | Manual translation of an XSD file into the nested-definition
 -- internal @ScheleRef@ representation.
 module QDHXB.Internal.L0.NestedTypes (
+  -- * Containers for different alternative values
+  -- ** A name, a reference, or neither
   NameOrRefOpt(..), nameOrRefOpt,
-  SimpleTypeScheme(..),
-  ComplexTypeScheme(..),
-  AttributeScheme(..),
-  DataScheme(..),
+  -- ** A name, or a nested (possibly anonymous) specification
   QNameOr(..),
-  nonSkip, labelOf
+  -- * Type and attribute specification details
+  -- ** Simple types
+  SimpleTypeScheme(..),
+  -- ** Complex types
+  ComplexTypeScheme(..),
+  -- ** Attributes
+  AttributeScheme(..),
+  -- * Main AST
+  DataScheme(..), nonSkip, labelOf
 ) where
 
 import Language.Haskell.TH (newName, nameBase)
