@@ -1036,13 +1036,6 @@ addUsedTypeName s = do
   liftStatetoXSDQ $ put $
     st { stateUsedTypeNames = s : stateUsedTypeNames st }
 
--- | TODO (Exactly how to rename, test here if actually needed?)
--- Return a previously-unused type name for an outer wrapper, and
--- (possibly) a given `QName`.
-freshenTypeName :: String -> Maybe QName -> XSDQ String
-freshenTypeName outer ifName =
-  return $ maybe outer id $ fmap qName ifName
-
 -- | Master name freshening function for `String` results
 freshenStringForBinding :: Maybe String -> Maybe QName -> String -> XSDQ String
 freshenStringForBinding ifOuter _ifOrigQName core = do
@@ -1081,12 +1074,21 @@ getBindingName given = do
             getBindingName possible
     else return orig
 
+{-
+-- | TODO (Exactly how to rename, test here if actually needed?)
+-- Return a previously-unused type name for an outer wrapper, and
+-- (possibly) a given `QName`.
+freshenTypeName :: String -> Maybe QName -> XSDQ String
+freshenTypeName outer ifName =
+  return $ maybe outer id $ fmap qName ifName
+
 -- | Return a previously-unused type name for an outer wrapper, and
 -- (possibly) a given `QName`.
 freshenTypeQName :: String -> Maybe QName -> XSDQ QName
 freshenTypeQName outer ifName = do
   strName <- freshenTypeName outer ifName
   inDefaultNamespace strName
+-}
 
 -- | Return the next number to be used for disambiguating type names.
 getNextDisambig :: XSDQ Int
