@@ -155,8 +155,9 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
                       (NormalB $ DoE Nothing $
                          [BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
                           LetS [ValD (VarP exceptProc)
-                                     (NormalB $
-                                     AppE (VarE extractElemNam) (VarE tmp1)) []],
+                                     (NormalB $ AppE (VarE extractElemNam)
+                                                     (VarE tmp1))
+                                     []],
                           NoBindS $ applyReturn loadBodySrc]
                       ) []]
         ]
@@ -542,7 +543,8 @@ getSafeDecoderBody qn = indenting $ do
           whenDebugging $ do
             dbgBLabel "- typeAndConstrName " typeAndConstrName
             dbgBLabel "- haskellType " haskellType
-          whenDebugging $ dbgPt "Mapping getSafeDecoderUsageCall onto group items"
+          whenDebugging $
+            dbgPt "Mapping getSafeDecoderUsageCall onto group items"
           subdecoders <- indenting $ mapM getSafeDecoderUsageCall subqns
           whenDebugging $ do
             dbgLn "- subdecoders"
@@ -654,7 +656,8 @@ getSafeDecoderUsageCall ::
   (QName, AttributeUsage) -> XSDQ (BlockMaker Content dt)
 getSafeDecoderUsageCall (qn, usage) = do
   whenDebugging $
-    dbgPt $ "getSafeDecoderUsageCall on " ++ showQName qn ++ " used " ++ show usage
+    dbgPt $
+      "getSafeDecoderUsageCall on " ++ showQName qn ++ " used " ++ show usage
   base <- indenting $ getSafeDecoderCall qn
 
   result <- case usage of
@@ -1348,7 +1351,8 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
             SigD binderName (qHXBExcT baseType),
             ValD (VarP binderName)
                  (NormalB $
-                    blockMakerCloseWith (AppE (ConE $ mkName $ firstToUpper $ qName constr))
+                    blockMakerCloseWith (AppE (ConE $ mkName $ firstToUpper $
+                                                 qName constr))
                                         decoder src) []
             ])
 
