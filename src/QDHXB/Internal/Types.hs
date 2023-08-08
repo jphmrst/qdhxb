@@ -119,6 +119,9 @@ data Definition =
   -- ^ Defining an element to be of a particular type.
       QName -- ^ The element tag name
       QName -- ^ The underlying type
+      String -- ^ The name to use as a base for Haskell functions (as
+             -- of the writing of this comment, XSD elements do not
+             -- correspond to a type.
       (Maybe Line) -- ^ ifLine
       (Maybe String) -- ^ Documentation string, if available
   | AttributeDefn
@@ -209,9 +212,10 @@ data Definition =
                    -- representation of the value in the XSD file.
 
 instance Blockable Definition where
-  block (ElementDefn n t _ dm) =
+  block (ElementDefn n t impl _ dm) =
     (stringToBlock $
      "ElementDefn " ++ showQName n ++ " :: " ++ showQName t)
+    `stack2` stringToBlock ("as " ++ impl)
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
   block (AttributeDefn n sp _ _) =

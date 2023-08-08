@@ -22,11 +22,12 @@ module QDHXB.Internal.XSDQ (
   -- ** Groups
   addGroupDefn, getGroupDefn, getGroupDefnOrFail,
   -- ** Types
-  freshenTypeName, getNextDisambig, getDisambigString,
   addTypeDefn, getTypeDefn, isKnownType, ifKnownType, isSimpleType,
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
   addUsedTypeName, typeNameIsInUse,
+  -- ** Name freshening
+  freshenStringForBinding, freshenQNameForBinding,
 
   -- *** XML and XSD primitive types
   installXmlPrimitives, installXsdPrimitives,
@@ -65,6 +66,7 @@ import Text.XML.Light.Output (showQName)
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Namespaces
 import QDHXB.Utils.Misc
+import QDHXB.Utils.XMLLight (inSameNamspace)
 import QDHXB.Utils.TH (
   timeOfDayBasicDecoder, stringListBasicDecoder, stringBasicDecoder,
     intBasicDecoder, dayBasicDecoder, diffTimeBasicDecoder, floatBasicDecoder,
@@ -248,7 +250,7 @@ fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _)  = do
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ListDefn qn _ _ _) = addTypeDefn qn d
-fileNewDefinition (ElementDefn n t _ _)  = do
+fileNewDefinition (ElementDefn n t _ _ _)  = do
   whenDebugging $ do
     ind <- getIndentation
     liftIO $ putStrLn $ show $
@@ -275,19 +277,6 @@ anyTypeQName = do
   where get_anyType ((qn, BuiltinDefn (QName "anyType" _ _) _ _ _):_) = qn
         get_anyType (_:env) = get_anyType env
         get_anyType [] = error "Bad call to anyTypeQName"
-
--- | Check if a type name is already in use.
-typeNameIsInUse :: String -> XSDQ Bool
-typeNameIsInUse s = do
-  st <- liftStatetoXSDQ $ get
-  return $ elem s (stateUsedTypeNames st)
-
--- | Note another in-use type name.
-addUsedTypeName :: String -> XSDQ ()
-addUsedTypeName s = do
-  st <- liftStatetoXSDQ $ get
-  liftStatetoXSDQ $ put $
-    st { stateUsedTypeNames = s : stateUsedTypeNames st }
 
 -- | Write the current state of the `XSDQ` internals to the standard
 -- output.
@@ -1034,11 +1023,70 @@ resetLog file = liftIO $ do
     ++ formatTime defaultTimeLocale "%Y/%m/%d %T %Z" now
     ++ " -*- mode: text -*-\n"
 
--- | TODO Return a previously-unused type name for an outer wrapper,
--- and (possibly) a given `QName`.
-freshenTypeName :: String -> Maybe QName -> XSDQ QName
+-- | Check if a type name is already in use.
+typeNameIsInUse :: String -> XSDQ Bool
+typeNameIsInUse s = do
+  st <- liftStatetoXSDQ $ get
+  return $ elem s (stateUsedTypeNames st)
+
+-- | Note another in-use type name.
+addUsedTypeName :: String -> XSDQ ()
+addUsedTypeName s = do
+  st <- liftStatetoXSDQ $ get
+  liftStatetoXSDQ $ put $
+    st { stateUsedTypeNames = s : stateUsedTypeNames st }
+
+-- | TODO (Exactly how to rename, test here if actually needed?)
+-- Return a previously-unused type name for an outer wrapper, and
+-- (possibly) a given `QName`.
+freshenTypeName :: String -> Maybe QName -> XSDQ String
 freshenTypeName outer ifName =
-  inDefaultNamespace $ maybe outer id $ fmap qName ifName
+  return $ maybe outer id $ fmap qName ifName
+
+-- | Master name freshening function for `String` results
+freshenStringForBinding :: Maybe String -> Maybe QName -> String -> XSDQ String
+freshenStringForBinding ifOuter _ifOrigQName core = do
+  inUse <- typeNameIsInUse core
+  if not inUse
+    then do
+      addUsedTypeName core
+      return core
+    else case ifOuter of
+           Just outer -> getBindingName $ outer ++ core
+           Nothing -> getBindingName core
+
+-- | Master name freshening function for `QName` results
+freshenQNameForBinding :: Maybe String -> QName -> XSDQ QName
+freshenQNameForBinding ifOuter orig = do
+  let core = qName orig
+  inUse <- typeNameIsInUse core
+  if not inUse
+    then do
+      addUsedTypeName core
+      return orig
+    else do
+      core' <- case ifOuter of
+        Just outer -> getBindingName $ outer ++ core
+        Nothing -> getBindingName core
+      return $ inSameNamspace core' orig
+
+-- | Add disambiguating suffixes to a `String` until it is unique,
+-- registering the result as used in a binding.
+getBindingName :: String -> XSDQ String
+getBindingName given = do
+  let orig = firstToUpper given
+  inUse <- typeNameIsInUse orig
+  if inUse
+    then do possible <- disambigString orig
+            getBindingName possible
+    else return orig
+
+-- | Return a previously-unused type name for an outer wrapper, and
+-- (possibly) a given `QName`.
+freshenTypeQName :: String -> Maybe QName -> XSDQ QName
+freshenTypeQName outer ifName = do
+  strName <- freshenTypeName outer ifName
+  inDefaultNamespace strName
 
 -- | Return the next number to be used for disambiguating type names.
 getNextDisambig :: XSDQ Int
@@ -1052,3 +1100,12 @@ getNextDisambig = do
 -- when creating distinct type and constructor names.
 getDisambigString :: XSDQ String
 getDisambigString = fmap stateDisambigString $ liftStatetoXSDQ get
+
+-- | Use the state's separator string and disambiguation number to
+-- append a disambiguator to the argument string.  This function does
+-- no checking on the result.
+disambigString :: String -> XSDQ String
+disambigString str = do
+  sep <-getDisambigString
+  num <- getNextDisambig
+  return $ str ++ sep ++ show num

@@ -182,10 +182,7 @@ make_needed_substitutions = make_needed_substitutions' []
           inUse <- typeNameIsInUse x
           if inUse
             then do
-              n <- getNextDisambig
-              suffix <- getDisambigString
-              let fresh = x ++ suffix ++ show n
-              addUsedTypeName fresh
+              fresh <- freshenStringForBinding Nothing Nothing x
               make_needed_substitutions' ((x,fresh):acc) xs
             else do
               addUsedTypeName x

@@ -102,13 +102,12 @@ xsdDeclsToHaskell defns = do
 -- declarations in the Template Haskell quotation monad, and record
 -- the associated Haddock documentation.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-
-xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
+xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
   whenDebugging $ do
     dbgBLabel "Generating from (e) " decl
     dbgBLabel "- typ " typ
   let origName = qName nam
-      baseName = firstToUpper $ origName
+      baseName = firstToUpper $ implName
       extractElemNam = mkName $ "extractElement" ++ baseName
       -- tryLoadNam = mkName $ "tryLoad" ++ baseName
   decodedType <- getTypeHaskellType typ
@@ -139,13 +138,8 @@ xsdDeclToHaskell decl@(ElementDefn nam typ _ln ifDoc) = do
           Clause [VarP cparamName]
             (NormalB $
               (applyZommapM (VarE extractElemNam)
-                (applyPullContentFrom origName $ VarE cparamName))) []]
+                (applyPullContentFrom implName $ VarE cparamName))) []]
       ]
-
-  -- TODO Now add a version of EXTRACTOR for pulling a list (or a
-  -- ZeroOneMany?) of them out of the subelements of a piece of
-  -- Content.  This can be then used in other places like Sequence
-  -- which a check of obeying occurs constraints.
 
   loader <- do
     let loadNam = mkName $ "load" ++ baseName
@@ -405,7 +399,7 @@ getSafeStringDecoder qn = do
     Just defn -> case defn of
       BuiltinDefn _ _ _ efn -> return $ \src dest ->
         [BindS (VarP dest) $ efn $ VarE src]
-      ElementDefn _ ty _ _ -> getSafeStringDecoder ty
+      ElementDefn _ ty _ _ _ -> getSafeStringDecoder ty
       AttributeDefn _ (SingleAttributeDefn ty _) _ _ ->
         getSafeStringDecoder ty
       SimpleSynonymDefn _ ty _ _ -> getSafeStringDecoder ty
@@ -520,7 +514,7 @@ getSafeDecoderBody qn = indenting $ do
         GroupDefn _name (AttributeRef _ _) _ifLn _ifDoc -> do
           error "AttributeRef not allowed in GroupDefn (gg)"
 
-        ElementDefn _ _ty _ _ -> do
+        ElementDefn _ _ty _ _ _ -> do
           error "REDO/2"
           -- getSafeDecoderBody ty
         AttributeDefn _ (SingleAttributeDefn _ty _) _ _ -> do

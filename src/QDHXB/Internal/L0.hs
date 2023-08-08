@@ -719,9 +719,9 @@ instance AST DataScheme where
       flattenSchemaItem' Skip = return []
 
       flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
-                                        _impl ifMin ifMax abst l ifDoc) = do
+                                        impl ifMin ifMax abst l ifDoc) = do
         whenDebugging $ dbgLn "[fSI'] Relaying to flattenElementSchemeItem"
-        flattenElementSchemeItem contents ifName ifType ifRef ifMin ifMax
+        flattenElementSchemeItem contents ifName ifType ifRef impl ifMin ifMax
                                  abst l ifDoc
 
       flattenSchemaItem' (AttributeScheme
@@ -1026,26 +1026,27 @@ instance AST DataScheme where
 
       flattenElementSchemeItem ::
         Maybe DataScheme -> Maybe QName -> Maybe QName -> Maybe QName
-        -> Maybe Int -> Maybe Int -> Bool -> Maybe Line -> Maybe String
+        -> String -> Maybe Int -> Maybe Int
+        -> Bool -> Maybe Line -> Maybe String
         -> XSDQ [Definition]
-      flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing _ _ _
+      flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing impl _ _ _
                                ln ifDoc = do
         whenDebugging $ dbgLn "[fESI] With name/type"
-        indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
-      flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ _ _ _
+        indenting $ flattenWithNameTypeOnly nam typ impl ln ifDoc
+      flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ impl _ _ _
                                ln ifDoc = do
         whenDebugging $ dbgLn "[fESI] Enclosing skip"
-        indenting $ flattenWithNameTypeOnly nam typ ln ifDoc
+        indenting $ flattenWithNameTypeOnly nam typ impl ln ifDoc
       flattenElementSchemeItem (Just (STS _ ts ln d))
-                               ifName@(Just nam) Nothing Nothing _ _ _ _
+                               ifName@(Just nam) Nothing Nothing impl _ _ _ _
                                ifDoc = do
         whenDebugging $ dbgLn "[fESI] Enclosing simple type scheme"
         flatTS <- flattenSchemaItem' $ STS ifName ts ln d
-        let elemDefn = ElementDefn nam nam ln ifDoc
+        let elemDefn = ElementDefn nam nam impl ln ifDoc
         fileNewDefinition elemDefn
         dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
       flattenElementSchemeItem (Just (CTS ts attrs ifCTSName l d))
-                               ifElementName@(Just nam) Nothing Nothing _ _
+                               ifElementName@(Just nam) Nothing Nothing impl _ _
                                _ _ ifDoc = do
         whenDebugging $ dbgLn "[fESI] Enclosing complex type scheme"
         let typeName = maybe nam id ifCTSName
@@ -1053,19 +1054,19 @@ instance AST DataScheme where
         whenDebugging $
           dbgLn "Flattening element scheme enclosing complex type scheme"
         flatTS <- flattenSchemaItem' $ CTS ts attrs ifTypeName l d
-        let elemDefn = ElementDefn nam typeName l ifDoc
+        let elemDefn = ElementDefn nam typeName impl l ifDoc
         fileNewDefinition elemDefn
         dbgResult "Flattened [fESI] to " $ flatTS ++ [elemDefn]
       flattenElementSchemeItem Nothing ifName@(Just _)
-                               Nothing Nothing ifMax ifMin
+                               Nothing Nothing impl ifMax ifMin
                                True ifLine ifDoc = do
         whenDebugging $ dbgLn
           "[fESI] Abstract with name but no contents/type --- relay with any"
         anyType <- anyTypeQName
-        flattenElementSchemeItem Nothing ifName (Just anyType) Nothing
+        flattenElementSchemeItem Nothing ifName (Just anyType) Nothing impl
                                  ifMax ifMin True ifLine ifDoc
 
-      flattenElementSchemeItem content ifName ifType ifRef ifMin ifMax
+      flattenElementSchemeItem content ifName ifType ifRef impl ifMin ifMax
                                _ _ _ifDoc = do
         boxed $ do
           dbgLn "[fESI] flattenElementSchemeItem"
@@ -1073,15 +1074,17 @@ instance AST DataScheme where
           dbgBLabel "IFNAME " ifName
           dbgBLabel "IFTYPE " ifType
           dbgBLabel "IFREF " ifRef
+          dbgBLabel "IMPL " impl
           dbgLn $ "IFMIN " ++ show ifMin
           dbgLn $ "IFMAX " ++ show ifMax
         error "Unmatched case for flattenElementSchemeItem"
 
       flattenWithNameTypeOnly ::
-        QName -> QName -> Maybe Line -> Maybe String -> XSDQ [Definition]
-      flattenWithNameTypeOnly nam typ ln ifDoc = do
+        QName -> QName -> String -> Maybe Line -> Maybe String
+        -> XSDQ [Definition]
+      flattenWithNameTypeOnly nam typ impl ln ifDoc = do
         whenDebugging $ dbgLn "flattenWithNameTypeOnly"
-        let elemDefn = ElementDefn nam typ ln ifDoc
+        let elemDefn = ElementDefn nam typ impl ln ifDoc
         fileNewDefinition elemDefn
         dbgResult "Flattened [fWNTO] to " [ elemDefn ]
 
@@ -1287,7 +1290,9 @@ instance AST DataScheme where
         isKnown <- isKnownType t
         whenDebugging $ dbgLn $
           "- Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-        if isKnown then (do let defn = ElementDefn n t ln ifDoc
+        if isKnown then (do impl <-
+                              freshenStringForBinding Nothing (Just n) $ qName n
+                            let defn = ElementDefn n t impl ln ifDoc
                                 ref = ElementRef n lo up ln
                             fileNewDefinition defn
                             whenDebugging $ do
@@ -1299,8 +1304,9 @@ instance AST DataScheme where
                               ("Name ref " ++ showQName n
                                 ++ " flattened [fESR.4] to")
                               ([defn], ref))
-          else (do let defn1 = SimpleSynonymDefn n t ln ifDoc
-                       defn2 = ElementDefn n n ln ifDoc
+          else (do impl <- freshenStringForBinding Nothing (Just n) $ qName n
+                   let defn1 = SimpleSynonymDefn n t ln ifDoc
+                       defn2 = ElementDefn n n impl ln ifDoc
                        ref = ElementRef n lo up ln
                    addTypeDefn n defn1
                    fileNewDefinition defn2
@@ -1317,7 +1323,8 @@ instance AST DataScheme where
                               n@(Just nam) t@Nothing r@Nothing lower upper
                               ln ifDoc = do
         whenDebugging $ dbgLn "[fESR.6] t and r and Nothing"
-        prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
+        impl <- freshenStringForBinding Nothing n $ qName nam
+        prev <- flattenElementSchemeItem s n t r impl lower upper False ln ifDoc
         let ref = ElementRef nam lower upper ln
         whenDebugging $ do
           dbgLn "Flattening element schema with name and nested complex type"
@@ -1340,7 +1347,8 @@ instance AST DataScheme where
             dbgLn $ "LOWER " ++ show lower
             dbgLn $ "UPPER " ++ show upper
             dbgLn $ "LN " ++ show ln
-        prev <- flattenElementSchemeItem s n t r lower upper False ln ifDoc
+        impl <- freshenStringForBinding Nothing n $ qName nam
+        prev <- flattenElementSchemeItem s n t r impl lower upper False ln ifDoc
         whenDebugging $ dbgBLabel "- prev " prev
         let ref = ElementRef nam lower upper ln
         whenDebugging $ dbgBLabel "- ref " ref
@@ -2104,8 +2112,8 @@ instance AST DataScheme where
                                 (const ifName) ifName
                           -- TODO --- make sure this is in target namespace
             whenDebugging $ dbgBLabel "- useName " useName
-            -- freshUseName <- freshenTypeName outer useName
-            -- freshBaseName <- freshenTypeName outer $ Just baseQName
+            -- freshUseName <- freshenQNameForBinding (Just outer) useName
+            -- freshBaseName <- freshenQNameForBinding (Just outer) baseQName
             dbgResult "Encoding result" $
               STS useName {- (Just freshUseName) -}
                                (SimpleRestriction baseQName {- freshBaseName -})
