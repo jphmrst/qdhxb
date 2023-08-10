@@ -126,7 +126,10 @@ data Definition =
       (Maybe String) -- ^ Documentation string, if available
   | AttributeDefn
     -- ^ Defining the attributes and groups.
-        QName AttributeDefn
+        QName -- ^ Name of the attribute/group.
+        AttributeDefn -- ^ Specification of the attribute or group
+        -- TODO String -- ^ Base (type) name for the methods of this
+        --             -- attribute/group.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | SimpleSynonymDefn
