@@ -13,9 +13,9 @@ testShiporder0 :: TLT IO ()
 testShiporder0 = inGroup "XSD shiporder0" $ do
   inGroup "Scalars" $ do
     "Correctly decode <orderperson> text in shiporder0a.xml" ~:
-      "John Smith" @== (lift $ loadOrderperson "test/Shiporder/shiporder0a.xml")
+      "John Smith" @== (lift $ loadOrderpersonX1 "test/Shiporder/shiporder0a.xml")
     "Correctly decode <price> text in shiporder0b.xml" ~:
-      10.9 @== (lift $ loadPrice "test/Shiporder/shiporder0b.xml")
+      10.9 @== (lift $ loadPriceX9 "test/Shiporder/shiporder0b.xml")
   inGroup "Structures" $ do
     do p <- lift $ loadShipto "test/Shiporder/shiporder0c.xml"
        "Correctly decode <shipto> in shiporder0c.xml" ~:

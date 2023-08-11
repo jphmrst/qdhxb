@@ -16,5 +16,5 @@ testBooks1 = inGroup "XSD books 1" $ do
     (BookForm (Just "bk001") "Writer" "The First Book" "Fiction"
               44.95 (fromGregorian 2000 10 1)
               "An amazing story of nothing.")
-      @== (lift $ loadBook "test/Books/book1.xml")
+      @== (lift $ loadBookX1 "test/Books/book1.xml")
   return ()

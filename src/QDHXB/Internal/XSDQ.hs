@@ -1067,12 +1067,12 @@ freshenQNameForBinding ifOuter orig = do
 -- registering the result as used in a binding.
 getBindingName :: String -> XSDQ String
 getBindingName given = do
-  let orig = firstToUpper given
-  inUse <- typeNameIsInUse orig
+  -- let orig = firstToUpper given
+  inUse <- typeNameIsInUse given -- orig
   if inUse
-    then do possible <- disambigString orig
+    then do possible <- disambigString given -- orig
             getBindingName possible
-    else return orig
+    else return given -- orig
 
 {-
 -- | TODO (Exactly how to rename, test here if actually needed?)

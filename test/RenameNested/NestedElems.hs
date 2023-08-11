@@ -8,7 +8,7 @@ import qualified QDHXB.Expansions
 
 -- qdhxb (useDebugging . logByFile True) ["test/RenameNested/nestedelems.xsd"]
 -- qdhxb (useDebugging) ["test/RenameNested/nestedelems.xsd"]
--- qdhxb' ["test/RenameNested/nestedelems.xsd"]
+qdhxb' ["test/RenameNested/nestedelems.xsd"]
 
 testNestedElems :: TLT IO ()
 testNestedElems = inGroup "XSD nestedelems" $ do

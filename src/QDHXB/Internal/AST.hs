@@ -101,16 +101,10 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   ensureUniqueNames' dss = do
     whenDebugging $ dbgBLabel "Starting ensureUniqueNames' on " dss
 
-    -- First rename any nonunique hidden names within the scope of
-    -- each `DataScheme` in the input list.
-    dssR' <- indenting $ fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
-    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
-    let dss' = resultOnly dssR'
-
-    -- Next harvest the top-level bound names in the `DataScheme`
+    -- First harvest the top-level bound names in the `DataScheme`
     -- list.
-    let bound_names = getBoundNameStrings dss'
-    whenDebugging $ dbgBLabel "- bound names: " bound_names
+    let bound_names = getBoundNameStrings dss
+    whenDebugging $ dbgBLabel "- top-level bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
@@ -118,14 +112,20 @@ class (Blockable ast, Blockable [ast]) => AST ast where
     whenDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
-    dssR'' <- case substs of
+    dssR' <- case substs of
           [] -> do
             whenDebugging $ indenting $ dbgPt "No substs"
-            return dssR'
+            return $ Same dss
           _ -> do
             whenDebugging $ indenting $
               dbgPt "Calling applySubstitutions on substs"
-            return $ applySubstitutions substs dss'
+            return $ applySubstitutions substs dss
+    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
+
+    -- Finally rename any nonunique hidden names within the scope of
+    -- each `DataScheme` in the input list.
+    dssR'' <- indenting $ fmap hoistUpdate $
+      mapM ensureUniqueInternalNames $ resultOnly dssR'
     whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR'' is " dssR''
 
     dbgResult "- ensureUniqueNames' result: " $
@@ -136,23 +136,24 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   ensureUniqueNames1 ds = do
     whenDebugging $ dbgBLabel "- ensureUniqueNames1 on " $ debugSlug ds
 
-    -- First rename any nonunique hidden names within the scope of the
-    -- `DataScheme`.
-    dsR' <- indenting $ ensureUniqueInternalNames ds
-    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
-    let ds' = resultOnly dsR'
-
-    -- Next harvest any top-level bound name(s?) in the `DataScheme`.
-    let bound_names = getBoundNameStringsFrom ds'
+    -- First harvest any top-level bound name(s?) in the `DataScheme`.
+    let bound_names = getBoundNameStringsFrom ds
+    whenDebugging $ dbgBLabel "- top-level bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
     substs <- indenting $ make_needed_substitutions bound_names
+    whenDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
-    let dsR'' = case substs of
-          [] -> dsR'
-          _ -> applySubstitutionsTo substs ds'
+    let dsR' = case substs of
+          [] -> Same ds
+          _ -> applySubstitutionsTo substs ds
+    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
+
+    -- Finally rename any nonunique hidden names within the scope of
+    -- the `DataScheme`.
+    dsR'' <- indenting $ ensureUniqueInternalNames $ resultOnly dsR'
     whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR'' is " dsR''
 
     dbgResult "- ensureUniqueNames1 result: " $
