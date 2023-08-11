@@ -3,7 +3,7 @@
 -- | Internal representation of flattened XSD elements.
 module QDHXB.Internal.Types (
   -- * The representation types
-  Reference(..), referenceQName, referenceBase,
+  Reference(..), referenceQName,
   AttributeDefn(..),
   Definition(..),
   AttributeUsage(Forbidden, Optional, Required),
@@ -82,10 +82,12 @@ instance Blockable AttributeUsage where
 verticalBlockList [t|Reference|]
 
 -- | Return the `QName` of the entity described in a `Reference`.
-referenceBase :: Reference -> QName
-referenceBase (ElementRef base _ _ _) = base
-referenceBase (AttributeRef base _) = base
-referenceBase (TypeRef base _ _ _ _) = base
+referenceQName :: Reference -> QName
+referenceQName (TypeRef q _ _ _ _) = q
+referenceQName (ElementRef q _ _ _) = q
+referenceQName (AttributeRef q _) = q
+referenceQName (GroupRef q _ _ _ _) = q
+referenceQName (RawXML _ _) = error "No referenceQName for RawXML"
 
 -- | Definition of an attribute or group type.
 data AttributeDefn =
@@ -262,9 +264,3 @@ stringToAttributeUsage _ = Optional
 -- | Display a list of `Definition` in more human-readable text.
 pprintDefns' :: String -> [Definition] -> String
 pprintDefns' ind ds = intercalate ("\n" ++ ind) $ map bpp ds
-
--- | Extract the QName behind a `Reference`.
-referenceQName :: Reference -> QName
-referenceQName (TypeRef q _ _ _ _) = q
-referenceQName (ElementRef q _ _ _) = q
-referenceQName (AttributeRef q _) = q

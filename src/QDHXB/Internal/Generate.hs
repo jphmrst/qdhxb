@@ -138,7 +138,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
           Clause [VarP cparamName]
             (NormalB $
               (applyZommapM (VarE extractElemNam)
-                (applyPullContentFrom implName $ VarE cparamName))) []]
+                (applyPullContentFrom origName $ VarE cparamName))) []]
       ]
 
   loader <- do
@@ -863,8 +863,9 @@ getRefSafeDecoder (ElementRef nam _lower _upper _) = do
 
 getRefSafeDecoder (AttributeRef ref usage) = do
   whenDebugging $ dbgLn "- getRefSafeDecoder AttributeRef case"
-  coreFn  <- indenting $ getAttrRefSafeDecoder $ qName ref
-  usageFn <- indenting $ unpackAttrDecoderForUsage usage
+  let refName = qName ref
+  coreFn  <- indenting $ getAttrRefSafeDecoder refName
+  usageFn <- indenting $ unpackAttrDecoderForUsage usage refName
   tmp <- newName "attr"
   whenDebugging $ do
     dbgBLabelSrcDest "  - coreFn " coreFn
@@ -899,16 +900,20 @@ getAttrRefSafeDecoder rf = do
   whenDebugging $ dbgBLabel "  - safeDec " safeDec
   return $ \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
 
-unpackAttrDecoderForUsage :: AttributeUsage -> XSDQ (BlockMaker st dt)
-unpackAttrDecoderForUsage Forbidden = do
-  whenDebugging $ dbgLn "unpackAttrDecoderForUsage Forbidden case"
+unpackAttrDecoderForUsage :: AttributeUsage -> String -> XSDQ (BlockMaker st dt)
+unpackAttrDecoderForUsage Forbidden name = do
+  whenDebugging $ dbgLn $
+    "unpackAttrDecoderForUsage Forbidden case for " ++ name
   return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
-unpackAttrDecoderForUsage Optional = do
-  whenDebugging $ dbgLn "unpackAttrDecoderForUsage Optional case"
+unpackAttrDecoderForUsage Optional name = do
+  whenDebugging $ dbgLn $
+    "unpackAttrDecoderForUsage Optional case for " ++ name
   return $ \src dest -> [ LetS [ ValD (VarP dest) (NormalB $ VarE src) [] ] ]
-unpackAttrDecoderForUsage Required = do
-  whenDebugging $ dbgLn "unpackAttrDecoderForUsage Required case"
-  matches <- maybeMatches (throwsError "QDHXB: should not return Nothing") VarE
+unpackAttrDecoderForUsage Required name = do
+  whenDebugging $ dbgLn $ "unpackAttrDecoderForUsage Required case for " ++ name
+  matches <- maybeMatches (throwsError $
+                           "QDHXB: got Nothing for required attribute " ++ name)
+                          VarE
   return $ \src dest ->
     [LetS [ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) []]]
 

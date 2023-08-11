@@ -41,12 +41,12 @@ class Hoistable (k :: Type -> Type) where
   hoistUpdate :: k (MaybeUpdated a) -> MaybeUpdated (k a)
 
 instance Hoistable [] where
-  hoistUpdate zs = let (anyUpdated, ys) = hoistUpdate' True zs
+  hoistUpdate zs = let (anyUpdated, ys) = hoistUpdate' False zs
                    in if anyUpdated then Updated ys else Same ys
     where hoistUpdate' b [] = (b, [])
           hoistUpdate' b (Same x : xs) = applySnd (x :) $ hoistUpdate' b xs
           hoistUpdate' _ (Updated x : xs) =
-            applySnd (x :) $ hoistUpdate' False xs
+            applySnd (x :) $ hoistUpdate' True xs
 
 instance Hoistable Maybe where
   hoistUpdate (Just (Same x)) = Same $ Just x
@@ -99,11 +99,12 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- whether the result and argument differ.
   ensureUniqueNames' :: [ast] -> XSDQ (MaybeUpdated [ast])
   ensureUniqueNames' dss = do
-    whenDebugging $ dbgLn "Starting ensureUniqueNames'"
+    whenDebugging $ dbgBLabel "Starting ensureUniqueNames' on " dss
 
     -- First rename any nonunique hidden names within the scope of
     -- each `DataScheme` in the input list.
-    dssR' <- fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
+    dssR' <- indenting $ fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
+    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
     let dss' = resultOnly dssR'
 
     -- Next harvest the top-level bound names in the `DataScheme`
@@ -113,15 +114,21 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
-    substs <- make_needed_substitutions bound_names
+    substs <- indenting $ make_needed_substitutions bound_names
     whenDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
-    let dssR'' = case substs of
-          [] -> dssR'
-          _ -> applySubstitutions substs dss'
+    dssR'' <- case substs of
+          [] -> do
+            whenDebugging $ indenting $ dbgPt "No substs"
+            return dssR'
+          _ -> do
+            whenDebugging $ indenting $
+              dbgPt "Calling applySubstitutions on substs"
+            return $ applySubstitutions substs dss'
+    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR'' is " dssR''
 
-    dbgResult "- result: " $
+    dbgResult "- ensureUniqueNames' result: " $
       assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
 
   -- | Special case of `ensureUniqueNames'` for a single @ast@.
@@ -131,7 +138,8 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
     -- First rename any nonunique hidden names within the scope of the
     -- `DataScheme`.
-    dsR' <- ensureUniqueInternalNames ds
+    dsR' <- indenting $ ensureUniqueInternalNames ds
+    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
     let ds' = resultOnly dsR'
 
     -- Next harvest any top-level bound name(s?) in the `DataScheme`.
@@ -139,14 +147,16 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
-    substs <- make_needed_substitutions bound_names
+    substs <- indenting $ make_needed_substitutions bound_names
 
     -- Now apply these substitutions.
     let dsR'' = case substs of
           [] -> dsR'
           _ -> applySubstitutionsTo substs ds'
+    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR'' is " dsR''
 
-    return $ assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
+    dbgResult "- ensureUniqueNames1 result: " $
+      assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
 
   -- | Pipeline step renaming multiply-used names in different nested
   -- scopes.  Since Haskell does not have nested scoping of types and
