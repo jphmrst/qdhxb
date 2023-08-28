@@ -20,4 +20,3 @@ testNestedAttrs = inGroup "XSD nestedelems" $ do
 --    p <- lift $ loadAge "test/RenameNested/age2.xml"
 --    "Correctly decode <age> in age2.xml" ~: 55 @==- p
   return ()
-

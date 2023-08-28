@@ -5,20 +5,11 @@
             xmlns:bks="urn:nestedelems">
   <xs:element name="e1" type="xs:string">
     <xs:complexType>
-      <xs:simpleContent>
+      <xs:complexContent>
         <xs:extension base="xs:integer">
-          <xs:attribute name="flag" type="xs:string" />
+          <xs:attribute name="country" type="xs:string" />
         </xs:extension>
-      </xs:simpleContent>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="e2" type="xs:string">
-    <xs:complexType>
-      <xs:simpleContent>
-        <xs:extension base="xs:integer">
-          <xs:attribute name="flag" type="xs:string" />
-        </xs:extension>
-      </xs:simpleContent>
+      </xs:complexContent>
     </xs:complexType>
   </xs:element>
 </xs:schema>
