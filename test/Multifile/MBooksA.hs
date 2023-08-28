@@ -6,8 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb (useDebugging . logByFile True) [
---   "test/Multifile/books1.xsd", "test/Multifile/books2.xsd"]
+-- qdhxb (useDebugging . logByFile True) [ "test/Multifile/books1.xsd", "test/Multifile/books2.xsd"]
 qdhxb' ["test/Multifile/books1.xsd", "test/Multifile/books2.xsd"]
 
 testMBookA :: TLT IO ()
