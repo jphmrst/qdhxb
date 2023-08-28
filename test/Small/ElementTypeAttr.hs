@@ -6,7 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- TODO Defining simpleContent inside complexType
+-- TODO Defining simpleContent inside complexType --- bootstrap first
 -- qdhxb (useDebugging . logByFile True) ["test/Small/element-type-attr.xsd"]
 -- qdhxb (useDebugging) ["test/Small/element-type-attr.xsd"]
 -- qdhxb' ["test/Small/element-type-attr.xsd"]
