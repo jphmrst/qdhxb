@@ -38,6 +38,7 @@ import Any.Any0 (testAny0)
 import Multifile.MBooksA (testMBookA)
 import RenameNested.Attrs (testNestedAttrs)
 import RenameNested.Elems (testNestedElems)
+import Small.ElementType (testElementType)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -85,3 +86,4 @@ main = do
     testMBookA
     testNestedElems
     testNestedAttrs
+    testElementType
