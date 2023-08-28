@@ -6,6 +6,7 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Test for renaming multiple attributes of the same name
 -- qdhxb (useDebugging . logByFile True) ["test/RenameNested/attrs.xsd"]
 -- qdhxb (useDebugging) ["test/RenameNested/attrs.xsd"]
 -- qdhxb' ["test/RenameNested/attrs.xsd"]
