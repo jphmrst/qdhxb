@@ -37,6 +37,7 @@ import SequenceBasic.SequenceBasic2 (testSequencebasic2)
 import Any.Any0 (testAny0)
 import Multifile.MBooksA (testMBookA)
 import RenameNested.Attrs (testNestedAttrs)
+import RenameNested.Attrs2 (testNestedAttrs2)
 import RenameNested.Elems (testNestedElems)
 import Small.ElementType (testElementType)
 import Small.ElementSimples (testElementSimples)
@@ -89,6 +90,7 @@ main = do
     testMBookA
     testNestedElems
     testNestedAttrs
+    testNestedAttrs2
     testElementType
     testElementSimples
     testElementTypeAttr
