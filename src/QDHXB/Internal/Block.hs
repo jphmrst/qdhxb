@@ -15,7 +15,9 @@ module QDHXB.Internal.Block (
   -- ** Combinators on `BlockMaker`s
   retrievingCRefFor, scaleBlockMakerToBounds,
   -- ** Some atomic `BlockMaker`s
-  listToMaybe, listToSingle
+  listToMaybe, listToSingle,
+  -- ** Debugging
+  dbgBLabelSrcDest, dbgResultSrcDest
   )
 where
 
@@ -24,6 +26,12 @@ import Text.XML.Light.Types (Content, QName, qName)
 import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
+import QDHXB.Utils.BPP (Blockable)
+import QDHXB.Utils.Debugln (fileLocalDebuglnCall)
+import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
+
+fileLocalDebuglnCall "block" 0 ["dbgLn"]
+fileLocalDebuglnBlockCall "block" 0 ["dbgBLabelFn2", "dbgResultFn2"]
 
 -- | The destination (second) argument of `BlockMaker` contains a
 -- simplified version of types, with list/`Maybe`/other type
@@ -141,3 +149,20 @@ abstractOnSourceName :: (Name -> Exp) -> XSDQ Exp
 abstractOnSourceName ef = do
   src <- newName "src"
   return $ LamE [VarP src] $ ef src
+
+
+-- |Given a computation result which is a function of two arguments
+-- corresponding to source and destination, emit debugging information
+-- about it if debugging mode is on.
+dbgBLabelSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ ()
+{-# INLINE dbgBLabelSrcDest #-}
+dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
+
+-- |Given a computation result which is a function of two arguments
+-- corresponding to source and destination, emit debugging information
+-- about it if debugging mode is on.
+dbgResultSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
+{-# INLINE dbgResultSrcDest #-}
+dbgResultSrcDest msg = dbgResultFn2 msg srcName destName

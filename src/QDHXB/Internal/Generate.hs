@@ -86,6 +86,12 @@ import QDHXB.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
+import QDHXB.Utils.Debugln (indenting, boxed, fileLocalDebuglnCall)
+import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
+
+fileLocalDebuglnCall "generate" 0 ["dbgLn", "dbgPt"]
+fileLocalDebuglnBlockCall "generate" 0 [
+  "dbgBLabel", "dbgBLabelFn1", "dbgResult", "dbgResultM"]
 
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.

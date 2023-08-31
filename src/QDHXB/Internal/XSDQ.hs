@@ -39,19 +39,12 @@ module QDHXB.Internal.XSDQ (
   getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
   decodePrefixedName, decodePrefixedNameList, getURIprefix, getNextCapName,
 
-  -- * Debugging output
-  indenting, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
-  boxed, debugXSDQ,
-  dbgResult, dbgResultSrcDest,
-  dbgBLabelFn1, dbgBLabelFn2, dbgBLabelSrcDest,
-  dbgResultFn1, dbgResultFn2, dbgResultM,
-
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
   whenResetLog, whenLogging, whenLocalLogging, putLog,
 
   -- * Miscellaneous
-  NameStore, containForBounds)
+  NameStore, containForBounds, debugXSDQ)
 where
 
 import Language.Haskell.TH
@@ -66,11 +59,9 @@ import Text.XML.Light.Output (showQName)
 import QDHXB.Utils.BPP (
   Blockable, block, stringToBlock, labelBlock, stack2, bpp, bprintLn, follow)
 import QDHXB.Utils.Debugln (
-  Debugln, runDebugln, MonadDebugln, getIndentation,
-  fileLocalDebuglnSubject, fileLocalDebuglnCall)
-import QDHXB.Utils.DebuglnBlock (
-  -- fileLocalDebuglnBlockSubject,
-  fileLocalDebuglnBlockCall)
+  Debugln, runDebugln, MonadDebugln, getIndentation, liftDebugln,
+  indenting, fileLocalDebuglnCall)
+import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
 import QDHXB.Utils.Namespaces
 import QDHXB.Utils.Misc
 import QDHXB.Utils.XMLLight (inSameNamspace)
@@ -81,12 +72,9 @@ import QDHXB.Utils.TH (
     qnameBasicDecoder, appMaybeType,
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
-    stringListType, qnameType, srcName, destName,
-    firstToUpper)
+    stringListType, qnameType, firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Options
-import qualified QDHXB.Utils.Debugln as DL
-import qualified QDHXB.Utils.DebuglnBlock as DLB
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.
@@ -176,11 +164,8 @@ instance Blockable QdxhbState where
 baseXmlNamespace :: String
 baseXmlNamespace = "http://www.w3.org/2001/XMLSchema"
 
-fileLocalDebuglnSubject "xsdq" ["indenting"]
-fileLocalDebuglnCall "xsdq" 0 ["dbgLn", "dbgPt", "boxed"]
-fileLocalDebuglnBlockCall "xsdq" 0 [
-  "dbgBlock", "dbgBLabel", "dbgBLabelPt", "dbgBLabelFn1", "dbgBLabelFn2",
-  "dbgResult", "dbgResultM", "dbgResultFn1", "dbgResultFn2"]
+fileLocalDebuglnCall "xsdq" 0 ["dbgLn"]
+fileLocalDebuglnBlockCall "xsdq" 0 ["dbgBLabel", "dbgResult", "dbgResultM"]
 
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
@@ -245,8 +230,12 @@ instance Quote XSDQ where
 -- | Run an `XSDQ` monad, exposing the underlying `Q` computation.
 runXSDQ :: QDHXBOption -> XSDQ a -> Q a
 runXSDQ optsF (XSDQ m) = do
-  resEither <- runDebugln (evalStateT (runExceptT m) $ initialQdxhbState optsF)
-                          True [] "| " -- TODO Pull from optsF, not hardcode
+  let initialState = initialQdxhbState optsF
+      opts = stateOptions initialState
+      debugSwitches = []
+      debugMaster = not $ null debugSwitches
+  resEither <- runDebugln (evalStateT (runExceptT m) initialState)
+                          debugMaster debugSwitches "| "
   case resEither of
     Left errStr -> error errStr
     Right a -> return a
@@ -862,22 +851,6 @@ basicNamePool :: [String]
 basicNamePool = map (\x -> [x]) ['a'..'z']
 
 -- ------------------------------------------------------------
-
--- |Given a computation result which is a function of two arguments
--- corresponding to source and destination, emit debugging information
--- about it if debugging mode is on.
-dbgBLabelSrcDest ::
-  Blockable c => String -> (Name -> Name -> c) -> XSDQ ()
-{-# INLINE dbgBLabelSrcDest #-}
-dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
-
--- |Given a computation result which is a function of two arguments
--- corresponding to source and destination, emit debugging information
--- about it if debugging mode is on.
-dbgResultSrcDest ::
-  Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
-{-# INLINE dbgResultSrcDest #-}
-dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
 
 -- | Run statements when log files should be reset at each run.
 whenResetLog :: XSDQ () -> XSDQ ()

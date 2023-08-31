@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}     -- For debugging utils
 {-# LANGUAGE TypeSynonymInstances, FlexibleInstances, FlexibleContexts #-}
 {-# LANGUAGE KindSignatures #-}     -- For Hoistable
 {-# LANGUAGE ConstraintKinds, ExistentialQuantification, ImpredicativeTypes #-} -- For assembleIfUpdated
@@ -7,16 +8,31 @@
 module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
                            Upd(..), assembleIfUpdated,
                            Substitutions, substString, substQName,
-                           AST(..)) where
+                           AST(..),
+                           dbgSubjInput, dbgSubjUnique) where
 
 -- import Text.XML.Light.Output
 import Data.Kind (Type)
+import Data.Symbol (Symbol, intern)
 import Text.XML.Light.Types
 import QDHXB.Utils.XMLLight (inSameNamspace)
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
+import QDHXB.Utils.Debugln (indenting, fileLocalDebuglnSubject)
+import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
+
+fileLocalDebuglnSubject "unique" [ "dbgLn", "dbgPt"]
+fileLocalDebuglnBlockCall "unique" 0 [ "dbgBLabel", "dbgResult"]
+
+-- | Debugging point for initial input parsing.
+dbgSubjInput :: Symbol
+dbgSubjInput = intern "input"
+
+-- | Debugging point for name uniqueness.
+dbgSubjUnique :: Symbol
+dbgSubjUnique = intern "unique"
 
 -- | Finite set of substitutions of one `QName` for another.
 type Substitutions = [(String, String)]
@@ -114,11 +130,11 @@ class (Blockable ast, Blockable [ast]) => AST ast where
     -- Now apply these substitutions.
     dssR' <- case substs of
           [] -> do
-            whenDebugging $ indenting $ dbgPt "No substs"
+            whenDebugging $ indenting $ dbgPt 1 "No substs"
             return $ Same dss
           _ -> do
             whenDebugging $ indenting $
-              dbgPt "Calling applySubstitutions on substs"
+              dbgPt 1 "Calling applySubstitutions on substs"
             return $ applySubstitutions substs dss
     whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
 
@@ -171,7 +187,7 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- the intermediate-copy-avoiding `MaybeUpdated` tag is removed!
   ensureUniqueNames :: [ast] -> XSDQ [ast]
   ensureUniqueNames dss = do
-    whenDebugging $ dbgLn "Starting ensureUniqueNames"
+    whenDebugging $ dbgLn 0 "Starting ensureUniqueNames"
     fmap resultOnly $ ensureUniqueNames' dss
 
   -- | Rewrite the nested AST into short, flat definitions closer to

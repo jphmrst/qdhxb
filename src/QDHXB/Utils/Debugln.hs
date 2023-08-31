@@ -199,24 +199,10 @@ boxed m = do
 -- | Create bindings of `QDHXB.Utils.Debugln` functions fixed to a
 -- particular subject.  The `String` argument should be the underlying
 -- name of the subject symbol.  The valid entries of the second
--- argument list are: @"indenting"@, @"dbgLn"@, @"dbgPt"@, and
--- @"boxed"@.
+-- argument list are: @"dbgLn"@, and @"dbgPt"@.
 fileLocalDebuglnSubject :: String -> [String] -> Q [Dec]
 fileLocalDebuglnSubject subj = fmap concat . mapM f'
   where f' :: String -> Q [Dec]
-        f' "indenting" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "indenting")
-            "Add a level of indentation to debugging output."
-          [d| indenting :: QDHXB.Utils.Debugln.MonadDebugln m n => m a -> m a
-              indenting = QDHXB.Utils.Debugln.indenting
-            |]
-        f' "boxed" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "boxed")
-            "Wrap the output of the given code in a (three-sided) box."
-          [d| boxed :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                        Control.Monad.IO.Class.MonadIO m) => m a -> m a
-              boxed = QDHXB.Utils.Debugln.boxed
-            |]
         f' "dbgLn" = do
           addModFinalizer $ putDoc (DeclDoc $ mkName "dbgLn")
             "Output the given line in the current level of indentation."
@@ -239,24 +225,10 @@ fileLocalDebuglnSubject subj = fmap concat . mapM f'
 -- | Create bindings of `QDHXB.Utils.Debugln` functions fixed to a
 -- particular subject and base detail volume.  The `String` argument
 -- should be the underlying name of the subject symbol.  The valid
--- entries of the second argument list are: @"indenting"@, @"dbgLn"@,
--- @"dbgPt"@, and @"boxed"@.
+-- entries of the second argument list are: @"dbgLn"@ and @"dbgPt"@.
 fileLocalDebuglnCall :: String -> Integer -> [String] -> Q [Dec]
 fileLocalDebuglnCall subj base =  fmap concat . mapM f'
   where f' :: String -> Q [Dec]
-        f' "indenting" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "indenting")
-            "Add a level of indentation to debugging output."
-          [d| indenting :: QDHXB.Utils.Debugln.MonadDebugln m n => m a -> m a
-              indenting = QDHXB.Utils.Debugln.indenting
-            |]
-        f' "boxed" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "boxed")
-            "Wrap the output of the given code in a (three-sided) box."
-          [d| boxed :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                        Control.Monad.IO.Class.MonadIO m) => m a -> m a
-              boxed = QDHXB.Utils.Debugln.boxed
-            |]
         f' "dbgLn" = do
           addModFinalizer $ putDoc (DeclDoc $ mkName "dbgLn")
             "Output the given line in the current level of indentation."

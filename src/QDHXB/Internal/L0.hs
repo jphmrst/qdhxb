@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-} -- For apiFunctions
 
@@ -39,6 +40,11 @@ import QDHXB.Utils.BPP
 import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.XMLLight
 import QDHXB.Utils.ZeroOneMany
+import QDHXB.Utils.Debugln (indenting, boxed, fileLocalDebuglnCall)
+import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
+
+fileLocalDebuglnCall "L0" 0 ["dbgLn", "dbgPt"]
+fileLocalDebuglnBlockCall "L0" 0 ["dbgBLabel", "dbgResult"]
 
 -- | A sort of variation of `Maybe` with two `Just` forms, for schema
 -- which allow either a @name@ or a @ref@ attribute, but not both, and
