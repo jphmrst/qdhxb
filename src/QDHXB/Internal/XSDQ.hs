@@ -40,7 +40,7 @@ module QDHXB.Internal.XSDQ (
   decodePrefixedName, decodePrefixedNameList, getURIprefix, getNextCapName,
 
   -- * Debugging output
-  indenting, indentingWith, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
+  indenting, dbgLn, dbgPt, dbgBlock, dbgBLabel, dbgBLabelPt,
   boxed, debugXSDQ,
   dbgResult, dbgResultSrcDest,
   dbgBLabelFn1, dbgBLabelFn2, dbgBLabelSrcDest,
@@ -63,7 +63,14 @@ import Data.Time.Clock
 import Data.Time.Format
 import Text.XML.Light.Types
 import Text.XML.Light.Output (showQName)
-import QDHXB.Utils.BPP
+import QDHXB.Utils.BPP (
+  Blockable, block, stringToBlock, labelBlock, stack2, bpp, bprintLn, follow)
+import QDHXB.Utils.Debugln (
+  Debugln, runDebugln, MonadDebugln, getIndentation,
+  fileLocalDebuglnSubject, fileLocalDebuglnCall)
+import QDHXB.Utils.DebuglnBlock (
+  -- fileLocalDebuglnBlockSubject,
+  fileLocalDebuglnBlockCall)
 import QDHXB.Utils.Namespaces
 import QDHXB.Utils.Misc
 import QDHXB.Utils.XMLLight (inSameNamspace)
@@ -78,6 +85,8 @@ import QDHXB.Utils.TH (
     firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Options
+import qualified QDHXB.Utils.Debugln as DL
+import qualified QDHXB.Utils.DebuglnBlock as DLB
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.
@@ -167,6 +176,12 @@ instance Blockable QdxhbState where
 baseXmlNamespace :: String
 baseXmlNamespace = "http://www.w3.org/2001/XMLSchema"
 
+fileLocalDebuglnSubject "xsdq" ["indenting"]
+fileLocalDebuglnCall "xsdq" 0 ["dbgLn", "dbgPt", "boxed"]
+fileLocalDebuglnBlockCall "xsdq" 0 [
+  "dbgBlock", "dbgBLabel", "dbgBLabelPt", "dbgBLabelFn1", "dbgBLabelFn2",
+  "dbgResult", "dbgResultM", "dbgResultFn1", "dbgResultFn2"]
+
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
 initialQdxhbState optsF =
@@ -193,24 +208,29 @@ initialQdxhbState optsF =
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
-newtype XSDQ a = XSDQ (ExceptT String (StateT QdxhbState Q) a)
+newtype XSDQ a = XSDQ (ExceptT String (StateT QdxhbState (Debugln Q)) a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
--- | Lift a computation from the `IO` monad to the `XSDQ` wrapper.
-liftIOtoXSDQ :: IO a -> XSDQ a
-liftIOtoXSDQ = XSDQ . lift . lift . liftIO
+-- | Lift a computation from the `ExceptT` layer to the `XSDQ` wrapper.
+liftExcepttoXSDQ :: ExceptT String (StateT QdxhbState (Debugln Q)) a -> XSDQ a
+liftExcepttoXSDQ = XSDQ
+
+-- | Lift a computation from the `StateT` layer to the `XSDQ` wrapper.
+liftStatetoXSDQ :: StateT QdxhbState (Debugln Q) a -> XSDQ a
+liftStatetoXSDQ = XSDQ . lift
+
+-- | Lift a computation from the `Q` monad to the `XSDQ` wrapper.
+liftDebuglnToXSDQ :: Debugln Q a -> XSDQ a
+liftDebuglnToXSDQ = XSDQ . lift . lift
+instance MonadDebugln XSDQ Q where liftDebugln = liftDebuglnToXSDQ
 
 -- | Lift a computation from the `Q` monad to the `XSDQ` wrapper.
 liftQtoXSDQ :: Q a -> XSDQ a
-liftQtoXSDQ = XSDQ . lift . lift
+liftQtoXSDQ = XSDQ . lift . lift . lift
 
--- | Lift a computation from the `StateT` layer to the `XSDQ` wrapper.
-liftStatetoXSDQ :: StateT QdxhbState Q a -> XSDQ a
-liftStatetoXSDQ = XSDQ . lift
-
--- | Lift a computation from the `ExceptT` layer to the `XSDQ` wrapper.
-liftExcepttoXSDQ :: ExceptT String (StateT QdxhbState Q) a -> XSDQ a
-liftExcepttoXSDQ = XSDQ
+-- | Lift a computation from the `IO` monad to the `XSDQ` wrapper.
+liftIOtoXSDQ :: IO a -> XSDQ a
+liftIOtoXSDQ = XSDQ . lift . lift . lift . liftIO
 
 instance MonadError String XSDQ where
   throwError e = liftExcepttoXSDQ $ throwError e
@@ -225,7 +245,8 @@ instance Quote XSDQ where
 -- | Run an `XSDQ` monad, exposing the underlying `Q` computation.
 runXSDQ :: QDHXBOption -> XSDQ a -> Q a
 runXSDQ optsF (XSDQ m) = do
-  resEither <- evalStateT (runExceptT m) $ initialQdxhbState optsF
+  resEither <- runDebugln (evalStateT (runExceptT m) $ initialQdxhbState optsF)
+                          True [] "| " -- TODO Pull from optsF, not hardcode
   case resEither of
     Left errStr -> error errStr
     Right a -> return a
@@ -842,84 +863,6 @@ basicNamePool = map (\x -> [x]) ['a'..'z']
 
 -- ------------------------------------------------------------
 
-getIndentation :: XSDQ String
-getIndentation = liftStatetoXSDQ $ do
-  st <- get
-  return $ stateIndentation st
-
-setIndentation :: String -> XSDQ ()
-setIndentation ind = liftStatetoXSDQ $ do
-  st <- get
-  put $ st { stateIndentation = ind }
-
--- |Add the given indentation string to each line of debugging emitted
--- from the `XSDQ` argument.
-indentingWith :: String -> XSDQ a -> XSDQ a
-indentingWith s m = do
-  ind <- getIndentation
-  setIndentation $ ind ++ s
-  res <- m
-  setIndentation ind
-  return res
-
--- |Add an extra level of space to each line of debugging emitted from
--- the `XSDQ` argument.
-indenting :: XSDQ a -> XSDQ a
-indenting = indentingWith "  "
-
--- |Output the given line in the current level of indentation.
-dbgLn :: String -> XSDQ ()
-dbgLn s = do
-  ind <- getIndentation
-  liftIO $ putStrLn $ ind ++ s
-
--- |Output the given line in the current level of indentation.
-dbgBlock :: Block -> XSDQ ()
-dbgBlock b = dbgLn $ outBlock b
-
--- |Output the given line as a bulleted item in the current level of
--- indentation.
-dbgPt :: String -> XSDQ ()
-dbgPt s = dbgLn $ "- " ++ s
-
--- |Format and output the given value at the current level of
--- indentation, with the given leading label.
-dbgBLabel :: Blockable c => String -> c -> XSDQ ()
-dbgBLabel s m = do
-  ind <- getIndentation
-  liftIO $ bLabelPrintln (ind ++ s) m
-
--- |Format and output the given value as a bulleted item at the
--- current level of indentation, with the given leading label.
-dbgBLabelPt :: Blockable c => String -> c -> XSDQ ()
-dbgBLabelPt s = dbgBLabel ("- " ++ s)
-
--- |Add a three-sided box around the lines of debugging information
--- emitted by the given `XSDQ` block.
-boxed :: XSDQ a -> XSDQ a
-boxed s = do
-  dbgLn "+--------"
-  res <- indentingWith "| " s
-  dbgLn "+--------"
-  return res
-
--- |Given a result which is a function of one argument to be returned
--- from a computation, emit debugging information about it if
--- debugging mode is on.
-dbgBLabelFn1 :: Blockable b => String -> a -> (a -> b) -> XSDQ ()
-{-# INLINE dbgBLabelFn1 #-}
-dbgBLabelFn1 msg arg res =
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res arg
-
--- |Given a result which is a function of two arguments to be returned
--- from a computation, emit debugging information about it if
--- debugging mode is on.
-dbgBLabelFn2 ::
-  Blockable c => String -> a -> b -> (a -> b -> c) -> XSDQ ()
-{-# INLINE dbgBLabelFn2 #-}
-dbgBLabelFn2 msg n1 n2 res =
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res n1 n2
-
 -- |Given a computation result which is a function of two arguments
 -- corresponding to source and destination, emit debugging information
 -- about it if debugging mode is on.
@@ -928,33 +871,6 @@ dbgBLabelSrcDest ::
 {-# INLINE dbgBLabelSrcDest #-}
 dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
 
--- |Given a result to be returned from a computation, emit debugging
--- information about it if debugging mode is on.
-dbgResult :: Blockable a => String -> a -> XSDQ a
-{-# INLINE dbgResult #-}
-dbgResult msg res = do
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
-  return res
-
--- |Given a result which is a function of one argument to be returned
--- from a computation, emit debugging information about it if
--- debugging mode is on.
-dbgResultFn1 :: Blockable b => String -> a -> (a -> b) -> XSDQ (a -> b)
-{-# INLINE dbgResultFn1 #-}
-dbgResultFn1 msg arg res = do
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res arg
-  return res
-
--- |Given a result which is a function of two arguments to be returned
--- from a computation, emit debugging information about it if
--- debugging mode is on.
-dbgResultFn2 ::
-  Blockable c => String -> a -> b -> (a -> b -> c) -> XSDQ (a -> b -> c)
-{-# INLINE dbgResultFn2 #-}
-dbgResultFn2 msg n1 n2 res = do
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") $ res n1 n2
-  return res
-
 -- |Given a computation result which is a function of two arguments
 -- corresponding to source and destination, emit debugging information
 -- about it if debugging mode is on.
@@ -962,16 +878,6 @@ dbgResultSrcDest ::
   Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
 {-# INLINE dbgResultSrcDest #-}
 dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
-
--- |Given a monadic computation which will return the result to be
--- returned from another computation, emit debugging information about
--- the result if debugging mode is on.
-dbgResultM :: Blockable a => String -> XSDQ a -> XSDQ a
-{-# INLINE dbgResultM #-}
-dbgResultM msg resM = do
-  res <- resM
-  whenDebugging $ dbgBLabel ("  " ++ msg ++ " ") res
-  return res
 
 -- | Run statements when log files should be reset at each run.
 whenResetLog :: XSDQ () -> XSDQ ()
