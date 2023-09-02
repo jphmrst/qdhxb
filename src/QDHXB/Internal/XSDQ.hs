@@ -32,7 +32,7 @@ module QDHXB.Internal.XSDQ (
   -- *** XML and XSD primitive types
   installXmlPrimitives, installXsdPrimitives,
   -- * Configuration options
-  getOptions, getUseNewtype, getDebugging, whenDebugging, ifDebuggingDoc,
+  getOptions, getUseNewtype, ifDebuggingDoc,
 
   -- * Managing namespaces
   pushNamespaces, popNamespaces,
@@ -58,10 +58,6 @@ import Text.XML.Light.Types
 import Text.XML.Light.Output (showQName)
 import QDHXB.Utils.BPP (
   Blockable, block, stringToBlock, labelBlock, stack2, bpp, bprintLn, follow)
-import QDHXB.Utils.Debugln (
-  Debugln, runDebugln, MonadDebugln, getIndentation, liftDebugln,
-  indenting, fileLocalDebuglnCall)
-import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
 import QDHXB.Utils.Namespaces
 import QDHXB.Utils.Misc
 import QDHXB.Utils.XMLLight (inSameNamspace)
@@ -75,6 +71,17 @@ import QDHXB.Utils.TH (
     stringListType, qnameType, firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Options
+
+import Data.Symbol
+import QDHXB.Utils.Debugln (
+  Debugln, runDebugln, MonadDebugln, getIndentation, liftDebugln)
+import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln.BPP
+import QDHXB.Internal.Debugln
+makeDebuglnFns ["whenAnyDebugging", "indenting", "getDebugging"]
+makeDebuglnFnsFixed "xsdq" 0 ["dbgLn"]
+makeDebuglnBPPFnsFixed "xsdq" 0 ["dbgBLabel", "dbgResult"]
+fileLocalDebuglnBlockCall "xsdq" 0 ["dbgResultM"]
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.
@@ -164,9 +171,6 @@ instance Blockable QdxhbState where
 baseXmlNamespace :: String
 baseXmlNamespace = "http://www.w3.org/2001/XMLSchema"
 
-fileLocalDebuglnCall "xsdq" 0 ["dbgLn"]
-fileLocalDebuglnBlockCall "xsdq" 0 ["dbgBLabel", "dbgResult", "dbgResultM"]
-
 -- | The initial value of `XSDQ` states.
 initialQdxhbState :: QDHXBOption -> QdxhbState
 initialQdxhbState optsF =
@@ -232,7 +236,7 @@ runXSDQ :: QDHXBOption -> XSDQ a -> Q a
 runXSDQ optsF (XSDQ m) = do
   let initialState = initialQdxhbState optsF
       opts = stateOptions initialState
-      debugSwitches = []
+      debugSwitches = optDebugging opts
       debugMaster = not $ null debugSwitches
   resEither <- runDebugln (evalStateT (runExceptT m) initialState)
                           debugMaster debugSwitches "| "
@@ -261,7 +265,7 @@ fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ListDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition (ElementDefn n t _ _ _)  = do
-  whenDebugging $ do
+  whenAnyDebugging $ do
     ind <- getIndentation
     liftIO $ putStrLn $ show $
       (labelBlock (ind ++ "Filing ElementDefn: ") $ block n)
@@ -272,7 +276,7 @@ fileNewDefinition d@(ChoiceDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ExtensionDefn qn _ _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(GroupDefn qn _ _ _) = addGroupDefn qn d
 fileNewDefinition d@(BuiltinDefn qn _ _ _) = do
-  whenDebugging $ do
+  whenAnyDebugging $ do
     ind <- getIndentation
     liftIO $ putStrLn $ show $
       (labelBlock (ind ++ "Filing BuiltinDefn: ") $ block qn)
@@ -642,26 +646,26 @@ adjustTypeForUsage Required t = t
 -- context of a particular usage declaration.
 getAttributeOrGroupTypeForUsage :: (QName, AttributeUsage) -> XSDQ Type
 getAttributeOrGroupTypeForUsage (qn, _usage) = do
-  whenDebugging $ dbgBLabel "[gAoGTfU @XSDQ] for " qn
+  whenAnyDebugging $ dbgBLabel "[gAoGTfU @XSDQ] for " qn
   ifDefn <- getAttributeOrGroup qn
   case ifDefn of
     Nothing -> throwError $ "No attribute or group " ++ show qn
     Just defn -> do
       typ <- indenting $ buildAttrOrGroupHaskellType qn
-      whenDebugging $ dbgBLabel "- typ " typ
+      whenAnyDebugging $ dbgBLabel "- typ " typ
       case defn of
         SingleAttributeDefn _ usage -> do
-          whenDebugging $ dbgBLabel "- defn Single attr with usage " usage
+          whenAnyDebugging $ dbgBLabel "- defn Single attr with usage " usage
           dbgResult "Returns type:" $ adjustTypeForUsage usage typ
         AttributeGroupDefn _subAttrs {- usage -} -> do
-          whenDebugging $ dbgLn "- defn Attr group, assuming Optional"
+          whenAnyDebugging $ dbgLn "- defn Attr group, assuming Optional"
           dbgResult "Returns type as-is:" $ typ
 
 -- | Return the `Definition` of an XSD attribute or attribute group
 -- from the tracking tables in the `XSDQ` state.
 getAttributeOrGroup :: QName -> XSDQ (Maybe AttributeDefn)
 getAttributeOrGroup name = indenting $ do
-  whenDebugging $ dbgBLabel "[XSDQ.getAttributeOrGroup] " name
+  whenAnyDebugging $ dbgBLabel "[XSDQ.getAttributeOrGroup] " name
   ifSingle <- getAttributeDefn name
   case ifSingle of
     Just _ -> dbgResult "- returns" ifSingle
@@ -694,14 +698,6 @@ getOptions = liftStatetoXSDQ $ do
 getUseNewtype :: XSDQ Bool
 getUseNewtype = fmap optUseNewType getOptions
 
--- |Return whether debugging output should be generated in this run.
-getDebugging :: XSDQ Bool
-getDebugging = fmap optDebugging getOptions
-
--- |Guard a block executed only when debugging is activated.
-whenDebugging :: XSDQ () -> XSDQ ()
-whenDebugging = whenM getDebugging
-
 -- |Execute one of two blocks depending on whether documentation
 -- debugging is selected.
 ifDebuggingDoc :: XSDQ () -> XSDQ () -> XSDQ ()
@@ -727,7 +723,7 @@ pushNamespaces attrs = do
         when addXml $ installXmlPrimitives u (Just p)
         installXsdPrimitives u (Just p)
 
-  whenDebugging $ do
+  whenAnyDebugging $ do
     dft <- getDefaultNamespace
     liftIO $ do
       putStrLn $ "Default namespace: " ++ show dft

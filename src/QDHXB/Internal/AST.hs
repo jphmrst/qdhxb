@@ -20,11 +20,14 @@ import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
-import QDHXB.Utils.Debugln (indenting, fileLocalDebuglnSubject)
-import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
 
-fileLocalDebuglnSubject "unique" [ "dbgLn", "dbgPt"]
-fileLocalDebuglnBlockCall "unique" 0 [ "dbgBLabel", "dbgResult"]
+import QDHXB.Utils.Debugln
+import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln.BPP
+import QDHXB.Internal.Debugln
+makeDebuglnFns ["whenAnyDebugging", "indenting"]
+makeDebuglnFnsFor "unique" [ "dbgLn", "dbgPt"]
+makeDebuglnBPPFnsFixed "unique" 0 ["dbgBLabel", "dbgResult"]
 
 -- | Debugging point for initial input parsing.
 dbgSubjInput :: Symbol
@@ -115,34 +118,34 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- whether the result and argument differ.
   ensureUniqueNames' :: [ast] -> XSDQ (MaybeUpdated [ast])
   ensureUniqueNames' dss = do
-    whenDebugging $ dbgBLabel "Starting ensureUniqueNames' on " dss
+    whenAnyDebugging $ dbgBLabel "Starting ensureUniqueNames' on " dss
 
     -- First harvest the top-level bound names in the `DataScheme`
     -- list.
     let bound_names = getBoundNameStrings dss
-    whenDebugging $ dbgBLabel "- top-level bound names: " bound_names
+    whenAnyDebugging $ dbgBLabel "- top-level bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
     substs <- indenting $ make_needed_substitutions bound_names
-    whenDebugging $ dbgBLabel "- substs: " substs
+    whenAnyDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
     dssR' <- case substs of
           [] -> do
-            whenDebugging $ indenting $ dbgPt 1 "No substs"
+            whenAnyDebugging $ indenting $ dbgPt 1 "No substs"
             return $ Same dss
           _ -> do
-            whenDebugging $ indenting $
+            whenAnyDebugging $ indenting $
               dbgPt 1 "Calling applySubstitutions on substs"
             return $ applySubstitutions substs dss
-    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
+    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
 
     -- Finally rename any nonunique hidden names within the scope of
     -- each `DataScheme` in the input list.
     dssR'' <- indenting $ fmap hoistUpdate $
       mapM ensureUniqueInternalNames $ resultOnly dssR'
-    whenDebugging $ dbgBLabel "- ensureUniqueNames' dssR'' is " dssR''
+    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames' dssR'' is " dssR''
 
     dbgResult "- ensureUniqueNames' result: " $
       assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
@@ -150,27 +153,27 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- | Special case of `ensureUniqueNames'` for a single @ast@.
   ensureUniqueNames1 :: ast -> XSDQ (MaybeUpdated ast)
   ensureUniqueNames1 ds = do
-    whenDebugging $ dbgBLabel "- ensureUniqueNames1 on " $ debugSlug ds
+    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 on " $ debugSlug ds
 
     -- First harvest any top-level bound name(s?) in the `DataScheme`.
     let bound_names = getBoundNameStringsFrom ds
-    whenDebugging $ dbgBLabel "- top-level bound names: " bound_names
+    whenAnyDebugging $ dbgBLabel "- top-level bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
     substs <- indenting $ make_needed_substitutions bound_names
-    whenDebugging $ dbgBLabel "- substs: " substs
+    whenAnyDebugging $ dbgBLabel "- substs: " substs
 
     -- Now apply these substitutions.
     let dsR' = case substs of
           [] -> Same ds
           _ -> applySubstitutionsTo substs ds
-    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
+    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
 
     -- Finally rename any nonunique hidden names within the scope of
     -- the `DataScheme`.
     dsR'' <- indenting $ ensureUniqueInternalNames $ resultOnly dsR'
-    whenDebugging $ dbgBLabel "- ensureUniqueNames1 dsR'' is " dsR''
+    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 dsR'' is " dsR''
 
     dbgResult "- ensureUniqueNames1 result: " $
       assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
@@ -187,7 +190,7 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- the intermediate-copy-avoiding `MaybeUpdated` tag is removed!
   ensureUniqueNames :: [ast] -> XSDQ [ast]
   ensureUniqueNames dss = do
-    whenDebugging $ dbgLn 0 "Starting ensureUniqueNames"
+    whenAnyDebugging $ dbgLn 0 "Starting ensureUniqueNames"
     fmap resultOnly $ ensureUniqueNames' dss
 
   -- | Rewrite the nested AST into short, flat definitions closer to

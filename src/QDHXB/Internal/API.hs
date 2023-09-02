@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables, TypeApplications, AllowAmbiguousTypes #-}
 
 -- | Top-level XSD-to-Haskell rewriting pipeline and API.
@@ -15,6 +16,11 @@ import QDHXB.Utils.XMLLight (getCoreContent, isElem)
 import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
 import QDHXB.Internal.XSDQ
+
+import QDHXB.Utils.Debugln
+import QDHXB.Utils.Debugln.Output
+import QDHXB.Internal.Debugln
+makeDebuglnFns ["whenAnyDebugging"]
 
 -- | Shorthand for the two top-level functions based on a given XSD
 -- `AST` implementation.
@@ -62,7 +68,7 @@ translate_parsed_xsd xsds = do
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
           pushNamespaces attrs
-          whenDebugging $ liftIO $ do
+          whenAnyDebugging $ liftIO $ do
             putStrLn "======================================== INPUT"
             bLabelPrintln "Source: " core
             putStrLn "----------------------------------------"
@@ -72,25 +78,25 @@ translate_parsed_xsd xsds = do
           schemaReps <- (decodeXML forms :: XSDQ [ast])
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
-          whenDebugging $ liftIO $ do
+          whenAnyDebugging $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " schemaReps
 
-          whenDebugging $ liftIO $ putStrLn
+          whenAnyDebugging $ liftIO $ putStrLn
               "======================================== RENAMED NESTED INPUT"
           renamedSchemaReps <- ensureUniqueNames schemaReps
           putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
             ++ "\n------------------------------ "
-          whenDebugging $ liftIO $ do
+          whenAnyDebugging $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " renamedSchemaReps
 
-          whenDebugging $ liftIO $ putStrLn
+          whenAnyDebugging $ liftIO $ putStrLn
             "======================================== FLATTEN"
           ir <- flatten renamedSchemaReps
           putLog $ " FLATTENED INPUT\n" ++ bpp ir
             ++ "\n------------------------------ "
-          whenDebugging $ liftIO $ do
+          whenAnyDebugging $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " ir
 
@@ -102,7 +108,7 @@ translate_parsed_xsd xsds = do
   let flattened = concat flatteneds
   putLog $ " FULL FLATTENED\n" ++ bpp flattened
     ++ "\n==============================\n"
-  whenDebugging $ do
+  whenAnyDebugging $ do
     debugXSDQ
     liftIO $ putStrLn "======================================== FULL FLATTENED"
     liftIO $ putStrLn $ bpp flattened
@@ -112,7 +118,7 @@ translate_parsed_xsd xsds = do
 
   decls <- xsdDeclsToHaskell flattened
   putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
-  whenDebugging $ liftIO $ do
+  whenAnyDebugging $ liftIO $ do
     bLabelPrintln "Final: " decls
     putStrLn "======================================== end "
 

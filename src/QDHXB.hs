@@ -23,7 +23,7 @@ module QDHXB (
   -- ** Structure of renamed types
   useNewType, noUseNewType,
   -- ** Debugging and logging
-  useDebugging, logToFile
+  setDebugging, logToFile
 
   ) where
 

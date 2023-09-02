@@ -11,13 +11,15 @@ module QDHXB.Options (
   -- the @QDHXB.Options@ module.
   QDHXBOption,
   -- ** Structure of renamed types
-  useNewType, noUseNewType, useDebugging, useDebuggingDoc,
+  useNewType, noUseNewType,
+  setDebugging, useDebuggingDoc,
   withXmlNamespacePrefix, logToFile,
   -- ** Built-in types
   useXmlBindings
   )
 where
 
+import Data.Symbol
 import QDHXB.Utils.BPP
 
 -- | The assortment of values to which options may be set.
@@ -34,8 +36,8 @@ data QDHXBOptionSet = QDHXBOptionSet {
   optXmlNamespacePrefixes :: [String], -- ^ Additional prefixes to be
                                        -- associated with the XML/XSD
                                        -- namespace.
-  optDebugging :: Bool,  -- ^ Activates debugging output.  `False` by
-                         -- default.
+  optDebugging :: [(Symbol,Int)],  -- ^ Debugging settings.  @[]@ by
+                                   -- default.
   optDebuggingDoc :: Bool,  -- ^ Activates debugging output for
                             -- Haddock documentation string.  Has no
                             -- effect unless the basic `optDebugging`
@@ -63,7 +65,7 @@ instance Blockable QDHXBOptionSet where
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
-defaultOptionSet = QDHXBOptionSet True False [] False False Nothing True
+defaultOptionSet = QDHXBOptionSet True False [] [] False Nothing True
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
@@ -91,8 +93,9 @@ noUseNewType :: QDHXBOption
 noUseNewType opts = opts { optAddXmlBindings = True }
 
 -- | Write debugging information to the screen.
-useDebugging :: QDHXBOption
-useDebugging opts = opts { optDebugging = True }
+setDebugging :: Symbol -> Int -> QDHXBOption
+setDebugging subj lv opts =
+  opts { optDebugging = (subj, lv) : optDebugging opts }
 
 -- | Include XSD comments/Haddock documentation strings in
 -- debugging/log output.

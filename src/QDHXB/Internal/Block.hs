@@ -1,5 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskell, TypeFamilies #-}
 
 {-| Basic blocks of Template Haskell `Stmt` statements used in
   generating code for XSD definitions.  The main type here is
@@ -27,10 +26,14 @@ import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
 import QDHXB.Utils.BPP (Blockable)
-import QDHXB.Utils.Debugln (fileLocalDebuglnCall)
-import QDHXB.Utils.DebuglnBlock (fileLocalDebuglnBlockCall)
+import QDHXB.Utils.Debugln
+import QDHXB.Utils.Debugln.BPP (fileLocalDebuglnBlockCall)
 
-fileLocalDebuglnCall "block" 0 ["dbgLn"]
+import QDHXB.Utils.Debugln.Output
+import QDHXB.Internal.Debugln
+import Data.Symbol
+makeDebuglnFns ["whenAnyDebugging"]
+makeDebuglnFnsFixed "block" 0 ["dbgLn"]
 fileLocalDebuglnBlockCall "block" 0 ["dbgBLabelFn2", "dbgResultFn2"]
 
 -- | The destination (second) argument of `BlockMaker` contains a
@@ -77,20 +80,20 @@ retrievingCRefFor qn strDec = do
 scaleBlockMakerToBounds ::
   BlockMaker a b -> Maybe Int -> Maybe Int -> XSDQ (BlockMaker a c)
 scaleBlockMakerToBounds _ _ (Just 0) = do
-  whenDebugging $ dbgLn "- scaleBlockMakerToBounds none case"
+  whenAnyDebugging $ dbgLn "- scaleBlockMakerToBounds none case"
   return $ \_ dest -> [ LetS [ ValD (VarP dest) (NormalB $ TupE []) [] ] ]
 scaleBlockMakerToBounds k (Just 1) (Just 1) = do
-  whenDebugging $ dbgLn "- scaleBlockMakerToBounds single case"
+  whenAnyDebugging $ dbgLn "- scaleBlockMakerToBounds single case"
   return k
 scaleBlockMakerToBounds k _ (Just 1) = do
-  whenDebugging $ dbgLn "- scaleBlockMakerToBounds maybe case"
+  whenAnyDebugging $ dbgLn "- scaleBlockMakerToBounds maybe case"
   tmp <- newName "possible"
   return $ \src dest ->
     [BindS (VarP dest) $
        (DoE Nothing $ k src tmp ++ [NoBindS $ applyReturn $ VarE tmp])
          `replaceOnError` (applyReturn $ nothingConE)]
 scaleBlockMakerToBounds k _ _ = do
-  whenDebugging $ dbgLn "- scaleBlockMakerToBounds list case"
+  whenAnyDebugging $ dbgLn "- scaleBlockMakerToBounds list case"
   x <- newName "x"
   local <- newName "local"
   return $ \src dest ->

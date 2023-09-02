@@ -5,10 +5,11 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
+import Data.Symbol
 
 -- TODO with multiple attributes of the same name
 -- qdhxb (useDebugging . logByFile True) ["test/RenameNested/attrs.xsd"]
-qdhxb (useDebugging) ["test/RenameNested/attrs.xsd"]
+-- qdhxb (setDebugging (intern "L0") 2) ["test/RenameNested/attrs.xsd"]
 -- qdhxb' ["test/RenameNested/attrs.xsd"]
 
 testNestedAttrs :: TLT IO ()
@@ -20,4 +21,3 @@ testNestedAttrs = inGroup "XSD renaming nested --- attrs" $ do
 --    p <- lift $ loadAge "test/RenameNested/age2.xml"
 --    "Correctly decode <age> in age2.xml" ~: 55 @==- p
   return ()
-
