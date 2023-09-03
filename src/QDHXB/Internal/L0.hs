@@ -41,10 +41,9 @@ import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.XMLLight
 import QDHXB.Utils.ZeroOneMany
 
-import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
-import Data.Symbol
 makeDebuglnFns ["whenAnyDebugging", "indenting", "boxed"]
 makeDebuglnFnsFixed "L0" 0 ["dbgLn", "dbgPt"]
 makeDebuglnBPPFnsFixed "L0" 0 ["dbgBLabel", "dbgResult"]

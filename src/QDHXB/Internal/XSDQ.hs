@@ -72,10 +72,7 @@ import QDHXB.Utils.TH (
 import QDHXB.Internal.Types
 import QDHXB.Options
 
-import Data.Symbol
-import QDHXB.Utils.Debugln (
-  Debugln, runDebugln, MonadDebugln, getIndentation, liftDebugln)
-import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
 makeDebuglnFns ["whenAnyDebugging", "indenting", "getDebugging"]

@@ -12,11 +12,12 @@ module QDHXB.Utils.Debugln (
   Debugln(..), MonadDebugln, liftDebugln, runDebugln, getIndentation,
   -- * File-local definitions
   makeDebuglnBinders,
-  -- * Internal functions used in macro expansions
-  module QDHXB.Utils.Debugln.Output
+  -- * Internal and `Data.Symbol` functions used in macro expansions
+  module QDHXB.Utils.Debugln.Output, Symbol, intern
   )
 where
 
+import Data.Symbol (Symbol, intern)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import QDHXB.Utils.Debugln.Class
@@ -147,7 +148,7 @@ makeDebuglnBinders switch = do
                  (NormalB $
                   if sw
                   then AppE (VarE impl)
-                            (AppE (VarE $ mkName "Data.Symbol.intern")
+                            (AppE (VarE $ mkName "intern")
                                   (LitE $ StringL s))
                   else AppE constVarE noop)
                  []
@@ -183,7 +184,7 @@ makeDebuglnBinders switch = do
                  (NormalB $
                   if sw
                   then AppE (AppE (VarE impl)
-                                  (AppE (VarE $ mkName "Data.Symbol.intern")
+                                  (AppE (VarE $ mkName "intern")
                                         (LitE $ StringL s)))
                             (LitE $ IntegerL lv)
                   else noop)

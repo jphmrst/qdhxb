@@ -11,9 +11,8 @@ module QDHXB.Utils.Debugln.Output (
   -- * Debugging output
   dbgLn_impl, dbgPt_impl, indenting_impl, boxed_impl,
   -- * Conditional execution for debugging
-  getDebugging_impl,
-  whenDebugging_impl, whenAnyDebugging_impl, ifAnyDebugging_impl,
-  ifDebugging_impl
+  getDebugging_impl, whenDebugging_impl, whenAnyDebugging_impl,
+  ifAnyDebugging_impl, ifDebugging_impl
   )
 where
 
@@ -40,14 +39,18 @@ getVolume subj = do
         get' ((s,v):_) | s == subj = Just v
         get' (_:ss) = get' ss
 
--- | Run a subordinated block only if the debugging master switch is
--- on.
-whenAnyDebugging_impl :: MonadDebugln m n => m () -> m ()
-whenAnyDebugging_impl m = do
-  b <- getDebugging_impl
-  when b m
+-- | Check whether some debugging subject has been activated.
+getDebuggingAny_impl :: MonadDebugln m n => m Bool
+getDebuggingAny_impl = do
+  state <- debuggingState
+  return $ not $ null $ subjects state
 
--- | Run a subordinated block only if debugging a particular subject.
+-- | Run a subordinated block only if some subject has been activated.
+whenAnyDebugging_impl :: MonadDebugln m n => m () -> m ()
+whenAnyDebugging_impl = whenM getDebuggingAny_impl
+
+-- | Run a subordinated block only if debugging a particular subject
+-- at the given level of detail.
 whenDebugging_impl :: MonadDebugln m n => Symbol -> Int -> m () -> m ()
 whenDebugging_impl subj base m = do
   whenAnyDebugging_impl $ do
@@ -59,18 +62,16 @@ whenDebugging_impl subj base m = do
 -- | Pick from subordinated blocks based on whether the debugging
 -- master switch is on.
 ifAnyDebugging_impl :: MonadDebugln m n => m a -> m a -> m a
-ifAnyDebugging_impl = ifM getDebugging_impl
+ifAnyDebugging_impl = ifM getDebuggingAny_impl
 
 -- | Pick from subordinated blocks based on whether we are debugging a
 -- particular subject.
 ifDebugging_impl :: MonadDebugln m n => Symbol -> Int -> m a -> m a -> m a
-ifDebugging_impl subj base th el =
-  ifAnyDebugging_impl
-    (do vol <- getVolume subj
-        case vol of
-          Just v | v <= base -> th
-          _ -> el)
-    el
+ifDebugging_impl subj base th el = do
+  vol <- getVolume subj
+  case vol of
+    Just v | v <= base -> th
+    _ -> el
 
 -- | Add a level of indentation to debugging output.
 indenting_impl :: MonadDebugln m n => m a -> m a

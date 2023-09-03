@@ -87,10 +87,9 @@ import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
 
-import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
-import Data.Symbol
 makeDebuglnFns ["whenAnyDebugging", "indenting", "boxed"]
 makeDebuglnFnsFixed "generate" 0 ["dbgLn", "dbgPt"]
 makeDebuglnBPPFnsFixed "generate" 0

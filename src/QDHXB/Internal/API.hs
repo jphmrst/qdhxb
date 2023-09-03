@@ -17,7 +17,7 @@ import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
 import QDHXB.Internal.XSDQ
 
-import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln
 import QDHXB.Internal.Debugln
 makeDebuglnFns ["whenAnyDebugging"]
 

@@ -13,7 +13,6 @@ module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
 
 -- import Text.XML.Light.Output
 import Data.Kind (Type)
-import Data.Symbol (Symbol, intern)
 import Text.XML.Light.Types
 import QDHXB.Utils.XMLLight (inSameNamspace)
 import QDHXB.Internal.XSDQ
@@ -21,7 +20,7 @@ import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
 
-import QDHXB.Utils.Debugln.Output
+import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
 makeDebuglnFns ["whenAnyDebugging", "indenting"]

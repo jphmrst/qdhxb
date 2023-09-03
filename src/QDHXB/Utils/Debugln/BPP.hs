@@ -234,7 +234,7 @@ makeDebuglnBPPBinders switch = do
                  (NormalB $
                   if sw
                   then AppE (VarE impl)
-                            (AppE (VarE $ mkName "Data.Symbol.intern")
+                            (AppE (VarE $ mkName "intern")
                                   (LitE $ StringL s))
                   else AppE constVarE noop)
                  []
@@ -334,7 +334,7 @@ makeDebuglnBPPBinders switch = do
                  (NormalB $
                   if sw
                   then AppE (AppE (VarE impl)
-                                  (AppE (VarE $ mkName "Data.Symbol.intern")
+                                  (AppE (VarE $ mkName "intern")
                                         (LitE $ StringL s)))
                             (LitE $ IntegerL lv)
                   else noop)
