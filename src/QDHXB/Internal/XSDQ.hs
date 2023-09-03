@@ -80,8 +80,7 @@ import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
 makeDebuglnFns ["whenAnyDebugging", "indenting", "getDebugging"]
 makeDebuglnFnsFixed "xsdq" 0 ["dbgLn"]
-makeDebuglnBPPFnsFixed "xsdq" 0 ["dbgBLabel", "dbgResult"]
-fileLocalDebuglnBlockCall "xsdq" 0 ["dbgResultM"]
+makeDebuglnBPPFnsFixed "xsdq" 0 ["dbgBLabel", "dbgResult", "dbgResultM"]
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.

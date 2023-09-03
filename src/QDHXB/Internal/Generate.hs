@@ -87,15 +87,14 @@ import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
 
-import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.Output
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
 import Data.Symbol
 makeDebuglnFns ["whenAnyDebugging", "indenting", "boxed"]
 makeDebuglnFnsFixed "generate" 0 ["dbgLn", "dbgPt"]
-makeDebuglnBPPFnsFixed "generate" 0 ["dbgBLabel", "dbgResult"]
-fileLocalDebuglnBlockCall "generate" 0 ["dbgBLabelFn1", "dbgResultM"]
+makeDebuglnBPPFnsFixed "generate" 0
+  ["dbgBLabel", "dbgResult", "dbgBLabelFn1", "dbgResultM"]
 
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.

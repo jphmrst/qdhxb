@@ -8,21 +8,17 @@ module QDHXB.Utils.Debugln.BPP (
   dbgBLabelFn1_impl, dbgBLabelFn2_impl, dbgBLabelFn3_impl,
   dbgResultFn1_impl, dbgResultFn2_impl, dbgResultFn3_impl,
   dbgResultFn1M_impl, dbgResultFn2M_impl, dbgResultFn3M_impl,
-  fileLocalDebuglnBlockSubject, fileLocalDebuglnBlockCall
+  fileLocalDebuglnBlockCall
   )
 where
 
-import Language.Haskell.TH (
-  Q, Dec, mkName, DocLoc(DeclDoc), putDoc, Name,
-  Exp(AppE, VarE, LitE, ConE, TupE, LamE),
-  Lit(StringL, IntegerL),
-  Type(ForallT, AppT, ArrowT, ConT),
-  Pat(WildP, VarP))
+import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import Data.Symbol
 import Control.Monad.IO.Class
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Debugln
+import QDHXB.Utils.Debugln.Class
 import QDHXB.Utils.Debugln.TH
 
 -- | Bind the names @makeDebuglnBPPFns@, @makeDebuglnBPPFnsFor@, and
@@ -68,10 +64,65 @@ makeDebuglnBPPBinders switch = do
              "Format and output the given value as a bullet point at the current level of indentation, with the given leading label."
              $(return switchExp)
            f' "dbgResult" = buildDelegator "dbgResult"
-             blockableValToValCompTypeIO noop2
+             blockableValToValCompTypeIO returnId2
              (mkName "QDHXB.Utils.Debugln.BPP.dbgResult_impl")
              "Given a result to be returned from a computation, emit debugging information about it if debugging mode is on."
              $(return switchExp)
+
+           f' "dbgBLabelFn1" = buildDelegator "dbgBLabelFn1"
+             blockableFn1resToCompTypeIO noop3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn1_impl")
+             "Given a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgBLabelFn2" = buildDelegator "dbgBLabelFn2"
+             blockableFn2resToCompTypeIO noop4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn2_impl")
+             "Given a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgBLabelFn3" = buildDelegator "dbgBLabelFn3"
+             blockableFn3resToCompTypeIO noop5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn3_impl")
+             "Given a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+
+           f' "dbgResultFn1" = buildDelegator "dbgResultFn1"
+             blockableFn1resToFn1CompTypeIO returnId3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgResultFn2" = buildDelegator "dbgResultFn2"
+             blockableFn2resToFn2CompTypeIO returnId4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgResultFn3" = buildDelegator "dbgResultFn3"
+             blockableFn3resToFn3CompTypeIO returnId5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+
+           f' "dbgResultM" = buildDelegator "dbgResultM"
+             blockableLabelledCompToCompTypeIO noop2
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultM_impl")
+             "Given a monadic computation whose result will be taken as the overall result, emit debugging information about that result if debugging mode is on."
+             $(return switchExp)
+
+           f' "dbgResultFn1M" = buildDelegator "dbgResultFn1M"
+             blockableFn1CompToFn1CompTypeIO idQ2
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1M_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgResultFn2M" = buildDelegator "dbgResultFn2M"
+             blockableFn2resToFn2CompTypeIO idQ3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2M_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+           f' "dbgResultFn3M" = buildDelegator "dbgResultFn3M"
+             blockableFn3resToFn3CompTypeIO idQ4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3M_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp)
+
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
 
@@ -86,7 +137,7 @@ makeDebuglnBPPBinders switch = do
                  (NormalB $
                   if sw
                   then (VarE impl)
-                  else noop)
+                  else AppE constVarE $ AppE constVarE noop)
                  []
                ]
              where nam = mkName fn
@@ -110,10 +161,65 @@ makeDebuglnBPPBinders switch = do
              "Format and output the given value as a bullet point at the current level of indentation, with the given leading label."
              $(return switchExp) subj
            f' "dbgResult" = buildDelegator "dbgResult"
-             blockableValToValCompTypeIO noop2
+             blockableValToValCompTypeIO returnId2
              (mkName "QDHXB.Utils.Debugln.BPP.dbgResult_impl")
              "Given a result to be returned from a computation, emit debugging information about it if debugging mode is on."
              $(return switchExp) subj
+
+           f' "dbgBLabelFn1" = buildDelegator "dbgBLabelFn1"
+             blockableFn1resToCompTypeIO noop3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn1_impl")
+             "Given a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgBLabelFn2" = buildDelegator "dbgBLabelFn2"
+             blockableFn2resToCompTypeIO noop4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn2_impl")
+             "Given a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgBLabelFn3" = buildDelegator "dbgBLabelFn3"
+             blockableFn3resToCompTypeIO noop5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn3_impl")
+             "Given a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+
+           f' "dbgResultFn1" = buildDelegator "dbgResultFn1"
+             blockableFn1resToFn1CompTypeIO returnId3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgResultFn2" = buildDelegator "dbgResultFn2"
+             blockableFn2resToFn2CompTypeIO returnId4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgResultFn3" = buildDelegator "dbgResultFn3"
+             blockableFn3resToFn3CompTypeIO returnId5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+
+           f' "dbgResultM" = buildDelegator "dbgResultM"
+             blockableLabelledCompToCompTypeIO noop2
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultM_impl")
+             "Given a monadic computation whose result will be taken as the overall result, emit debugging information about that result if debugging mode is on."
+             $(return switchExp) subj
+
+           f' "dbgResultFn1M" = buildDelegator "dbgResultFn1M"
+             blockableFn1CompToFn1CompTypeIO idQ2
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1M_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgResultFn2M" = buildDelegator "dbgResultFn2M"
+             blockableFn2resToFn2CompTypeIO idQ3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2M_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+           f' "dbgResultFn3M" = buildDelegator "dbgResultFn3M"
+             blockableFn3resToFn3CompTypeIO idQ4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3M_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj
+
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
 
@@ -131,7 +237,7 @@ makeDebuglnBPPBinders switch = do
                   then AppE (VarE impl)
                             (AppE (VarE $ mkName "Data.Symbol.intern")
                                   (LitE $ StringL s))
-                  else noop)
+                  else AppE constVarE noop)
                  []
                ]
              where nam = mkName fn
@@ -155,10 +261,64 @@ makeDebuglnBPPBinders switch = do
              "Format and output the given value as a bullet point at the current level of indentation, with the given leading label."
              $(return switchExp) subj base
            f' "dbgResult" = buildDelegator "dbgResult"
-             blockableValToValCompTypeIO noop2
+             blockableValToValCompTypeIO returnId2
              (mkName "QDHXB.Utils.Debugln.BPP.dbgResult_impl")
              "Given a result to be returned from a computation, emit debugging information about it if debugging mode is on."
              $(return switchExp) subj base
+           f' "dbgBLabelFn1" = buildDelegator "dbgBLabelFn1"
+             blockableFn1resToCompTypeIO noop3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn1_impl")
+             "Given a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgBLabelFn2" = buildDelegator "dbgBLabelFn2"
+             blockableFn2resToCompTypeIO noop4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn2_impl")
+             "Given a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgBLabelFn3" = buildDelegator "dbgBLabelFn3"
+             blockableFn3resToCompTypeIO noop5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgBLabelFn3_impl")
+             "Given a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+
+           f' "dbgResultFn1" = buildDelegator "dbgResultFn1"
+             blockableFn1resToFn1CompTypeIO returnId3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgResultFn2" = buildDelegator "dbgResultFn2"
+             blockableFn2resToFn2CompTypeIO returnId4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgResultFn3" = buildDelegator "dbgResultFn3"
+             blockableFn3resToFn3CompTypeIO returnId5
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+
+           f' "dbgResultM" = buildDelegator "dbgResultM"
+             blockableLabelledCompToCompTypeIO idQ1
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultM_impl")
+             "Given a monadic computation whose result will be taken as the overall result, emit debugging information about that result if debugging mode is on."
+             $(return switchExp) subj base
+
+           f' "dbgResultFn1M" = buildDelegator "dbgResultFn1M"
+             blockableFn1CompToFn1CompTypeIO idQ2
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn1M_impl")
+             "Given a computation returning a function of one argument, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgResultFn2M" = buildDelegator "dbgResultFn2M"
+             blockableFn2resToFn2CompTypeIO idQ3
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn2M_impl")
+             "Given a computation returning a function of twu arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+           f' "dbgResultFn3M" = buildDelegator "dbgResultFn3M"
+             blockableFn3resToFn3CompTypeIO idQ4
+             (mkName "QDHXB.Utils.Debugln.BPP.dbgResultFn3M_impl")
+             "Given a computation returning a function of three arguments, emit debugging information about it if debugging mode is on."
+             $(return switchExp) subj base
+
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
 
@@ -261,6 +421,24 @@ dbgBLabelFn3_impl ::
 dbgBLabelFn3_impl subj base label a1 a2 a3 fn =
   dbgBLabel_impl subj base label $ fn a1 a2 a3
 
+blockableFn1resToCompTypeIO :: Q Type
+blockableFn1resToCompTypeIO =
+  [t| forall m n a r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> (a -> r) -> m () |]
+
+blockableFn2resToCompTypeIO :: Q Type
+blockableFn2resToCompTypeIO =
+  [t| forall m n a b r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> (a -> b -> r) -> m () |]
+
+blockableFn3resToCompTypeIO :: Q Type
+blockableFn3resToCompTypeIO =
+  [t| forall m n a b c r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> c -> (a -> b -> c -> r) -> m () |]
+
 -- |Given a computation returning a function of one argument, emit
 -- debugging information about it if debugging mode is on.
 dbgResultFn1_impl ::
@@ -289,9 +467,27 @@ dbgResultFn3_impl subj base label a1 a2 a3 fn = do
   dbgBLabel_impl subj base label $ fn a1 a2 a3
   return fn
 
--- |Given a monadic computation which will return the result to be
--- returned from another computation, emit debugging information about
--- the result if debugging mode is on.
+blockableFn1resToFn1CompTypeIO :: Q Type
+blockableFn1resToFn1CompTypeIO =
+  [t| forall m n a r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> (a -> r) -> m (a -> r) |]
+
+blockableFn2resToFn2CompTypeIO :: Q Type
+blockableFn2resToFn2CompTypeIO =
+  [t| forall m n a b r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> (a -> b -> r) -> m (a -> b -> r) |]
+
+blockableFn3resToFn3CompTypeIO :: Q Type
+blockableFn3resToFn3CompTypeIO =
+  [t| forall m n a b c r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> c -> (a -> b -> c -> r) -> m (a -> b -> c -> r) |]
+
+-- |Given a monadic computation whose result will be taken as the
+-- overall result, emit debugging information about that result if
+-- debugging mode is on.
 dbgResultM_impl ::
   (MonadDebugln m n, MonadIO m, Blockable a) =>
     Symbol -> Int -> String -> m a -> m a
@@ -300,6 +496,14 @@ dbgResultM_impl subj base msg resM = do
   res <- resM
   dbgBLabel_impl subj base (msg ++ " ") res
   return res
+
+blockableLabelledCompToCompTypeIO :: Q Type
+blockableLabelledCompToCompTypeIO =
+  [t| forall m n a .
+      (QDHXB.Utils.Debugln.Class.MonadDebugln m n,
+       Control.Monad.IO.Class.MonadIO m,
+       Blockable a) =>
+        String -> m a -> m a |]
 
 -- |Given a computation returning a function of one argument, emit
 -- debugging information about it if debugging mode is on.
@@ -332,170 +536,23 @@ dbgResultFn3M_impl subj base label a1 a2 a3 fnM = do
   dbgBLabel_impl subj base label $ fn a1 a2 a3
   return fn
 
+blockableFn1CompToFn1CompTypeIO :: Q Type
+blockableFn1CompToFn1CompTypeIO =
+  [t| forall m n a r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> m (a -> r) -> m (a -> r) |]
 
--- | Create bindings of `QDHXB.Utils.DebuglnBlock` functions fixed to
--- a particular subject.  The `String` argument should be the
--- underlying name of the subject symbol.  The valid entries of the
--- second argument list are: @"dbgBlock"@, @"dbgBLabel"@,
--- @"dbgBLabelPt_impl"@, @"dbgBLabelFn1_impl"@, @"dbgBLabelFn2_impl"@,
--- @"dbgBLabelFn3_impl"@, @"dbgResult@, @"dbgResultM_impl@,
--- @"dbgResultFn1_impl"@, @"dbgResultFn2_impl"@,
--- @"dbgResultFn3_impl"@, @"dbgResultFn1M_impl"@,
--- @"dbgResultFn2M_impl"@, @"dbgResultFn3M_impl"@, @""@, @""@, and
--- @""@.
-fileLocalDebuglnBlockSubject :: String -> [String] -> Q [Dec]
-fileLocalDebuglnBlockSubject subj = fmap concat . mapM f'
-  where f' :: String -> Q [Dec]
-        f' "dbgBlock" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBlock")
-            "Output the given line as a bulleted item in the current level of indentation."
-          [d| dbgBlock_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                           Control.Monad.IO.Class.MonadIO m) =>
-                            Int -> QDHXB.Utils.BPP.Block -> m ()
-              dbgBlock_impl = QDHXB.Utils.Debugln.BPP.dbgBlock_impl
-                                $(return subjExp)
-            |]
-        f' "dbgBLabel" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBLabel")
-            "Format and output the given value at the current level of indentation, with the given leading label."
-          [d| dbgBLabel :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                            Control.Monad.IO.Class.MonadIO m,
-                            QDHXB.Utils.BPP.Blockable c) =>
-                             Int -> String -> c -> m ()
-              dbgBLabel = QDHXB.Utils.Debugln.BPP.dbgBLabel_impl
-                            $(return subjExp)
-            |]
-        f' "dbgBLabelPt_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBLabelPt_impl")
-            "Format and output the given value at the current level of indentation, with the given leading label."
-          [d| dbgBLabelPt_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                              Control.Monad.IO.Class.MonadIO m,
-                              QDHXB.Utils.BPP.Blockable c) =>
-                               Int -> String -> c -> m ()
-              dbgBLabelPt_impl = QDHXB.Utils.Debugln.BPP.dbgBLabelPt_impl
-                              $(return subjExp)
-            |]
-        f' "dbgBLabelFn1_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBLabelFn1_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgBLabelFn1_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String -> a -> (a -> r) -> m ()
-              dbgBLabelFn1_impl = QDHXB.Utils.Debugln.BPP.dbgBLabelFn1_impl
-                               $(return subjExp)
-            |]
-        f' "dbgBLabelFn2_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBLabelFn2_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgBLabelFn2_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String -> a -> b -> (a -> b -> r) -> m ()
-              dbgBLabelFn2_impl = QDHXB.Utils.Debugln.BPP.dbgBLabelFn2_impl
-                               $(return subjExp)
-            |]
-        f' "dbgBLabelFn3_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgBLabelFn3_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgBLabelFn3_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String ->
-                                  a -> b -> c -> (a -> b -> c -> r) -> m ()
-              dbgBLabelFn3_impl = QDHXB.Utils.Debugln.BPP.dbgBLabelFn3_impl
-                               $(return subjExp)
-            |]
-        f' "dbgResult" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResult")
-            "Given a result to be returned from a computation, emit debugging information about it if debugging mode is on."
-          [d| dbgResult :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                            Control.Monad.IO.Class.MonadIO m,
-                            QDHXB.Utils.BPP.Blockable a) =>
-                             Int -> String -> a -> m a
-              dbgResult = QDHXB.Utils.Debugln.BPP.dbgResult_impl
-                            $(return subjExp)
-            |]
-        f' "dbgResultM_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultM_impl")
-            "For a computation returning some result, emit debugging information about the result if debugging mode is on."
-          [d| dbgResultM_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                             Control.Monad.IO.Class.MonadIO m,
-                             QDHXB.Utils.BPP.Blockable a) =>
-                               Int -> String -> m a -> m a
-              dbgResultM_impl = QDHXB.Utils.Debugln.BPP.dbgResultM_impl
-                             $(return subjExp)
-            |]
-        f' "dbgResultFn1_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn1_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn1_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String -> a -> (a -> r) -> m (a -> r)
-              dbgResultFn1_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn1_impl
-                               $(return subjExp)
-            |]
-        f' "dbgResultFn2_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn2_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn2_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String -> a -> b -> (a -> b -> r) ->
-                                  m (a -> b -> r)
-              dbgResultFn2_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn2_impl
-                               $(return subjExp)
-            |]
-        f' "dbgResultFn3_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn3_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn3_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                               Control.Monad.IO.Class.MonadIO m,
-                               QDHXB.Utils.BPP.Blockable r) =>
-                                Int -> String ->
-                                  a -> b -> c -> (a -> b -> c -> r) ->
-                                    m (a -> b -> c -> r)
-              dbgResultFn3_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn3_impl
-                               $(return subjExp)
-            |]
-        f' "dbgResultFn1M_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn1M_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn1M_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                                Control.Monad.IO.Class.MonadIO m,
-                                QDHXB.Utils.BPP.Blockable r) =>
-                                 Int -> String -> a -> m (a -> r) -> m (a -> r)
-              dbgResultFn1M_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn1M_impl
-                                $(return subjExp)
-            |]
-        f' "dbgResultFn2M_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn2M_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn2M_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                                Control.Monad.IO.Class.MonadIO m,
-                                QDHXB.Utils.BPP.Blockable r) =>
-                                 Int -> String -> a -> b -> m (a -> b -> r) ->
-                                   m (a -> b -> r)
-              dbgResultFn2M_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn2M_impl
-                                $(return subjExp)
-            |]
-        f' "dbgResultFn3M_impl" = do
-          addModFinalizer $ putDoc (DeclDoc $ mkName "dbgResultFn3M_impl")
-            "Given a function of one argument, emit debugging information about it if debugging mode is on."
-          [d| dbgResultFn3M_impl :: (QDHXB.Utils.Debugln.MonadDebugln m n,
-                                Control.Monad.IO.Class.MonadIO m,
-                                QDHXB.Utils.BPP.Blockable r) =>
-                                 Int -> String ->
-                                   a -> b -> c -> m (a -> b -> c -> r) ->
-                                     m (a -> b -> c -> r)
-              dbgResultFn3M_impl = QDHXB.Utils.Debugln.BPP.dbgResultFn3M_impl
-                                $(return subjExp)
-            |]
-        f' str = error $
-          "Name " ++ str ++ " not known to module QDHXB.Utils.DebuglnBlock"
+blockableFn2CompToFn2CompTypeIO :: Q Type
+blockableFn2CompToFn2CompTypeIO =
+  [t| forall m n a b r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> m (a -> b -> r) -> m (a -> b -> r) |]
 
-        subjExp = AppE (VarE 'Data.Symbol.intern) (LitE $ StringL subj)
+blockableFn3CompToFn3CompTypeIO :: Q Type
+blockableFn3CompToFn3CompTypeIO =
+  [t| forall m n a b c r .
+      (MonadDebugln m n, MonadIO m, Blockable r) =>
+        String -> a -> b -> c -> m (a -> b -> c -> r) -> m (a -> b -> c -> r) |]
 
 -- | Create bindings of `QDHXB.Utils.DebuglnBlock` functions fixed to
 -- a particular subject and base detail volume.  The `String` argument

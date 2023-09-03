@@ -1,11 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
--- | Internal monad for the XSD-to-Haskell rewriting.
+-- | Project instance of `QDHXB.Internal.Debugln` tracing macro
+-- generator.
 module QDHXB.Internal.Debugln (
   makeDebuglnFns, makeDebuglnFnsFor, makeDebuglnFnsFixed,
   makeDebuglnBPPFns, makeDebuglnBPPFnsFor, makeDebuglnBPPFnsFixed) where
 
-import Language.Haskell.TH
 import QDHXB.Utils.Debugln.BPP
-
-makeDebuglnAndBPPBinders True
+makeDebuglnAndBPPBinders False

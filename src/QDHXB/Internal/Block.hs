@@ -26,15 +26,14 @@ import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
 import QDHXB.Utils.BPP (Blockable)
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP (fileLocalDebuglnBlockCall)
 
+import QDHXB.Utils.Debugln.BPP
 import QDHXB.Utils.Debugln.Output
 import QDHXB.Internal.Debugln
 import Data.Symbol
 makeDebuglnFns ["whenAnyDebugging"]
 makeDebuglnFnsFixed "block" 0 ["dbgLn"]
-fileLocalDebuglnBlockCall "block" 0 ["dbgBLabelFn2", "dbgResultFn2"]
+makeDebuglnBPPFnsFixed "block" 0 ["dbgBLabelFn2", "dbgResultFn2"]
 
 -- | The destination (second) argument of `BlockMaker` contains a
 -- simplified version of types, with list/`Maybe`/other type

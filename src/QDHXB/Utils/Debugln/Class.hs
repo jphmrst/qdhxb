@@ -13,14 +13,9 @@ module QDHXB.Utils.Debugln.Class (
   )
 where
 
-import Language.Haskell.TH (
-  Q, Dec, Exp(AppE, VarE, LitE), Lit(StringL, IntegerL),
-  mkName, DocLoc(DeclDoc), putDoc)
-import Language.Haskell.TH.Syntax (addModFinalizer)
 import Data.Kind (Type)
 import Data.Symbol
 import Control.Monad.IO.Class
-import Control.Monad.Extra
 import Control.Monad.Identity
 import Control.Monad.Except
 import Control.Monad.ST.Trans
@@ -100,17 +95,19 @@ instance (MonadDebugln m n, Monoid w) => MonadDebugln (WS.WriterT w m) n where
 debuggingState :: MonadDebugln m n => m DebuglnState
 debuggingState = liftDebugln $ Debugln SL.get
 
--- | Internal: returns the `Bool` master switch setting.
-getDebugging :: MonadDebugln m n => m Bool
-getDebugging = do
-  st <- debuggingState
-  return $ debuggingOn st
-
 -- | Internal: returns the current `String` indentation.
 getIndentation :: MonadDebugln m n => m String
 getIndentation = do
   st <- debuggingState
   return $ indentation st
+
+{-
+
+-- | Internal: returns the `Bool` master switch setting.
+getDebugging :: MonadDebugln m n => m Bool
+getDebugging = do
+  st <- debuggingState
+  return $ debuggingOn st
 
 getVolume :: MonadDebugln m n => Symbol -> m (Maybe Int)
 getVolume subj = do
@@ -153,3 +150,5 @@ ifDebugging subj base th el =
           Just v | v <= base -> th
           _ -> el)
     el
+
+-}

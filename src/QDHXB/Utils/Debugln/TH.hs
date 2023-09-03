@@ -1,17 +1,11 @@
 {-# LANGUAGE TemplateHaskell, ExplicitForAll #-}
 
--- | Internal monad for the XSD-to-Haskell rewriting.
---
--- See also the `QDHXB.Utils.DebuglnBlock` module for functions
--- generating debug messages for `QDHXB.Utils.BPP.Blockable` values.
-module QDHXB.Utils.Debugln.TH where
+-- | Template Haskell definitions for quoted expressions and types
+-- used in the various `QDHXB.Utils.Debugln` modules.
+module QDHXB.Utils.Debugln.TH (module QDHXB.Utils.Debugln.TH)
+where
 
-import Language.Haskell.TH (
-  Q, Dec, mkName, DocLoc(DeclDoc), putDoc, Name,
-  Exp(AppE, VarE, LitE, ConE, TupE, LamE),
-  Lit(StringL, IntegerL),
-  Type(ForallT, AppT, ArrowT, ConT),
-  Pat(WildP, VarP))
+import Language.Haskell.TH
 import Data.Symbol
 import Control.Monad.IO.Class
 import QDHXB.Utils.Debugln.Class
@@ -23,7 +17,22 @@ pick2of2 :: Exp
 pick2of2 = LamE [WildP, VarP xName] $ VarE xName where xName = mkName "yy"
 
 constFalse :: Exp
-constFalse = AppE (VarE $ mkName "const") (ConE 'False)
+constFalse = AppE constVarE (ConE 'False)
+
+idQ :: Exp
+idQ = VarE $ mkName "id"
+
+idQ1 :: Exp
+idQ1 = AppE constVarE idQ
+
+idQ2 :: Exp
+idQ2 = AppE constVarE idQ1
+
+idQ3 :: Exp
+idQ3 = AppE constVarE idQ2
+
+idQ4 :: Exp
+idQ4 = AppE constVarE idQ3
 
 returnFalse :: Exp
 returnFalse = AppE (VarE $ mkName "return") (ConE 'False)
@@ -32,7 +41,7 @@ returnVoid :: Exp
 returnVoid = AppE (VarE 'return) (TupE [])
 
 constReturnVoid :: Exp
-constReturnVoid = AppE (VarE $ mkName "const") returnVoid
+constReturnVoid = AppE constVarE returnVoid
 
 noop0 :: Exp
 noop0 = AppE (VarE $ mkName "return") (TupE [])
@@ -43,22 +52,44 @@ noop1 = AppE constVarE noop0
 noop2 :: Exp
 noop2 = AppE constVarE noop1
 
+noop3 :: Exp
+noop3 = AppE constVarE noop2
+
+noop4 :: Exp
+noop4 = AppE constVarE noop3
+
+noop5 :: Exp
+noop5 = AppE constVarE noop4
+
 returnId1 :: Exp
 returnId1 = VarE $ mkName "return"
 
 returnId2 :: Exp
 returnId2 = AppE constVarE returnId1
 
+returnId3 :: Exp
+returnId3 = AppE constVarE returnId2
+
+returnId4 :: Exp
+returnId4 = AppE constVarE returnId3
+
+returnId5 :: Exp
+returnId5 = AppE constVarE returnId4
+
 constVarE :: Exp
 constVarE = VarE $ mkName "const"
 
 addSymbolIntArgs :: Type -> Type
-addSymbolIntArgs (ForallT binders cxt typ) = ForallT binders cxt $
+addSymbolIntArgs (ForallT binders ctxt typ) = ForallT binders ctxt $
   AppT (AppT ArrowT (ConT ''Symbol)) $ AppT (AppT ArrowT (ConT ''Int)) typ
+addSymbolIntArgs _ =
+  error "Unexpected argument (non-ForallT) to addSymbolIntArgs"
 
 addIntArg :: Type -> Type
-addIntArg (ForallT binders cxt typ) = ForallT binders cxt $
+addIntArg (ForallT binders ctxt typ) = ForallT binders ctxt $
   AppT (AppT ArrowT (ConT ''Int)) typ
+addIntArg _ =
+  error "Unexpected argument (non-ForallT) to addIntArgs"
 
 qualBoolCompTypeIO :: Q Type
 qualBoolCompTypeIO = [t| forall m n .

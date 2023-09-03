@@ -9,17 +9,12 @@
 -- generating debug messages for `QDHXB.Utils.BPP.Blockable` values.
 module QDHXB.Utils.Debugln.Binders (makeDebuglnBinders) where
 
-import Language.Haskell.TH (
-  Q, Dec, mkName, DocLoc(DeclDoc), putDoc, Name,
-  Exp(AppE, VarE, LitE, ConE, TupE, LamE),
-  Lit(StringL, IntegerL),
-  Type(ForallT, AppT, ArrowT, ConT),
-  Pat(WildP, VarP))
+import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
-import Data.Symbol
-import Control.Monad.IO.Class
-import QDHXB.Utils.Debugln.Class
-import QDHXB.Utils.Debugln.Output
+-- import Data.Symbol
+-- import Control.Monad.IO.Class
+-- import QDHXB.Utils.Debugln.Class
+-- import QDHXB.Utils.Debugln.Output
 import QDHXB.Utils.Debugln.TH
 
 -- | Bind the names @makeDebuglnFns@, @makeDebuglnFnsForSubject@, and
@@ -48,28 +43,28 @@ makeDebuglnBinders switch = do
    makeDebuglnFns :: [String] -> Q [Dec]
    makeDebuglnFns =  fmap concat . mapM f'
      where f' :: String -> Q [Dec]
-           f' "dbgLn" = buildMirror "dbgLn" qualStringToVoidTypeIO
-             noop2
+           f' "dbgLn" = buildDelegator "dbgLn" qualStringToVoidTypeIO
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgLn_impl")
              "Output the given line in the current level of indentation."
              $(return switchExp)
-           f' "dbgPt" = buildMirror "dbgPt" qualStringToVoidTypeIO
-             noop2
+           f' "dbgPt" = buildDelegator "dbgPt" qualStringToVoidTypeIO
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
              $(return switchExp)
            f' "indenting" = buildMirror "indenting"
-             qualCompToCompType returnId1
+             qualCompToCompType idQ
              (mkName "QDHXB.Utils.Debugln.Output.indenting_impl")
              "Add a level of indentation to debugging output."
              $(return switchExp)
            f' "boxed" = buildMirror "boxed"
-             qualCompToCompTypeIO returnId1
+             qualCompToCompTypeIO idQ
              (mkName "QDHXB.Utils.Debugln.Output.boxed_impl")
              "Add a level of indentation to debugging output."
              $(return switchExp)
            f' "getDebugging" = buildMirror "getDebugging"
-             qualBoolCompType constFalse
+             qualBoolCompType returnFalse
              (mkName "QDHXB.Utils.Debugln.Output.getDebugging_impl")
              "Pick from subordinated blocks based on whether the debugging master switch is on."
              $(return switchExp)
@@ -85,6 +80,22 @@ makeDebuglnBinders switch = do
              $(return switchExp)
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
+
+           buildDelegator ::
+             String -> Q Type -> Exp -> Name -> String -> Bool -> Q [Dec]
+           buildDelegator fn baseTypQ noop impl doc sw = do
+             typ <- baseTypQ
+             addModFinalizer $ putDoc (DeclDoc $ mkName fn) doc
+             return [
+               SigD nam typ,
+               ValD (VarP nam)
+                 (NormalB $
+                  if sw
+                  then (VarE impl)
+                  else AppE constVarE $ AppE constVarE noop)
+                 []
+               ]
+             where nam = mkName fn
 
            buildMirror ::
              String -> Q Type -> Exp -> Name -> String -> Bool -> Q [Dec]
@@ -106,12 +117,12 @@ makeDebuglnBinders switch = do
    makeDebuglnFnsFor subj = fmap concat . mapM f'
      where f' :: String -> Q [Dec]
            f' "dbgLn" = buildDelegator "dbgLn" qualStringToVoidTypeIO
-             noop2
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgLn_impl")
              "Output the given line in the current level of indentation."
              $(return switchExp) subj
            f' "dbgPt" = buildDelegator "dbgPt" qualStringToVoidTypeIO
-             noop2
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
              $(return switchExp) subj
@@ -132,7 +143,7 @@ makeDebuglnBinders switch = do
                   then AppE (VarE impl)
                             (AppE (VarE $ mkName "Data.Symbol.intern")
                                   (LitE $ StringL s))
-                  else noop)
+                  else AppE constVarE noop)
                  []
                ]
              where nam = mkName fn
@@ -141,12 +152,12 @@ makeDebuglnBinders switch = do
    makeDebuglnFnsFixed subj base =  fmap concat . mapM f'
      where f' :: String -> Q [Dec]
            f' "dbgLn" = buildDelegator "dbgLn" qualStringToVoidTypeIO
-             noop2
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgLn_impl")
              "Output the given line in the current level of indentation."
              $(return switchExp) subj base
            f' "dbgPt" = buildDelegator "dbgPt" qualStringToVoidTypeIO
-             noop2
+             noop1
              (mkName "QDHXB.Utils.Debugln.Output.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
              $(return switchExp) subj base
