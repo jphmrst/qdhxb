@@ -5,9 +5,10 @@ import Control.Monad.Trans.Class
 import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
+import Data.Symbol
 
 -- TODO Can't handle using the same name in different XML scopes
--- qdhxb (useDebugging) ["test/CustomersOrders/customersorders.xsd"]
+-- qdhxb (setDebugging (intern "unique") 3) ["test/CustomersOrders/customersorders.xsd"]
 -- qdhxb' ["test/CustomersOrders/customersorders.xsd"]
 
 testCustomersOrders1 :: TLT IO ()
