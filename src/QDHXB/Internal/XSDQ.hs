@@ -75,7 +75,7 @@ import QDHXB.Options
 import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "indenting", "getDebugging"]
+makeDebuglnFns ["whenAnyDebugging", "indenting"]
 makeDebuglnFnsFixed "xsdq" 0 ["dbgLn"]
 makeDebuglnBPPFnsFixed "xsdq" 0 ["dbgBLabel", "dbgResult", "dbgResultM"]
 
@@ -697,7 +697,9 @@ getUseNewtype = fmap optUseNewType getOptions
 -- |Execute one of two blocks depending on whether documentation
 -- debugging is selected.
 ifDebuggingDoc :: XSDQ () -> XSDQ () -> XSDQ ()
-ifDebuggingDoc yes no = ifM getDebugging yes no
+ifDebuggingDoc yes no = do
+  opts <- getOptions
+  if optDebuggingDoc opts then yes else no
 
 -- |Create a new namespace scope on the `XSDQ` state corresponding to
 -- the attributes, presumably from an XSD element schema.

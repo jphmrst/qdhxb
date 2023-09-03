@@ -131,7 +131,7 @@ makeDebuglnBPPBinders switch = do
              typ <- baseTypQ
              addModFinalizer $ putDoc (DeclDoc $ mkName fn) doc
              return [
-               SigD nam typ,
+               SigD nam $ addSymbolIntArgs typ,
                ValD (VarP nam)
                  (NormalB $
                   if sw
@@ -229,7 +229,7 @@ makeDebuglnBPPBinders switch = do
              typ <- fmap addIntArg baseTypQ
              addModFinalizer $ putDoc (DeclDoc $ mkName fn) doc
              return [
-               SigD nam typ,
+               SigD nam $ addIntArg typ,
                ValD (VarP nam)
                  (NormalB $
                   if sw

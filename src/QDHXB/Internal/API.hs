@@ -19,7 +19,7 @@ import QDHXB.Internal.XSDQ
 
 import QDHXB.Utils.Debugln
 import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging"]
+makeDebuglnFns ["whenAnyDebugging", "whenDebugging"]
 
 -- | Shorthand for the two top-level functions based on a given XSD
 -- `AST` implementation.
@@ -67,7 +67,7 @@ translate_parsed_xsd xsds = do
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
           pushNamespaces attrs
-          whenAnyDebugging $ liftIO $ do
+          whenDebugging input 0 $ liftIO $ do
             putStrLn "======================================== INPUT"
             bLabelPrintln "Source: " core
             putStrLn "----------------------------------------"
@@ -77,25 +77,25 @@ translate_parsed_xsd xsds = do
           schemaReps <- (decodeXML forms :: XSDQ [ast])
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
-          whenAnyDebugging $ liftIO $ do
+          whenDebugging input 0 $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " schemaReps
 
-          whenAnyDebugging $ liftIO $ putStrLn
+          whenDebugging unique 0 $ liftIO $ putStrLn
               "======================================== RENAMED NESTED INPUT"
           renamedSchemaReps <- ensureUniqueNames schemaReps
           putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
             ++ "\n------------------------------ "
-          whenAnyDebugging $ liftIO $ do
+          whenDebugging unique 0 $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " renamedSchemaReps
 
-          whenAnyDebugging $ liftIO $ putStrLn
+          whenDebugging flattening 0 $ liftIO $ putStrLn
             "======================================== FLATTEN"
           ir <- flatten renamedSchemaReps
           putLog $ " FLATTENED INPUT\n" ++ bpp ir
             ++ "\n------------------------------ "
-          whenAnyDebugging $ liftIO $ do
+          whenDebugging flattening 0 $ liftIO $ do
             putStrLn "----------------------------------------"
             bLabelPrintln "Final: " ir
 
@@ -107,17 +107,18 @@ translate_parsed_xsd xsds = do
   let flattened = concat flatteneds
   putLog $ " FULL FLATTENED\n" ++ bpp flattened
     ++ "\n==============================\n"
-  whenAnyDebugging $ do
+  whenDebugging flattening 0 $ do
     debugXSDQ
     liftIO $ putStrLn "======================================== FULL FLATTENED"
     liftIO $ putStrLn $ bpp flattened
     liftIO $ putStrLn "----------------------------------------"
     debugXSDQ
-    liftIO $ putStrLn "======================================== GENERATE"
 
+  whenDebugging generate 0 $ do
+    liftIO $ putStrLn "======================================== GENERATE"
   decls <- xsdDeclsToHaskell flattened
   putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
-  whenAnyDebugging $ liftIO $ do
+  whenDebugging generate 0 $ liftIO $ do
     bLabelPrintln "Final: " decls
     putStrLn "======================================== end "
 

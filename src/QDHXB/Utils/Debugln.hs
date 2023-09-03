@@ -60,6 +60,11 @@ makeDebuglnBinders switch = do
              (mkName "QDHXB.Utils.Debugln.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
              $(return switchExp)
+           f' "whenDebugging" = buildDelegator "whenDebugging"
+             qualVoidCompToVoidCompType constReturnVoid
+             (mkName "QDHXB.Utils.Debugln.whenDebugging_impl")
+             "Pick from subordinated blocks based on whether the debugging master switch is on."
+             $(return switchExp)
            f' "indenting" = buildMirror "indenting"
              qualCompToCompType idQ
              (mkName "QDHXB.Utils.Debugln.indenting_impl")
@@ -69,11 +74,6 @@ makeDebuglnBinders switch = do
              qualCompToCompTypeIO idQ
              (mkName "QDHXB.Utils.Debugln.boxed_impl")
              "Add a level of indentation to debugging output."
-             $(return switchExp)
-           f' "getDebugging" = buildMirror "getDebugging"
-             qualBoolCompType returnFalse
-             (mkName "QDHXB.Utils.Debugln.getDebugging_impl")
-             "Pick from subordinated blocks based on whether the debugging master switch is on."
              $(return switchExp)
            f' "ifAnyDebugging" = buildMirror "ifAnyDebugging"
              qualTwoCompsToCompTypeIO pick2of2
@@ -91,7 +91,7 @@ makeDebuglnBinders switch = do
            buildDelegator ::
              String -> Q Type -> Exp -> Name -> String -> Bool -> Q [Dec]
            buildDelegator fn baseTypQ noop impl doc sw = do
-             typ <- baseTypQ
+             typ <- fmap addSymbolIntArgs baseTypQ
              addModFinalizer $ putDoc (DeclDoc $ mkName fn) doc
              return [
                SigD nam typ,
@@ -133,6 +133,11 @@ makeDebuglnBinders switch = do
              (mkName "QDHXB.Utils.Debugln.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
              $(return switchExp) subj
+           f' "whenDebugging" = buildDelegator "whenDebugging"
+             qualVoidCompToVoidCompType constReturnVoid
+             (mkName "QDHXB.Utils.Debugln.whenDebugging_impl")
+             "Pick from subordinated blocks based on whether the debugging master switch is on."
+             $(return switchExp) subj
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
 
@@ -167,6 +172,11 @@ makeDebuglnBinders switch = do
              noop1
              (mkName "QDHXB.Utils.Debugln.dbgPt_impl")
              "Output the given line as a bulleted item in the current level of indentation."
+             $(return switchExp) subj base
+           f' "whenDebugging" = buildDelegator "whenDebugging"
+             qualVoidCompToVoidCompType constReturnVoid
+             (mkName "QDHXB.Utils.Debugln.whenDebugging_impl")
+             "Pick from subordinated blocks based on whether the debugging master switch is on."
              $(return switchExp) subj base
            f' str = error $
              "Name " ++ str ++ " not known to module QDHXB.Utils.Debugln"
