@@ -27,11 +27,9 @@ import qualified Control.Monad.Trans.State.Lazy as SL
 debuggingState :: MonadDebugln m n => m DebuglnState
 debuggingState = liftDebugln $ Debugln SL.get
 
--- | Internal: returns the `Bool` master switch setting.
+-- | Internal: returns `True` as the `Bool` master switch setting.
 getDebugging_impl :: MonadDebugln m n => m Bool
-getDebugging_impl = do
-  st <- debuggingState
-  return $ debuggingOn st
+getDebugging_impl = return True
 
 getVolume :: MonadDebugln m n => Symbol -> m (Maybe Int)
 getVolume subj = do

@@ -30,7 +30,6 @@ import qualified Control.Monad.Trans.Writer.Strict as WS
 
 -- | Internal state of the `Debugln` monad.
 data DebuglnState = DebuglnState {
-  debuggingOn :: Bool, -- ^ Master switch for any debugging.
   subjects :: [(Symbol,Int)], -- ^ Topics (by symbol) of current
                               -- interest for debugging.
   indentation :: String, -- ^ Current number of indentation stops.
@@ -45,8 +44,8 @@ newtype Debugln (m :: Type -> Type) a =
 
 -- | Given initial debugging choices, run a `Debugln` monad.
 runDebugln :: Monad m => Debugln m a -> Bool -> [(Symbol,Int)] -> String -> m a
-runDebugln (Debugln m) switch volumes ind = do
-  (result, _) <- SL.runStateT m $ DebuglnState switch volumes "" ind
+runDebugln (Debugln m) _switch volumes ind = do
+  (result, _) <- SL.runStateT m $ DebuglnState volumes "" ind
   return result
 
 -- | Class of monads which support debugging operations.
@@ -100,55 +99,3 @@ getIndentation :: MonadDebugln m n => m String
 getIndentation = do
   st <- debuggingState
   return $ indentation st
-
-{-
-
--- | Internal: returns the `Bool` master switch setting.
-getDebugging :: MonadDebugln m n => m Bool
-getDebugging = do
-  st <- debuggingState
-  return $ debuggingOn st
-
-getVolume :: MonadDebugln m n => Symbol -> m (Maybe Int)
-getVolume subj = do
-  state <- debuggingState
-  let vols = subjects state
-  return $ get' vols
-  where get' [] = Nothing
-        get' ((s,v):_) | s == subj = Just v
-        get' (_:ss) = get' ss
-
--- | Run a subordinated block only if the debugging master switch is
--- on.
-whenAnyDebugging :: MonadDebugln m n => m () -> m ()
-whenAnyDebugging m = do
-  b <- getDebugging
-  when b m
-
--- | Run a subordinated block only if debugging a particular subject.
-whenDebugging :: MonadDebugln m n => Symbol -> Int -> m () -> m ()
-whenDebugging subj base m = do
-  whenAnyDebugging $ do
-    vol <- getVolume subj
-    case vol of
-      Just v | v <= base -> m
-      _ -> return ()
-
--- | Pick from subordinated blocks based on whether the debugging
--- master switch is on.
-ifAnyDebugging :: Monad m => Debugln m a -> Debugln m a -> Debugln m a
-ifAnyDebugging = ifM getDebugging
-
--- | Pick from subordinated blocks based on whether we are debugging a
--- particular subject.
-ifDebugging :: Monad m =>
-  Symbol -> Int -> Debugln m a -> Debugln m a -> Debugln m a
-ifDebugging subj base th el =
-  ifAnyDebugging
-    (do vol <- getVolume subj
-        case vol of
-          Just v | v <= base -> th
-          _ -> el)
-    el
-
--}

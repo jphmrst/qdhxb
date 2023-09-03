@@ -52,13 +52,13 @@ data QDHXBOptionSet = QDHXBOptionSet {
 
 instance Blockable QDHXBOptionSet where
   block (QDHXBOptionSet newTypes xmlBuiltins xmlNsPrefixes
-                        debuggingOn debuggingDocOn
+                        debuggingSettings debuggingDocOn
                         logFile resetLogging) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
     `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
     `stack2` (stringToBlock $ "- xmlNamespacePrefixes " ++ show xmlNsPrefixes)
-    `stack2` (stringToBlock $ "- debugging " ++ show debuggingOn)
+    `stack2` (stringToBlock $ "- debugging " ++ show debuggingSettings)
     `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show debuggingDocOn)
     `stack2` (stringToBlock $ "- logFile " ++ show logFile)
     `stack2` (stringToBlock $ "- resetLogging " ++ show resetLogging)
