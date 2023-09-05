@@ -1,13 +1,16 @@
-{-# LANGUAGE TemplateHaskell, ExplicitForAll #-}
+{-# LANGUAGE TemplateHaskell, ExplicitForAll, TypeApplications, ScopedTypeVariables #-}
 
 -- | Debugging messages involving `Blockable` values.
 module QDHXB.Utils.Debugln.BPP (
+  makeDebuglnBPPDefs, makeDebuglnAndBPPDefs
+  {-
   makeDebuglnBPPBinders, makeDebuglnAndBPPBinders,
   dbgBlock_impl, dbgBLabel_impl, dbgBLabelPt_impl,
   dbgResult_impl, dbgResultM_impl,
   dbgBLabelFn1_impl, dbgBLabelFn2_impl, dbgBLabelFn3_impl,
   dbgResultFn1_impl, dbgResultFn2_impl, dbgResultFn3_impl,
   dbgResultFn1M_impl, dbgResultFn2M_impl, dbgResultFn3M_impl
+  -}
   )
 where
 
@@ -16,10 +19,157 @@ import Language.Haskell.TH.Syntax (addModFinalizer)
 import Data.Symbol
 import Control.Monad.IO.Class
 import QDHXB.Utils.BPP
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.Class
-import QDHXB.Utils.Debugln.TH
+-- import QDHXB.Utils.Debugln
+import QDHXB.Utils.Debugln.New
+-- import QDHXB.Utils.Debugln.Class
+-- import QDHXB.Utils.Debugln.TH
 
+makeDebuglnBPPDefs :: Bool -> Q [Dec]
+makeDebuglnBPPDefs switch =  do
+  if switch
+  then do
+    monadDebugLnMaybe <- lookupTypeName "MonadDebugln"
+    let monadDebugLn =
+          maybe (error "MonadDebugln not defined") id monadDebugLnMaybe
+        md = return $ ConT monadDebugLn
+    [d|
+      -- |Output the given line in the current level of indentation.
+      dbgBlock :: forall m n . ($md m n, MonadIO m) =>
+                    Subject -> Int -> Block -> m ()
+      dbgBlock subj base b = dbgLn @m @n subj base $ outBlock b
+
+      -- | Format and output the given value at the current level of
+      -- indentation, with the given leading label.
+      dbgBLabel :: forall m n c . ($md m n, MonadIO m, Blockable c) =>
+          Subject -> Int -> String -> c -> m ()
+      dbgBLabel subj base s m =
+        dbgLn @m @n subj base $ outBlock $ labelBlock s $ block m
+
+      -- | Format and output the given value as a bullet point at the
+      -- current level of indentation, with the given leading label.
+      dbgBLabelPt ::
+        ($md m n, MonadIO m, Blockable c) =>
+          Subject -> Int -> String -> c -> m ()
+      dbgBLabelPt subj base s m =
+        dbgPt subj base $ outBlock $ labelBlock s $ block m
+
+      -- | Given a result to be returned from a computation, emit debugging
+      -- information about it if debugging mode is on.
+      dbgResult ::
+        ($md m n, MonadIO m, Blockable a) =>
+          Subject -> Int -> String -> a -> m a
+      {-# INLINE dbgResult #-}
+      dbgResult subj base msg res = do
+        dbgBLabel subj base (msg ++ " ") res
+        return res
+
+      -- |Given a function of one argument, emit debugging information about
+      -- it if debugging mode is on.
+      dbgBLabelFn1 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> (a -> r) -> m ()
+      dbgBLabelFn1 subj base label arg fn =
+        dbgBLabel subj base label $ fn arg
+
+      -- |Given a function of two arguments, emit debugging information
+      -- about it if debugging mode is on.
+      dbgBLabelFn2 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> (a -> b -> r) -> m ()
+      dbgBLabelFn2 subj base label a1 a2 fn =
+        dbgBLabel subj base label $ fn a1 a2
+
+      -- |Given a function of three arguments, emit debugging information
+      -- about it if debugging mode is on.
+      dbgBLabelFn3 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> c -> (a -> b -> c -> r) -> m ()
+      dbgBLabelFn3 subj base label a1 a2 a3 fn =
+        dbgBLabel subj base label $ fn a1 a2 a3
+
+      -- |Given a computation returning a function of one argument, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn1 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> (a -> r) -> m (a -> r)
+      dbgResultFn1 subj base label arg fn = do
+        dbgBLabel subj base label $ fn arg
+        return fn
+
+      -- |Given a computation returning a function of two arguments, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn2 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> (a -> b -> r) -> m (a -> b -> r)
+      dbgResultFn2 subj base label a1 a2 fn = do
+        dbgBLabel subj base label $ fn a1 a2
+        return fn
+
+      -- |Given a computation returning a function of two arguments, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn3 ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> c -> (a -> b -> c -> r) ->
+            m (a -> b -> c -> r)
+      dbgResultFn3 subj base label a1 a2 a3 fn = do
+        dbgBLabel subj base label $ fn a1 a2 a3
+        return fn
+
+      -- |Given a monadic computation whose result will be taken as the
+      -- overall result, emit debugging information about that result if
+      -- debugging mode is on.
+      dbgResultM ::
+        ($md m n, MonadIO m, Blockable a) =>
+          Subject -> Int -> String -> m a -> m a
+      {-# INLINE dbgResultM #-}
+      dbgResultM subj base msg resM = do
+        res <- resM
+        dbgBLabel subj base (msg ++ " ") res
+        return res
+
+      -- |Given a computation returning a function of one argument, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn1M ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> m (a -> r) -> m (a -> r)
+      dbgResultFn1M subj base label arg fnM = do
+        fn <- fnM
+        dbgBLabel subj base label $ fn arg
+        return fn
+
+      -- |Given a computation returning a function of two arguments, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn2M ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> m (a -> b -> r) ->
+            m (a -> b -> r)
+      dbgResultFn2M subj base label a1 a2 fnM = do
+        fn <- fnM
+        dbgBLabel subj base label $ fn a1 a2
+        return fn
+
+      -- |Given a computation returning a function of two arguments, emit
+      -- debugging information about it if debugging mode is on.
+      dbgResultFn3M ::
+        ($md m n, MonadIO m, Blockable r) =>
+          Subject -> Int -> String -> a -> b -> c -> m (a -> b -> c -> r) ->
+            m (a -> b -> c -> r)
+      dbgResultFn3M subj base label a1 a2 a3 fnM = do
+        fn <- fnM
+        dbgBLabel subj base label $ fn a1 a2 a3
+        return fn
+        |]
+
+  else return []
+
+
+makeDebuglnAndBPPDefs :: Bool -> Q [Dec]
+makeDebuglnAndBPPDefs sw = do
+  base <- makeDebuglnDefs sw
+  bpps <- makeDebuglnBPPDefs sw
+  return $ base ++ bpps
+
+{-
 -- | Bind the names @makeDebuglnBPPFns@, @makeDebuglnBPPFnsFor@, and
 -- @makeDebuglnBPPFnsFixed@ to create debugging trace functions which
 -- respect the given @switch@.
@@ -552,3 +702,4 @@ blockableFn3CompToFn3CompTypeIO =
   [t| forall m n a b c r .
       (MonadDebugln m n, MonadIO m, Blockable r) =>
         String -> a -> b -> c -> m (a -> b -> c -> r) -> m (a -> b -> c -> r) |]
+-}

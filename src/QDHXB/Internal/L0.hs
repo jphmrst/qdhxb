@@ -26,6 +26,7 @@ module QDHXB.Internal.L0 (
 ) where
 
 import Language.Haskell.TH (newName, nameBase, Q, Dec)
+import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Types
@@ -41,12 +42,16 @@ import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.XMLLight
 import QDHXB.Utils.ZeroOneMany
 
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP
-import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "indenting", "boxed"]
-makeDebuglnFnsFixed "L0" 0 ["dbgLn", "dbgPt"]
-makeDebuglnBPPFnsFixed "L0" 0 ["dbgBLabel", "dbgResult"]
+import QDHXB.Internal.Debugln hiding (dbgLn, dbgPt, dbgBLabel, dbgResult)
+import qualified QDHXB.Internal.Debugln as DBG
+dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn = DBG.dbgLn l0 0
+dbgPt :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgPt = DBG.dbgPt l0 0
+dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel = DBG.dbgBLabel l0 0
+dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult = DBG.dbgResult l0 0
 
 -- | A sort of variation of `Maybe` with two `Just` forms, for schema
 -- which allow either a @name@ or a @ref@ attribute, but not both, and

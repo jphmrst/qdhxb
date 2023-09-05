@@ -19,8 +19,8 @@ module QDHXB.Options (
   )
 where
 
-import Data.Symbol
 import QDHXB.Utils.BPP
+import QDHXB.Utils.Debugln.New (Subject)
 
 -- | The assortment of values to which options may be set.
 data QDHXBOptionSet = QDHXBOptionSet {
@@ -36,7 +36,7 @@ data QDHXBOptionSet = QDHXBOptionSet {
   optXmlNamespacePrefixes :: [String], -- ^ Additional prefixes to be
                                        -- associated with the XML/XSD
                                        -- namespace.
-  optDebugging :: [(Symbol,Int)],  -- ^ Debugging settings.  @[]@ by
+  optDebugging :: [(Subject,Int)],  -- ^ Debugging settings.  @[]@ by
                                    -- default.
   optDebuggingDoc :: Bool,  -- ^ Activates debugging output for
                             -- Haddock documentation string.  Has no
@@ -93,7 +93,7 @@ noUseNewType :: QDHXBOption
 noUseNewType opts = opts { optAddXmlBindings = True }
 
 -- | Write debugging information to the screen.
-setDebugging :: Symbol -> Int -> QDHXBOption
+setDebugging :: Subject -> Int -> QDHXBOption
 setDebugging subj lv opts =
   opts { optDebugging = (subj, lv) : optDebugging opts }
 

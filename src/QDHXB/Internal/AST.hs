@@ -8,11 +8,11 @@
 module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
                            Upd(..), assembleIfUpdated,
                            Substitutions, substString, substQName,
-                           AST(..),
-                           dbgSubjInput, dbgSubjUnique) where
+                           AST(..)) where
 
 -- import Text.XML.Light.Output
 import Data.Kind (Type)
+import Control.Monad.IO.Class
 import Text.XML.Light.Types
 import QDHXB.Utils.XMLLight (inSameNamspace)
 import QDHXB.Internal.XSDQ
@@ -20,20 +20,16 @@ import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
 
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP
-import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "indenting"]
-makeDebuglnFnsFor "unique" [ "dbgLn", "dbgPt"]
-makeDebuglnBPPFnsFixed "unique" 0 ["dbgBLabel", "dbgResult"]
-
--- | Debugging point for initial input parsing.
-dbgSubjInput :: Symbol
-dbgSubjInput = intern "input"
-
--- | Debugging point for name uniqueness.
-dbgSubjUnique :: Symbol
-dbgSubjUnique = intern "unique"
+import QDHXB.Internal.Debugln hiding (dbgLn, dbgPt, dbgBLabel, dbgResult)
+import qualified QDHXB.Internal.Debugln as DBG
+dbgLn :: (MonadDebugln m n, MonadIO m) => Int -> String -> m ()
+dbgLn = DBG.dbgLn unique
+dbgPt :: (MonadDebugln m n, MonadIO m) => Int -> String -> m ()
+dbgPt = DBG.dbgPt unique
+dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel = DBG.dbgBLabel xsdq 0
+dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult = DBG.dbgResult xsdq 0
 
 -- | Finite set of substitutions of one `QName` for another.
 type Substitutions = [(String, String)]

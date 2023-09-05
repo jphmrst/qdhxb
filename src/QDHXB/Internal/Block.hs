@@ -21,18 +21,25 @@ module QDHXB.Internal.Block (
 where
 
 import Language.Haskell.TH
+import Control.Monad.IO.Class
 import Text.XML.Light.Types (Content, QName, qName)
 import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
 import QDHXB.Utils.BPP (Blockable)
 
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP
-import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging"]
-makeDebuglnFnsFixed "block" 0 ["dbgLn"]
-makeDebuglnBPPFnsFixed "block" 0 ["dbgBLabelFn2", "dbgResultFn2"]
+import QDHXB.Internal.Debugln hiding (dbgLn, dbgBLabelFn2, dbgResultFn2)
+import qualified QDHXB.Internal.Debugln as DBG
+dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn = DBG.dbgLn blocks 0
+dbgBLabelFn2 ::
+  (MonadDebugln m n, MonadIO m, Blockable r) =>
+    String -> a -> b -> (a -> b -> r) -> m ()
+dbgBLabelFn2 = DBG.dbgBLabelFn2 blocks 0
+dbgResultFn2 ::
+  (MonadDebugln m n, MonadIO m, Blockable r) =>
+    String -> a -> b -> (a -> b -> r) -> m (a -> b -> r)
+dbgResultFn2 = DBG.dbgResultFn2 blocks 0
 
 -- | The destination (second) argument of `BlockMaker` contains a
 -- simplified version of types, with list/`Maybe`/other type

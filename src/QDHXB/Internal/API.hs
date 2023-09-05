@@ -17,9 +17,7 @@ import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
 import QDHXB.Internal.XSDQ
 
-import QDHXB.Utils.Debugln
 import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "whenDebugging"]
 
 -- | Shorthand for the two top-level functions based on a given XSD
 -- `AST` implementation.

@@ -72,12 +72,16 @@ import QDHXB.Utils.TH (
 import QDHXB.Internal.Types
 import QDHXB.Options
 
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP
-import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "indenting"]
-makeDebuglnFnsFixed "xsdq" 0 ["dbgLn"]
-makeDebuglnBPPFnsFixed "xsdq" 0 ["dbgBLabel", "dbgResult", "dbgResultM"]
+import QDHXB.Internal.Debugln hiding (dbgLn, dbgBLabel, dbgResult, dbgResultM)
+import qualified QDHXB.Internal.Debugln as DBG
+dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn = DBG.dbgLn xsdq 0
+dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel = DBG.dbgBLabel xsdq 0
+dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult = DBG.dbgResult xsdq 0
+dbgResultM :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> m a -> m a
+dbgResultM = DBG.dbgResultM xsdq 0
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.

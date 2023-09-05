@@ -73,7 +73,6 @@ where
 
 import Control.Monad.Except
 -- import Control.Monad.Extra (whenJust)
--- import Control.Monad.IO.Class
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
@@ -87,13 +86,22 @@ import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
 
-import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.BPP
-import QDHXB.Internal.Debugln
-makeDebuglnFns ["whenAnyDebugging", "indenting", "boxed"]
-makeDebuglnFnsFixed "generate" 0 ["dbgLn", "dbgPt"]
-makeDebuglnBPPFnsFixed "generate" 0
-  ["dbgBLabel", "dbgResult", "dbgBLabelFn1", "dbgResultM"]
+import QDHXB.Internal.Debugln hiding (
+  dbgLn, dbgPt, dbgBLabel, dbgBLabelFn1, dbgResult, dbgResultM)
+import qualified QDHXB.Internal.Debugln as DBG
+dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn = DBG.dbgLn generate 0
+dbgPt :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgPt = DBG.dbgPt generate 0
+dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel = DBG.dbgBLabel generate 0
+dbgBLabelFn1 ::
+  (MonadDebugln m n, MonadIO m, Blockable r) => String -> a -> (a -> r) -> m ()
+dbgBLabelFn1 = DBG.dbgBLabelFn1 blocks 0
+dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult = DBG.dbgResult generate 0
+dbgResultM :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> m a -> m a
+dbgResultM = DBG.dbgResultM generate 0
 
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.
