@@ -10,6 +10,7 @@
    - [[https://hackage.haskell.org/package/symbol-0.2.4/docs/Data-Symbol.html][Data.Symbol]]
    - [[https://hackage.haskell.org/package/xml-1.3.14/docs/Text-XML-Light-Types.html][Text.XML.Light.Types]]
    - [[https://hackage.haskell.org/package/base-4.17.0.0/docs/Control-Monad-IO-Class.html][Control.Monad.IO.Class]]
+   - [[https://hackage.haskell.org/package/transformers-0.6.1.1/docs/Control-Monad-Trans-Class.html][Control.Monad.Trans.Class]]
    - [[https://hackage.haskell.org/package/mtl-2.3.1/docs/Control-Monad-Except.html][Control.Monad.Except]]
    - [[https://hackage.haskell.org/package/mtl-2.3.1/docs/Control-Monad-State-Lazy.html][Control.Monad.State (.Lazy)]]
    - [[https://hackage.haskell.org/package/directory-1.3.8.0/docs/System-Directory.html][System.Directory]]
