@@ -7,7 +7,7 @@
 -- generator.
 module QDHXB.Internal.Debugln (module QDHXB.Internal.Debugln) where
 
-import QDHXB.Utils.Debugln.New
+import QDHXB.Utils.Debugln
 import QDHXB.Utils.Debugln.BPP
 makeDebuglnDefs True
 makeDebuglnBPPDefs True

@@ -20,7 +20,7 @@ module QDHXB.Options (
 where
 
 import QDHXB.Utils.BPP
-import QDHXB.Utils.Debugln.New (Subject)
+import QDHXB.Utils.Debugln (Subject)
 
 -- | The assortment of values to which options may be set.
 data QDHXBOptionSet = QDHXBOptionSet {
