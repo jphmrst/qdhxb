@@ -20,7 +20,7 @@ import Data.Symbol
 import Control.Monad.IO.Class
 import QDHXB.Utils.BPP
 -- import QDHXB.Utils.Debugln
-import QDHXB.Utils.Debugln.New
+import QDHXB.Utils.Debugln
 -- import QDHXB.Utils.Debugln.Class
 -- import QDHXB.Utils.Debugln.TH
 
