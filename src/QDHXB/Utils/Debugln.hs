@@ -173,12 +173,12 @@ makeDebuglnDefs switch = do
       whenAnyDebugging = whenM getDebuggingAny
 
       whenDebugging ::
-        forall m n . MonadDebugln m n => Subject -> Int -> m () -> m ()
+        forall m n . (MonadDebugln m n, MonadIO m) => Subject -> Int -> m () -> m ()
       whenDebugging subj base m = do
         whenAnyDebugging $ do
           vol <- getVolume subj
           case vol of
-            Just v | v <= base -> m
+            Just v | base <= v -> m
             _ -> return ()
 
       ifAnyDebugging :: forall m n a . MonadDebugln m n => m a -> m a -> m a

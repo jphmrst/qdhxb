@@ -80,7 +80,7 @@ translate_parsed_xsd xsds = do
             bLabelPrintln "Final: " schemaReps
 
           whenDebugging unique 0 $ liftIO $ putStrLn
-              "======================================== RENAMED NESTED INPUT"
+            "======================================== RENAMED NESTED INPUT"
           renamedSchemaReps <- ensureUniqueNames schemaReps
           putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
             ++ "\n------------------------------ "
