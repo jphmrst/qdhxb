@@ -196,7 +196,8 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _hn _ln doc) = do
                     decoder doc
 
 
-xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) hnam _l ifd) = do
+xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _)
+                                  _hnam _l ifd) = do
   whenAnyDebugging $ dbgBLabel "Generating from (g) " d
   let xmlName = qName nam
       rootName = firstToUpper xmlName

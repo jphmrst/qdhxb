@@ -351,6 +351,7 @@ instance Blockable AttributeScheme where
   block (SingleAttribute nameOrRef ifHName ifType mode _d) =
     stringToBlock "single attr "
     `follow` block nameOrRef
+    `follow` stringToBlock ", Haskell class "
     `follow` block ifHName
     `stack2` stringToBlock "  type="
     `follow` block ifType
@@ -394,9 +395,28 @@ unique_internals_attr_scheme ::
 unique_internals_attr_scheme attrsc@(SingleAttribute nameOrRef ifhn ifType
                                                      mode ifDoc) = do
   dbgLn unique 3 $ "unique_internals for attr " ++ show nameOrRef
+
+  -- Check whether the implementation class name should be changed
+  ifhn' <- case ifhn of
+    Just hn -> do
+      dbgLn unique 3 $ "Checking name " ++ hn
+      indenting $ do
+        substs <- indenting $ makeNeededSubstitutions [hn]
+        dbgLn unique 3 $ "substs " ++ show substs
+        dbgResult unique 3 "Name is " $
+          hoistUpdate $ fmap (substString substs) ifhn
+    Nothing -> return $ Same ifhn
+  dbgBLabel unique 3 "ifhn' " ifhn'
+
+  -- Recur on the type
   ifType' <- indenting $ unique_internals_QNameOr ifType
-  return $ assembleIfUpdated [Upd ifType'] attrsc $
-    SingleAttribute nameOrRef ifhn (resultOnly ifType') mode ifDoc
+  dbgBLabel unique 3 "ifType' " ifType'
+
+  -- Put the result together
+  dbgResult unique 3 "[uias] returns" $
+    assembleIfUpdated [Upd ifType', Upd ifhn'] attrsc $
+      SingleAttribute nameOrRef (resultOnly ifhn') (resultOnly ifType')
+                      mode ifDoc
 unique_internals_attr_scheme ag@(AttributeGroup nameOrRef attrDefs ifDoc) = do
   dbgLn unique 3 $ "unique_internals for attr group " ++ show nameOrRef
   attrDefs' <- indenting $ fmap hoistUpdate $

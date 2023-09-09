@@ -8,6 +8,7 @@
 module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
                            Upd(..), assembleIfUpdated,
                            Substitutions, substString, substQName,
+                           makeNeededSubstitutions,
                            AST(..)) where
 
 -- import Text.XML.Light.Output
@@ -127,12 +128,12 @@ class (Blockable ast, Blockable [ast]) => AST ast where
       -- First harvest the top-level bound names in the `DataScheme`
       -- list.
       let bound_names = getBoundNameStrings dss
-      dbgBLabel unique 0 "- top-level bound names: " bound_names
+      dbgBLabel unique 2 "- top-level bound names: " bound_names
 
       -- Log the fresh names, and issue a substitution for any which
       -- are already used.
-      substs <- indenting $ make_needed_substitutions bound_names
-      dbgBLabel unique 0 "- substs: " substs
+      substs <- indenting $ makeNeededSubstitutions bound_names
+      dbgBLabel unique 2 "- substs: " substs
 
       -- Now apply these substitutions.
       dssR' <- case substs of
@@ -143,44 +144,44 @@ class (Blockable ast, Blockable [ast]) => AST ast where
               indenting $
                 dbgPt unique 1 "Calling applySubstitutions on substs"
               return $ applySubstitutions substs dss
-      dbgBLabel unique 0 "- ensureUniqueNames' dssR' is " dssR'
+      dbgBLabel unique 2 "- ensureUniqueNames' dssR' is " dssR'
 
       -- Finally rename any nonunique hidden names within the scope of
       -- each `DataScheme` in the input list.
       dssR'' <- indenting $ fmap hoistUpdate $
         mapM ensureUniqueInternalNames $ resultOnly dssR'
-      dbgBLabel unique 0 "- ensureUniqueNames' dssR'' is " dssR''
+      dbgBLabel unique 2 "- ensureUniqueNames' dssR'' is " dssR''
 
-      dbgResult unique 0 "- ensureUniqueNames' result: " $
+      dbgResult unique 1 "- ensureUniqueNames' result: " $
         assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
 
 
   -- | Special case of `ensureUniqueNames'` for a single @ast@.
   ensureUniqueNames1 :: ast -> XSDQ (MaybeUpdated ast)
   ensureUniqueNames1 ds = do
-    dbgBLabel unique 0 "- ensureUniqueNames1 on " $ debugSlug ds
+    dbgBLabel unique 1 "- ensureUniqueNames1 on " $ debugSlug ds
 
     -- First harvest any top-level bound name(s?) in the `DataScheme`.
     let bound_names = getBoundNameStringsFrom ds
-    dbgBLabel unique 0 "- top-level bound names: " bound_names
+    dbgBLabel unique 2 "- top-level bound names: " bound_names
 
     -- Log the fresh names, and issue a substitution for any which are
     -- already used.
-    substs <- indenting $ make_needed_substitutions bound_names
-    dbgBLabel unique 0 "- substs: " substs
+    substs <- indenting $ makeNeededSubstitutions bound_names
+    dbgBLabel unique 2 "- substs: " substs
 
     -- Now apply these substitutions.
     let dsR' = case substs of
           [] -> Same ds
           _ -> applySubstitutionsTo substs ds
-    dbgBLabel unique 0 "- ensureUniqueNames1 dsR' is " dsR'
+    dbgBLabel unique 2 "- ensureUniqueNames1 dsR' is " dsR'
 
     -- Finally rename any nonunique hidden names within the scope of
     -- the `DataScheme`.
     dsR'' <- indenting $ ensureUniqueInternalNames $ resultOnly dsR'
-    dbgBLabel unique 0 "- ensureUniqueNames1 dsR'' is " dsR''
+    dbgBLabel unique 2 "- ensureUniqueNames1 dsR'' is " dsR''
 
-    dbgResult unique 0 "- ensureUniqueNames1 result: " $
+    dbgResult unique 1 "- ensureUniqueNames1 result: " $
       assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
 
 
@@ -208,20 +209,20 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 -- | Process a list of names with respect to the current `XSDQ` state:
 -- log the fresh names as in use, and issue a substitution for any
 -- which are already used.
-make_needed_substitutions :: [String] -> XSDQ Substitutions
-make_needed_substitutions = make_needed_substitutions' []
-  where make_needed_substitutions' ::
-          Substitutions -> [String] -> XSDQ Substitutions
-        make_needed_substitutions' acc [] = return acc
-        make_needed_substitutions' acc (x:xs) = do
+makeNeededSubstitutions :: [String] -> XSDQ [(String, String)]
+makeNeededSubstitutions = makeNeededSubstitutions' []
+  where makeNeededSubstitutions' ::
+          [(String, String)] -> [String] -> XSDQ [(String, String)]
+        makeNeededSubstitutions' acc [] = return acc
+        makeNeededSubstitutions' acc (x:xs) = do
           inUse <- typeNameIsInUse x
           if inUse
             then do
               fresh <- freshenStringForBinding Nothing Nothing x
-              make_needed_substitutions' ((x,fresh):acc) xs
+              makeNeededSubstitutions' ((x,fresh):acc) xs
             else do
               addUsedTypeName x
-              make_needed_substitutions' acc xs
+              makeNeededSubstitutions' acc xs
 
 -- | Apply a substitution to a `String`.
 substString :: Substitutions -> String -> MaybeUpdated String
