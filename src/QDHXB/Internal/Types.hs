@@ -218,7 +218,7 @@ instance Blockable Definition where
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
   block (AttributeDefn n sp hn _ _) =
-    labelBlock ("Attribute " ++ showQName n ++ " Haskell type " ++ hn) $
+    labelBlock ("Attribute " ++ showQName n ++ " Haskell type " ++ hn ++ " ") $
       block sp
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t

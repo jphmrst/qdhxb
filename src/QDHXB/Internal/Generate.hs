@@ -197,13 +197,16 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _hn _ln doc) = do
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _)
-                                  _hnam _l ifd) = do
-  whenAnyDebugging $ dbgBLabel "Generating from (g) " d
-  let xmlName = qName nam
+                                  hnam _l ifd) = do
+  dbgBLabel "Generating from (g) " d
+  let xmlName = hnam -- qName nam
       rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName -- ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ "tryDecodeAs" ++ rootName
+  dbgBLabel "xmlName " xmlName
+  dbgBLabel "rootName " rootName
+  dbgBLabel "rootTypeName " rootTypeName
 
   -- TODO Much of this is in getSafeDecoderBody --- prune out  duplication
 
