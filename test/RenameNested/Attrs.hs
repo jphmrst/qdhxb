@@ -7,9 +7,9 @@ import QDHXB
 import qualified QDHXB.Expansions
 import Data.Symbol
 
+import QDHXB.Internal.Debugln
 -- TODO with multiple attributes of the same name
--- qdhxb (useDebugging . logByFile True) ["test/RenameNested/attrs.xsd"]
--- qdhxb (setDebugging (intern "L0") 2) ["test/RenameNested/attrs.xsd"]
+qdhxb (setDebugging unique 3 . setDebugging input 0) ["test/RenameNested/attrs.xsd"]
 -- qdhxb' ["test/RenameNested/attrs.xsd"]
 
 testNestedAttrs :: TLT IO ()

@@ -115,9 +115,9 @@ makeDebuglnDefs switch = do
           DebuglnState (map (\(s,v) -> (subjectSymbol s,v)) volumes) "" ind
         return result
 
-      class (Monad m, Monad n) => MonadDebugln m n | m -> n where
+      class (MonadIO m, MonadIO n) => MonadDebugln m n | m -> n where
         liftDebugln :: Debugln n a -> m a
-      instance Monad m => MonadDebugln (Debugln m) m where
+      instance MonadIO m => MonadDebugln (Debugln m) m where
         liftDebugln = id
       instance MonadDebugln m n => MonadDebugln (MaybeT m) n where
         liftDebugln = lift . liftDebugln
@@ -173,7 +173,7 @@ makeDebuglnDefs switch = do
       whenAnyDebugging = whenM getDebuggingAny
 
       whenDebugging ::
-        forall m n . (MonadDebugln m n, MonadIO m) => Subject -> Int -> m () -> m ()
+        forall m n . (MonadDebugln m n) => Subject -> Int -> m () -> m ()
       whenDebugging subj base m = do
         whenAnyDebugging $ do
           vol <- getVolume subj
@@ -202,23 +202,23 @@ makeDebuglnDefs switch = do
         return result
 
       _putStrIndenting ::
-        forall m n . (MonadDebugln m n, MonadIO m) => String -> m ()
+        forall m n . (MonadDebugln m n) => String -> m ()
       _putStrIndenting str = do
         state <- debuggingState
         liftIO $ putStrLn $ indentation state ++ str
 
       dbgLn ::
-        forall m n . (MonadDebugln m n, MonadIO m) =>
+        forall m n . (MonadDebugln m n) =>
           Subject -> Int -> String -> m ()
       dbgLn subj base str =
         whenDebugging subj base $ _putStrIndenting str
 
       dbgPt ::
-        forall m n . (MonadDebugln m n, MonadIO m) =>
+        forall m n . (MonadDebugln m n) =>
           Subject -> Int -> String -> m ()
       dbgPt subj base str = dbgLn subj base $ "- " ++ str
 
-      boxed :: forall m n a . (MonadDebugln m n, MonadIO m) => m a -> m a
+      boxed :: forall m n a . (MonadDebugln m n) => m a -> m a
       boxed m = do
         _putStrIndenting "+----------"
         state <- debuggingState
@@ -303,16 +303,16 @@ makeDebuglnDefs switch = do
       indenting :: MonadDebugln m n => m a -> m a
       indenting m = m
 
-      _putStrIndenting :: (MonadDebugln m n, MonadIO m) => String -> m ()
+      _putStrIndenting :: (MonadDebugln m n) => String -> m ()
       _putStrIndenting _ = return ()
 
-      dbgLn :: (MonadDebugln m n, MonadIO m) => Subject -> Int -> String -> m ()
+      dbgLn :: (MonadDebugln m n) => Subject -> Int -> String -> m ()
       dbgLn _ _ _ = return ()
 
-      dbgPt :: (MonadDebugln m n, MonadIO m) => Subject -> Int -> String -> m ()
+      dbgPt :: (MonadDebugln m n) => Subject -> Int -> String -> m ()
       dbgPt _ _ _ = return ()
 
-      boxed :: (MonadDebugln m n, MonadIO m) => m a -> m a
+      boxed :: (MonadDebugln m n) => m a -> m a
       boxed m = m
 
       |]

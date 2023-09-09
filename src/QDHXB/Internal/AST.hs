@@ -12,24 +12,13 @@ module QDHXB.Internal.AST (MaybeUpdated(..), Hoistable, hoistUpdate,
 
 -- import Text.XML.Light.Output
 import Data.Kind (Type)
-import Control.Monad.IO.Class
 import Text.XML.Light.Types
 import QDHXB.Utils.XMLLight (inSameNamspace)
+import QDHXB.Internal.Debugln
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Types
 import QDHXB.Utils.BPP
 import QDHXB.Utils.Misc (applySnd)
-
-import QDHXB.Internal.Debugln hiding (dbgLn, dbgPt, dbgBLabel, dbgResult)
-import qualified QDHXB.Internal.Debugln as DBG
-dbgLn :: (MonadDebugln m n, MonadIO m) => Int -> String -> m ()
-dbgLn = DBG.dbgLn unique
-dbgPt :: (MonadDebugln m n, MonadIO m) => Int -> String -> m ()
-dbgPt = DBG.dbgPt unique
-dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
-dbgBLabel = DBG.dbgBLabel xsdq 0
-dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
-dbgResult = DBG.dbgResult xsdq 0
 
 -- | Finite set of substitutions of one `QName` for another.
 type Substitutions = [(String, String)]
@@ -40,7 +29,7 @@ type Substitutions = [(String, String)]
 data MaybeUpdated a = Same { resultOnly :: a } | Updated { resultOnly :: a }
 
 instance Blockable a => Blockable (MaybeUpdated a) where
-  block (Same v) = stringToBlock "[Unchanged]" `stack2` block v
+  block (Same v) = stringToBlock "[Unchanged]"
   block (Updated v) = stringToBlock "[Updated]" `stack2` block v
 
 instance Functor MaybeUpdated where
@@ -80,97 +69,20 @@ assembleIfUpdated elems ifPrev ifNew =
         hasUpdate [] = False
         hasUpdate (Upd (Same _) : elems') = hasUpdate elems'
         hasUpdate (Upd (Updated _) : _) = True
-
--- | Class of abstract syntax trees @ast@ which
+
+-- | Class of abstract syntax trees @ast@ representing possibly-nested
+-- XSD declarations.
 class (Blockable ast, Blockable [ast]) => AST ast where
+
+  -- =================================================================
+  -- The four top-level routines, forming a pipeline from XML input,
+  -- to this AST representation, to the common flattened intermediate
+  -- representation.
+  -- =================================================================
 
   -- | Rewrite otherwise-unstructured parsed XML content as a sequence
   -- of ASTs.
   decodeXML :: [Content] -> XSDQ [ast]
-
-  -- | Traverse a list of ASTs to collect the top-level bound names.
-  getBoundNameStrings :: [ast] -> [String]
-  getBoundNameStrings = concat . map getBoundNameStringsFrom
-
-  -- | Traverse a single AST to collect the top-level bound names.
-  getBoundNameStringsFrom :: ast -> [String]
-
-  -- | Rename any nonunique hidden names within the scope of the given
-  -- @ast@.  This is a case over the structure of the @ast@ type, and
-  -- applying `ensureUniqueNames` to recursively-held lists of ASTs.
-  -- Used by `QDHXB.Internal.AST.ensureUniqueNames`.
-  ensureUniqueInternalNames :: ast -> XSDQ (MaybeUpdated ast)
-
-  -- | Apply the given substitutions to the given ASTs.
-  applySubstitutions :: Substitutions -> [ast] -> MaybeUpdated [ast]
-  applySubstitutions substs = hoistUpdate . map (applySubstitutionsTo substs)
-
-  -- | Apply the given substitutions to the given AST.
-  applySubstitutionsTo :: Substitutions -> ast -> MaybeUpdated ast
-
-  -- | Helper function for the `ensureUniqueNames` method, noting
-  -- whether the result and argument differ.
-  ensureUniqueNames' :: [ast] -> XSDQ (MaybeUpdated [ast])
-  ensureUniqueNames' dss = do
-    whenAnyDebugging $ dbgBLabel "Starting ensureUniqueNames' on " dss
-
-    -- First harvest the top-level bound names in the `DataScheme`
-    -- list.
-    let bound_names = getBoundNameStrings dss
-    whenAnyDebugging $ dbgBLabel "- top-level bound names: " bound_names
-
-    -- Log the fresh names, and issue a substitution for any which are
-    -- already used.
-    substs <- indenting $ make_needed_substitutions bound_names
-    whenAnyDebugging $ dbgBLabel "- substs: " substs
-
-    -- Now apply these substitutions.
-    dssR' <- case substs of
-          [] -> do
-            whenAnyDebugging $ indenting $ dbgPt 1 "No substs"
-            return $ Same dss
-          _ -> do
-            whenAnyDebugging $ indenting $
-              dbgPt 1 "Calling applySubstitutions on substs"
-            return $ applySubstitutions substs dss
-    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames' dssR' is " dssR'
-
-    -- Finally rename any nonunique hidden names within the scope of
-    -- each `DataScheme` in the input list.
-    dssR'' <- indenting $ fmap hoistUpdate $
-      mapM ensureUniqueInternalNames $ resultOnly dssR'
-    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames' dssR'' is " dssR''
-
-    dbgResult "- ensureUniqueNames' result: " $
-      assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
-
-  -- | Special case of `ensureUniqueNames'` for a single @ast@.
-  ensureUniqueNames1 :: ast -> XSDQ (MaybeUpdated ast)
-  ensureUniqueNames1 ds = do
-    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 on " $ debugSlug ds
-
-    -- First harvest any top-level bound name(s?) in the `DataScheme`.
-    let bound_names = getBoundNameStringsFrom ds
-    whenAnyDebugging $ dbgBLabel "- top-level bound names: " bound_names
-
-    -- Log the fresh names, and issue a substitution for any which are
-    -- already used.
-    substs <- indenting $ make_needed_substitutions bound_names
-    whenAnyDebugging $ dbgBLabel "- substs: " substs
-
-    -- Now apply these substitutions.
-    let dsR' = case substs of
-          [] -> Same ds
-          _ -> applySubstitutionsTo substs ds
-    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 dsR' is " dsR'
-
-    -- Finally rename any nonunique hidden names within the scope of
-    -- the `DataScheme`.
-    dsR'' <- indenting $ ensureUniqueInternalNames $ resultOnly dsR'
-    whenAnyDebugging $ dbgBLabel "- ensureUniqueNames1 dsR'' is " dsR''
-
-    dbgResult "- ensureUniqueNames1 result: " $
-      assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
 
   -- | Pipeline step renaming multiply-used names in different nested
   -- scopes.  Since Haskell does not have nested scoping of types and
@@ -184,7 +96,7 @@ class (Blockable ast, Blockable [ast]) => AST ast where
   -- the intermediate-copy-avoiding `MaybeUpdated` tag is removed!
   ensureUniqueNames :: [ast] -> XSDQ [ast]
   ensureUniqueNames dss = do
-    whenAnyDebugging $ dbgLn 0 "Starting ensureUniqueNames"
+    dbgLn unique 0 "Starting ensureUniqueNames"
     fmap resultOnly $ ensureUniqueNames' dss
 
   -- | Rewrite the nested AST into short, flat definitions closer to
@@ -193,6 +105,105 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
   -- | For debugging
   debugSlug :: ast -> String
+
+  -- | Traverse a list of ASTs to collect the top-level bound names.
+  getBoundNameStrings :: [ast] -> [String]
+  getBoundNameStrings = concat . map getBoundNameStringsFrom
+
+
+  -- =================================================================
+  -- Function breaking down the implementation of `ensureUniqueNames`.
+  -- =================================================================
+
+  -- | Helper function for the `ensureUniqueNames` method, noting
+  -- whether the result and argument differ.
+  ensureUniqueNames' :: [ast] -> XSDQ (MaybeUpdated [ast])
+  ensureUniqueNames' dss = do
+    dbgLn unique 1 $
+      "Starting ensureUniqueNames' on ["
+      ++ foldr (\x -> \y -> debugSlug x ++ ", " ++ y) "" dss ++ "]"
+    indenting $ do
+
+      -- First harvest the top-level bound names in the `DataScheme`
+      -- list.
+      let bound_names = getBoundNameStrings dss
+      dbgBLabel unique 0 "- top-level bound names: " bound_names
+
+      -- Log the fresh names, and issue a substitution for any which
+      -- are already used.
+      substs <- indenting $ make_needed_substitutions bound_names
+      dbgBLabel unique 0 "- substs: " substs
+
+      -- Now apply these substitutions.
+      dssR' <- case substs of
+            [] -> do
+              indenting $ dbgPt unique 1 "No substs"
+              return $ Same dss
+            _ -> do
+              indenting $
+                dbgPt unique 1 "Calling applySubstitutions on substs"
+              return $ applySubstitutions substs dss
+      dbgBLabel unique 0 "- ensureUniqueNames' dssR' is " dssR'
+
+      -- Finally rename any nonunique hidden names within the scope of
+      -- each `DataScheme` in the input list.
+      dssR'' <- indenting $ fmap hoistUpdate $
+        mapM ensureUniqueInternalNames $ resultOnly dssR'
+      dbgBLabel unique 0 "- ensureUniqueNames' dssR'' is " dssR''
+
+      dbgResult unique 0 "- ensureUniqueNames' result: " $
+        assembleIfUpdated [Upd dssR', Upd dssR''] dss $ resultOnly dssR''
+
+
+  -- | Special case of `ensureUniqueNames'` for a single @ast@.
+  ensureUniqueNames1 :: ast -> XSDQ (MaybeUpdated ast)
+  ensureUniqueNames1 ds = do
+    dbgBLabel unique 0 "- ensureUniqueNames1 on " $ debugSlug ds
+
+    -- First harvest any top-level bound name(s?) in the `DataScheme`.
+    let bound_names = getBoundNameStringsFrom ds
+    dbgBLabel unique 0 "- top-level bound names: " bound_names
+
+    -- Log the fresh names, and issue a substitution for any which are
+    -- already used.
+    substs <- indenting $ make_needed_substitutions bound_names
+    dbgBLabel unique 0 "- substs: " substs
+
+    -- Now apply these substitutions.
+    let dsR' = case substs of
+          [] -> Same ds
+          _ -> applySubstitutionsTo substs ds
+    dbgBLabel unique 0 "- ensureUniqueNames1 dsR' is " dsR'
+
+    -- Finally rename any nonunique hidden names within the scope of
+    -- the `DataScheme`.
+    dsR'' <- indenting $ ensureUniqueInternalNames $ resultOnly dsR'
+    dbgBLabel unique 0 "- ensureUniqueNames1 dsR'' is " dsR''
+
+    dbgResult unique 0 "- ensureUniqueNames1 result: " $
+      assembleIfUpdated [Upd dsR', Upd dsR''] ds $ resultOnly dsR''
+
+
+  -- | Apply the given substitutions to the given ASTs.
+  applySubstitutions :: Substitutions -> [ast] -> MaybeUpdated [ast]
+  applySubstitutions substs = hoistUpdate . map (applySubstitutionsTo substs)
+
+  -- | Apply the given substitutions to the given AST.
+  applySubstitutionsTo :: Substitutions -> ast -> MaybeUpdated ast
+
+  -- | Traverse a single AST to collect the top-level bound names.
+  getBoundNameStringsFrom :: ast -> [String]
+
+  -- | Rename any nonunique hidden names within the scope of the given
+  -- @ast@.  This is a case over the structure of the @ast@ type, and
+  -- applying `ensureUniqueNames` to recursively-held lists of ASTs.
+  -- Used by `QDHXB.Internal.AST.ensureUniqueNames`.
+  ensureUniqueInternalNames :: ast -> XSDQ (MaybeUpdated ast)
+
+-- =================================================================
+-- Top-level (not part of the `AST` typeclass) helper functions for
+-- substitutions.
+-- =================================================================
 
 -- | Process a list of names with respect to the current `XSDQ` state:
 -- log the fresh names as in use, and issue a substitution for any

@@ -89,18 +89,18 @@ import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Debugln hiding (
   dbgLn, dbgPt, dbgBLabel, dbgBLabelFn1, dbgResult, dbgResultM)
 import qualified QDHXB.Internal.Debugln as DBG
-dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn :: (MonadDebugln m n) => String -> m ()
 dbgLn = DBG.dbgLn generate 0
-dbgPt :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgPt :: (MonadDebugln m n) => String -> m ()
 dbgPt = DBG.dbgPt generate 0
-dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel :: (MonadDebugln m n, Blockable c) => String -> c -> m ()
 dbgBLabel = DBG.dbgBLabel generate 0
 dbgBLabelFn1 ::
-  (MonadDebugln m n, MonadIO m, Blockable r) => String -> a -> (a -> r) -> m ()
+  (MonadDebugln m n, Blockable r) => String -> a -> (a -> r) -> m ()
 dbgBLabelFn1 = DBG.dbgBLabelFn1 blocks 0
-dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
 dbgResult = DBG.dbgResult generate 0
-dbgResultM :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> m a -> m a
+dbgResultM :: (MonadDebugln m n, Blockable a) => String -> m a -> m a
 dbgResultM = DBG.dbgResultM generate 0
 
 -- | Translate a list of XSD definitions to top-level Haskell
@@ -180,7 +180,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
 
   dbgResult "Generated" $ extractor ++ subextractor ++ loader
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _hn _ln doc) = do
   whenAnyDebugging $ dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoderBody nam
   whenAnyDebugging $ do
@@ -196,7 +196,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads) _ln doc) = do
                     decoder doc
 
 
-xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) _l ifd) = do
+xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _) hnam _l ifd) = do
   whenAnyDebugging $ dbgBLabel "Generating from (g) " d
   let xmlName = qName nam
       rootName = firstToUpper xmlName
@@ -417,7 +417,7 @@ getSafeStringDecoder qn = do
       BuiltinDefn _ _ _ efn -> return $ \src dest ->
         [BindS (VarP dest) $ efn $ VarE src]
       ElementDefn _ ty _ _ _ -> getSafeStringDecoder ty
-      AttributeDefn _ (SingleAttributeDefn ty _) _ _ ->
+      AttributeDefn _ (SingleAttributeDefn ty _) _ _ _ ->
         getSafeStringDecoder ty
       SimpleSynonymDefn _ ty _ _ -> getSafeStringDecoder ty
       ListDefn _ elemTyp _ _ -> do
@@ -444,7 +444,7 @@ getSafeStringDecoder qn = do
         throwError "No string decoder for complex choice"
       GroupDefn _ _ _ _ ->
         throwError "No string decoder for complex group"
-      AttributeDefn _ (AttributeGroupDefn _) _ _ ->
+      AttributeDefn _ (AttributeGroupDefn _) _ _ _ ->
         throwError "No string decoder for attr. defn. over group"
 
 getSafeDecoderBody :: QName -> XSDQ (BlockMaker Content dt)
@@ -534,7 +534,7 @@ getSafeDecoderBody qn = indenting $ do
         ElementDefn _ _ty _ _ _ -> do
           error "REDO/2"
           -- getSafeDecoderBody ty
-        AttributeDefn _ (SingleAttributeDefn _ty _) _ _ -> do
+        AttributeDefn _ (SingleAttributeDefn _ty _) _ _ _ -> do
           error "TODO"
         SimpleSynonymDefn _ _ty _ _ -> do
           error "REDO/3"

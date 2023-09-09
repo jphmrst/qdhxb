@@ -98,12 +98,6 @@ data AttributeDefn =
       [(QName, AttributeUsage)] -- ^ Names of included attributes and
                                 -- attribute groups, with how each is
                                 -- required within this group
-                                --
-                                -- TODO Should be (QName,
-                                -- AttributeUsage) --- and update uses
-                                -- in module Generate
-                                -- (xsdDeclToHaskell, AttributeDefn
-                                -- case)
   deriving Show
 
 instance Blockable AttributeDefn where
@@ -130,8 +124,8 @@ data Definition =
     -- ^ Defining the attributes and groups.
         QName -- ^ Name of the attribute/group.
         AttributeDefn -- ^ Specification of the attribute or group
-        -- TODO String -- ^ Base (type) name for the methods of this
-        --             -- attribute/group.
+        String -- ^ Base (type) name for the methods of this
+               -- attribute/group.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | SimpleSynonymDefn
@@ -223,8 +217,9 @@ instance Blockable Definition where
     `stack2` stringToBlock ("as " ++ impl)
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
-  block (AttributeDefn n sp _ _) =
-    labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
+  block (AttributeDefn n sp hn _ _) =
+    labelBlock ("Attribute " ++ showQName n ++ " Haskell type " ++ hn) $
+      block sp
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $

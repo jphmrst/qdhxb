@@ -26,7 +26,6 @@ module QDHXB.Internal.L0 (
 ) where
 
 import Language.Haskell.TH (newName, nameBase, Q, Dec)
-import Control.Monad.IO.Class
 import Data.List (intercalate)
 import Text.Read (readMaybe)
 import Text.XML.Light.Types
@@ -43,7 +42,11 @@ import QDHXB.Utils.XMLLight
 import QDHXB.Utils.ZeroOneMany
 
 import QDHXB.Internal.Debugln
-import qualified QDHXB.Internal.Debugln as DBG
+
+maybeqname_to_stringlist :: Maybe QName -> [String]
+maybeqname_to_stringlist (Just qn) = [qName qn]
+maybeqname_to_stringlist _ = []
+
 
 -- | A sort of variation of `Maybe` with two `Just` forms, for schema
 -- which allow either a @name@ or a @ref@ attribute, but not both, and
@@ -81,6 +84,16 @@ subst_NameOrRefOpt ((q1,q2):_) (WithRef q)  | qName q == q1 =
 subst_NameOrRefOpt ((q1,q2):_) (WithName q) | qName q == q1 =
   Updated $ WithName $ inSameNamspace q2 q
 subst_NameOrRefOpt (_:substs) n = subst_NameOrRefOpt substs n
+
+nameonly_to_stringlist :: NameOrRefOpt -> [String]
+nameonly_to_stringlist (WithName qn) = [qName qn]
+nameonly_to_stringlist _ = []
+
+instance Blockable NameOrRefOpt where
+  block (WithName n) = labelBlock "name=" $ block n
+  block (WithRef r)  = labelBlock "ref="  $ block r
+  block (WithNeither) = stringToBlock "(neither)"
+
 
 -- | Further details about @simpleType@ and @simpleContents@ XSD
 -- elements.
@@ -131,29 +144,41 @@ subst_sts substs sts@(List ifElemTypeQName ifNestedTypeDS) =
 -- `SimpleTypeScheme`s.
 unique_internals_sts :: SimpleTypeScheme -> XSDQ (MaybeUpdated SimpleTypeScheme)
 unique_internals_sts sts@(Synonym _) = do
-  whenAnyDebugging $ dbgLn unique 1 $
+  dbgLn unique 3 $
     "unique_internals_sts for " ++ bpp sts ++ " --- no change"
   return $ Same sts
 unique_internals_sts sts@(SimpleRestriction _) = do
-  whenAnyDebugging $ dbgLn unique 1 $
+  dbgLn unique 3 $
     "unique_internals_sts for " ++ bpp sts ++ " --- no change"
   return $ Same sts
 unique_internals_sts sts@(Union dss typeQNames) = do
-  whenAnyDebugging $ dbgLn unique 1 $ "unique_internals_sts for union"
+  dbgLn unique 3 $ "unique_internals_sts for union"
   dss' <- indenting $ fmap hoistUpdate $ mapM ensureUniqueInternalNames dss
-  dbgResult unique 1 "unique_internals_sts on union: " $
+  dbgResult unique 3 "unique_internals_sts on union: " $
     assembleIfUpdated [Upd dss'] sts $ Union (resultOnly dss') typeQNames
-unique_internals_sts sts@(List _ifElemTypeQName _ifNestedTypeDS) = do
-  whenAnyDebugging $ dbgLn unique 1 $
+unique_internals_sts sts@(List ifElemTypeQName (Just ds)) = do
+  dbgLn unique 3 $
     "unique_internals_sts for " ++ bpp sts ++ " --- no change"
-  return $ Same sts
-  {- TODO Weird bug here
-  ds' <- case ifNestedTypeDS of
-    Nothing -> return $ Same ifNestedTypeDS
-    Just ds -> ensureUniqueNames1 ds
+  ds' <- ensureUniqueNames1 ds
   return $ assembleIfUpdated [Upd ds'] sts $
-    List ifElemTypeQName (resultOnly ds')
--}
+    List ifElemTypeQName (Just $ resultOnly ds')
+unique_internals_sts sts@(List _ Nothing) = do
+  dbgLn unique 3 $
+    "unique_internals_sts for List with no nested DS --- no change to STS"
+  return $ Same sts
+
+instance Blockable SimpleTypeScheme where
+  block (Synonym t) = labelBlock "== " $ block t
+  block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
+  block (Union ds ns) = labelBlock "Union " (block ds `stack2` block ns)
+  block (List t Nothing) = labelBlock "List " $ block t
+  block (List Nothing t) = labelBlock "List " $ block t
+  block (List r t) = stackBlocks [
+    stringToBlock "List with both reference and subelement",
+    labelBlock "  reference " $ block r,
+    labelBlock "  element " $ block t
+    ]
+
 
 -- |This type is used in places where either a named reference or a
 -- nested specification might be used.
@@ -185,6 +210,11 @@ unique_internals_QNameOr qno@(Nested ds) = do
   return $ assembleIfUpdated [Upd ds'] qno $ Nested (resultOnly ds')
 unique_internals_QNameOr qno@Neither = return $ Same qno
 
+instance Blockable QNameOr where
+  block (NameRef qn) = block qn
+  block (Nested ds) = block ds
+  block (Neither) = stringToBlock "(neither)"
+
 
 
 -- | Further details about @complexType@ and @complexContents@ XSD
@@ -207,13 +237,31 @@ data ComplexTypeScheme =
           (Maybe Int) -- ^ ifMax
   deriving Show
 
-{-
-Composing dss attrSchs
+{- Composing dss attrSchs
 ComplexRestriction qn
 Extension qn dss
 Choice ifQn dss
 Group nameOrRef ifDS ifMin ifMax
 -}
+
+instance Blockable ComplexTypeScheme where
+  block (Composing ds as) =
+    (stringToBlock "Composing")
+    `stack2` labelBlock "  - subelements " (block ds)
+    `stack2` labelBlock "  - attributes " (block as)
+  block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
+  block (Extension base ds) =
+    (stringToBlock $ "Extension " ++ showQName base)
+    `stack2` indent "  " (block ds)
+  block (Choice base ds) =
+    (stringToBlock $ "Choice " ++ maybe "[unnamed]" showQName base)
+    `stack2` indent "  " (block ds)
+  block (Group nr contents ifMin ifMax) =
+    (labelBlock "Group " $ block nr)
+    `stack2` (labelBlock "  min=" $ block ifMin)
+    `stack2` (labelBlock "  max=" $ block ifMax)
+    `stack2` (indent "  " $ block contents)
+
 
 -- | Apply `Substitutions` to a `ComplexTypeScheme`.
 subst_cts ::
@@ -247,11 +295,16 @@ subst_cts ss cts@(Group nameOrRef ifDS ifMin ifMax) =
 unique_internals_cts ::
   ComplexTypeScheme -> XSDQ (MaybeUpdated ComplexTypeScheme)
 unique_internals_cts cts@(Composing dss attrSchs) = do
-  dss' <- indenting $ ensureUniqueNames' dss
-  attrSchs' <- indenting $ fmap hoistUpdate $
-    mapM unique_internals_attr_scheme attrSchs
-  return $ assembleIfUpdated [Upd dss', Upd attrSchs'] cts $
-    Composing (resultOnly dss') (resultOnly attrSchs')
+  dbgLn unique 3 "unique_internals_cts for Composing"
+
+  -- TODO --- Pull attribute class names here and generate
+  -- substitutions for duplicates?  Or:
+
+  indenting $ do
+    dss' <- ensureUniqueNames' dss
+    attrSchs' <- fmap hoistUpdate $ mapM unique_internals_attr_scheme attrSchs
+    return $ assembleIfUpdated [Upd dss', Upd attrSchs'] cts $
+      Composing (resultOnly dss') (resultOnly attrSchs')
 unique_internals_cts cts@(ComplexRestriction _) = return $ Same cts
 unique_internals_cts cts@(Extension qn dss) = do
   dss' <- indenting $ ensureUniqueNames' dss
@@ -265,6 +318,7 @@ unique_internals_cts cts@(Group nameOrRef ifDS ifMin ifMax) = do
                  ifDS
   return $ assembleIfUpdated [Upd ifDS'] cts $
     Group nameOrRef (resultOnly ifDS') ifMin ifMax
+
 
 -- | Details of attributes
 data AttributeScheme =
@@ -283,8 +337,27 @@ data AttributeScheme =
                                   -- provided.
   deriving Show
 
--- SingleAttribute nameOrRef ifTypeOr mode ifDoc
--- AttributeGroup nameOrRef attrSchs ifDoc
+{-
+SingleAttribute nameOrRef ifTypeOr mode ifDoc
+AttributeGroup nameOrRef attrSchs ifDoc
+-}
+
+instance Blockable AttributeScheme where
+  block (SingleAttribute nameOrRef ifType mode _d) =
+    stringToBlock "single attr "
+    `follow` block nameOrRef
+    `stack2` stringToBlock "  type="
+    `follow` block ifType
+    `follow` stringToBlock " mode="
+    `follow` stringToBlock mode
+  block (AttributeGroup nameRef attrs _d) =
+    stringToBlock "group "
+    `follow` block nameRef
+    `follow` stringToBlock " "
+    `stack2` (indent "  " $ block attrs)
+
+instance Blockable [AttributeScheme] where block = verticalBlockListFn
+
 
 attributeSchemeQname :: AttributeScheme -> Maybe QName
 attributeSchemeQname (SingleAttribute (WithName qn) _ _ _) = Just qn
@@ -311,12 +384,12 @@ unique_internals_attr_scheme ::
   AttributeScheme -> XSDQ (MaybeUpdated AttributeScheme)
 unique_internals_attr_scheme attrsc@(SingleAttribute nameOrRef ifType
                                                      mode ifDoc) = do
-  whenAnyDebugging $ dbgLn unique 1 $ "unique_internals for attr " ++ show nameOrRef
+  dbgLn unique 3 $ "unique_internals for attr " ++ show nameOrRef
   ifType' <- indenting $ unique_internals_QNameOr ifType
   return $ assembleIfUpdated [Upd ifType'] attrsc $
     SingleAttribute nameOrRef (resultOnly ifType') mode ifDoc
 unique_internals_attr_scheme ag@(AttributeGroup nameOrRef attrDefs ifDoc) = do
-  whenAnyDebugging $ dbgLn unique 1 $ "unique_internals for attr group " ++ show nameOrRef
+  dbgLn unique 3 $ "unique_internals for attr group " ++ show nameOrRef
   attrDefs' <- indenting $ fmap hoistUpdate $
     mapM unique_internals_attr_scheme attrDefs
   return $ assembleIfUpdated [Upd attrDefs'] ag $
@@ -397,6 +470,9 @@ data DataScheme =
                              -- underlying XML parser.
                 (Maybe String) -- ^ Documentation, typically from an
                                -- @annotation@ element, if provided.
+  -- `DataScheme` continues
+
+
   | ChoiceScheme -- ^ A @<choice>@ element.
                  NameOrRefOpt -- ^ name or reference, or possibly neither
                  (Maybe ComplexTypeScheme) -- ^ contents
@@ -431,7 +507,6 @@ Skip ->
 (ChoiceScheme nameOrRef typeScheme _ _) ->
 (UnprocessedXML ifName _ _) ->
 -}
-
 
 quoteShowQName :: QName -> String
 quoteShowQName s = "\"" ++ showQName s ++ "\""
@@ -482,6 +557,7 @@ nonSkip :: DataScheme -> Bool
 nonSkip Skip = False
 nonSkip _ = True
 
+
 instance Blockable DataScheme where
   block Skip = Block ["Skip"]
   block (ElementScheme ctnts ifName ifType ifRef ifId tagName
@@ -540,80 +616,19 @@ instance Blockable DataScheme where
 
   block (UnprocessedXML ifName _ln _doc) = stringToBlock $
     "Unprocessed XML" ++ maybe "" quoteShowQName ifName
-
-instance Blockable NameOrRefOpt where
-  block (WithName n) = labelBlock "name=" $ block n
-  block (WithRef r)  = labelBlock "ref="  $ block r
-  block (WithNeither) = stringToBlock "(neither)"
-
-instance Blockable SimpleTypeScheme where
-  block (Synonym t) = labelBlock "== " $ block t
-  block (SimpleRestriction r) = labelBlock "SimpleRestriction " $ block r
-  block (Union ds ns) = labelBlock "Union " (block ds `stack2` block ns)
-  block (List t Nothing) = labelBlock "List " $ block t
-  block (List Nothing t) = labelBlock "List " $ block t
-  block (List r t) = stackBlocks [
-    stringToBlock "List with both reference and subelement",
-    labelBlock "  reference " $ block r,
-    labelBlock "  element " $ block t
-    ]
-
-instance Blockable ComplexTypeScheme where
-  block (Composing ds as) =
-    (stringToBlock "Composing")
-    `stack2` labelBlock "  - subelements " (block ds)
-    `stack2` labelBlock "  - attributes " (block as)
-  block (ComplexRestriction r) = Block ["ComplexRestriction " ++ show r]
-  block (Extension base ds) =
-    (stringToBlock $ "Extension " ++ showQName base)
-    `stack2` indent "  " (block ds)
-  block (Choice base ds) =
-    (stringToBlock $ "Choice " ++ maybe "[unnamed]" showQName base)
-    `stack2` indent "  " (block ds)
-  block (Group nr contents ifMin ifMax) =
-    (labelBlock "Group " $ block nr)
-    `stack2` (labelBlock "  min=" $ block ifMin)
-    `stack2` (labelBlock "  max=" $ block ifMax)
-    `stack2` (indent "  " $ block contents)
-
-instance Blockable AttributeScheme where
-  block (SingleAttribute nameOrRef ifType mode _d) =
-    stringToBlock "single attr "
-    `follow` block nameOrRef
-    `stack2` stringToBlock "  type="
-    `follow` block ifType
-    `follow` stringToBlock " mode="
-    `follow` stringToBlock mode
-  block (AttributeGroup nameRef attrs _d) =
-    stringToBlock "group "
-    `follow` block nameRef
-    `follow` stringToBlock " "
-    `stack2` (indent "  " $ block attrs)
-
-instance Blockable QNameOr where
-  block (NameRef qn) = block qn
-  block (Nested ds) = block ds
-  block (Neither) = stringToBlock "(neither)"
 
 instance Blockable [DataScheme] where block = verticalBlockListFn
-instance Blockable [AttributeScheme] where block = verticalBlockListFn
+
 
 newtype PrimaryBundle = PB (Content, String, Maybe String, Maybe String, QName,
                             [Attr], [Content], Maybe Line)
-
-nameonly_to_stringlist :: NameOrRefOpt -> [String]
-nameonly_to_stringlist (WithName qn) = [qName qn]
-nameonly_to_stringlist _ = []
-
-maybeqname_to_stringlist :: Maybe QName -> [String]
-maybeqname_to_stringlist (Just qn) = [qName qn]
-maybeqname_to_stringlist _ = []
 
 instance Blockable PrimaryBundle where
   block (PB (_,_,_,_,q,a,c,_)) = stackBlocks [
     labelBlock "name " $ block q,
     labelBlock "attrs " $ block a,
     labelBlock "subcontents " $ block $ filter isElem c]
+
 
 instance AST DataScheme where
 
@@ -628,59 +643,6 @@ instance AST DataScheme where
     (GroupScheme nameOrRef _ _ _) -> nameonly_to_stringlist nameOrRef
     (ChoiceScheme nameOrRef _ _ _) -> nameonly_to_stringlist nameOrRef
     (UnprocessedXML ifName _ _) -> maybeqname_to_stringlist ifName
-
-  -- | Rename any nonunique hidden names within the scope of the given
-  -- @ast@, but not defined at top-level.  Used by
-  -- `QDHXB.Internal.AST.ensureUniqueNames`.  This is a case over the
-  -- structure of the @ast@ type, and applying `ensureUniqueNames` or
-  -- `ensureUniqueNames1` to recursively-held lists of ASTs.
-  ensureUniqueInternalNames dss@Skip = return $ Same dss
-  ensureUniqueInternalNames dss@((ElementScheme ifDS ifName ifType ifRef ifId
-                                                ifTag ifMin ifMax isAbstract
-                                                ifLn ifDoc)) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug dss
-    ifDS' <- maybe (return $ Same ifDS)
-                   (fmap (fmap Just) . ensureUniqueNames1) ifDS
-    return $ assembleIfUpdated [Upd ifDS'] dss $
-               ElementScheme (resultOnly ifDS') ifName ifType ifRef ifId
-                             ifTag ifMin ifMax isAbstract ifLn ifDoc
-  ensureUniqueInternalNames ats@(AttributeScheme scheme impl ifLn ifDoc) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug ats
-    scheme' <- indenting $ unique_internals_attr_scheme scheme
-    return $ assembleIfUpdated [Upd scheme'] ats $
-      AttributeScheme (resultOnly scheme') impl ifLn ifDoc
-  ensureUniqueInternalNames dss@(CTS form attrs ifName
-                                                   ifLn ifDoc) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug dss
-    form' <- indenting $ unique_internals_cts form
-    attrs' <- indenting $
-      fmap hoistUpdate $ mapM unique_internals_attr_scheme attrs
-    return $ assembleIfUpdated [Upd form', Upd attrs'] dss $
-      CTS (resultOnly form') (resultOnly attrs') ifName ifLn ifDoc
-  ensureUniqueInternalNames dss@(STS name sts ifLn ifDoc) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug dss
-    sts' <- indenting $ unique_internals_sts sts
-    return $ assembleIfUpdated [Upd sts'] dss $
-      STS name (resultOnly sts') ifLn ifDoc
-  ensureUniqueInternalNames dss@(GroupScheme nameOrRef ifCts ifLn ifDoc) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug dss
-    cts' <- case ifCts of
-              Just cts -> do
-                cts'' <- indenting $ unique_internals_cts cts
-                return $ fmap Just cts''
-              Nothing -> return $ Same ifCts
-    return $ assembleIfUpdated [Upd cts'] dss $
-      GroupScheme nameOrRef (resultOnly cts') ifLn ifDoc
-  ensureUniqueInternalNames dss@(ChoiceScheme nameOrRef ifCts ifLn ifDoc) = do
-    whenAnyDebugging $ dbgLn unique 1 $ "ensureUniqueInternalNames for " ++ debugSlug dss
-    cts' <- case ifCts of
-              Just cts -> do
-                cts'' <- indenting $ unique_internals_cts cts
-                return $ fmap Just cts''
-              Nothing -> return $ Same ifCts
-    return $ assembleIfUpdated [Upd cts'] dss $
-      ChoiceScheme nameOrRef (resultOnly cts') ifLn ifDoc
-  ensureUniqueInternalNames dss@(UnprocessedXML _ _ _) = return $ Same dss
 
   -- | Apply the given substitutions to the given AST.
   applySubstitutionsTo substs ast = case ast of
@@ -730,6 +692,68 @@ instance AST DataScheme where
       let ifName' = hoistUpdate $ fmap (substQName substs) ifName
       in assembleIfUpdated [Upd ifName'] ast $
            UnprocessedXML (resultOnly ifName') ifLn ifDoc
+
+
+  -- | Rename any nonunique hidden names within the scope of the given
+  -- @ast@, but not defined at top-level.  Used by
+  -- `QDHXB.Internal.AST.ensureUniqueNames`.  This is a case over the
+  -- structure of the @ast@ type, and applying `ensureUniqueNames` or
+  -- `ensureUniqueNames1` to recursively-held lists of ASTs.
+  ensureUniqueInternalNames dss@Skip = return $ Same dss
+  ensureUniqueInternalNames dss@((ElementScheme ifDS ifName ifType ifRef ifId
+                                                ifTag ifMin ifMax isAbstract
+                                                ifLn ifDoc)) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    ifDS' <- maybe (return $ Same ifDS)
+                   (fmap (fmap Just) . ensureUniqueNames1) ifDS
+    return $ assembleIfUpdated [Upd ifDS'] dss $
+               ElementScheme (resultOnly ifDS') ifName ifType ifRef ifId
+                             ifTag ifMin ifMax isAbstract ifLn ifDoc
+  ensureUniqueInternalNames ats@(AttributeScheme scheme impl ifLn ifDoc) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for " ++ debugSlug ats
+    scheme' <- indenting $ unique_internals_attr_scheme scheme
+    return $ assembleIfUpdated [Upd scheme'] ats $
+      AttributeScheme (resultOnly scheme') impl ifLn ifDoc
+
+  ensureUniqueInternalNames dss@(CTS form attrs ifName ifLn ifDoc) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for CTS " ++ debugSlug dss
+    indenting $ do
+      dbgLn unique 3 $ "Calling unique_internals_cts on the form"
+      form' <- indenting $ unique_internals_cts form
+      dbgBLabel unique 3 "form' " form'
+      dbgLn unique 3 $ "Calling unique_internals_attr_scheme on each attr"
+      attrs' <- indenting $
+        fmap hoistUpdate $ mapM unique_internals_attr_scheme attrs
+      dbgBLabel unique 3 "attrs' " attrs'
+      dbgResult unique 3 "[eUIN] result" $
+        assembleIfUpdated [Upd form', Upd attrs'] dss $
+          CTS (resultOnly form') (resultOnly attrs') ifName ifLn ifDoc
+
+  ensureUniqueInternalNames dss@(STS name sts ifLn ifDoc) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    sts' <- indenting $ unique_internals_sts sts
+    return $ assembleIfUpdated [Upd sts'] dss $
+      STS name (resultOnly sts') ifLn ifDoc
+  ensureUniqueInternalNames dss@(GroupScheme nameOrRef ifCts ifLn ifDoc) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    cts' <- case ifCts of
+              Just cts -> do
+                cts'' <- indenting $ unique_internals_cts cts
+                return $ fmap Just cts''
+              Nothing -> return $ Same ifCts
+    return $ assembleIfUpdated [Upd cts'] dss $
+      GroupScheme nameOrRef (resultOnly cts') ifLn ifDoc
+  ensureUniqueInternalNames dss@(ChoiceScheme nameOrRef ifCts ifLn ifDoc) = do
+    dbgLn unique 3 $ "ensureUniqueInternalNames for " ++ debugSlug dss
+    cts' <- case ifCts of
+              Just cts -> do
+                cts'' <- indenting $ unique_internals_cts cts
+                return $ fmap Just cts''
+              Nothing -> return $ Same ifCts
+    return $ assembleIfUpdated [Upd cts'] dss $
+      ChoiceScheme nameOrRef (resultOnly cts') ifLn ifDoc
+  ensureUniqueInternalNames dss@(UnprocessedXML _ _ _) = return $ Same dss
+
 
   -- | Converting `DataScheme`s to `Definition`s.
   flatten = fmap concat . mapM flattenSchemaItem . filter nonSkip
@@ -738,7 +762,7 @@ instance AST DataScheme where
       flattenSchemaItem :: DataScheme -> XSDQ [Definition]
       {-# INLINE flattenSchemaItem #-}
       flattenSchemaItem s = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSI] from " s
+        dbgBLabel flattening 1 "[fSI] from " s
         results <- indenting $ flattenSchemaItem' s
         dbgResult flattening 1 "Result [fSI]:" results
 
@@ -747,18 +771,18 @@ instance AST DataScheme where
 
       flattenSchemaItem' (ElementScheme contents ifName ifType ifRef _ifId
                                         ifTag ifMin ifMax abst l ifDoc) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSI'] Relaying to flattenElementSchemeItem"
+        dbgLn flattening 1 "[fSI'] Relaying to flattenElementSchemeItem"
         flattenElementSchemeItem contents ifName ifType ifRef ifTag ifMin ifMax
                                  abst l ifDoc
 
       flattenSchemaItem' (AttributeScheme
                           (SingleAttribute (WithName nam) (NameRef typ) m d')
                           _impl l d) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSI'] Flattening single attribute"
+        dbgLn flattening 1 "[fSI'] Flattening single attribute"
         let attrDefn =
               AttributeDefn nam
                 (SingleAttributeDefn typ $ stringToAttributeUsage m)
-                l (pickOrCombine d d')
+                (qName nam) l (pickOrCombine d d')
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" [attrDefn]
 
@@ -770,39 +794,38 @@ instance AST DataScheme where
                           (SingleAttribute (WithName nam) (Nested ds)
                                            use innerDoc)
                           _impl l outerDoc) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSI'] attribute with nested type"
+        dbgLn flattening 1 "[fSI'] attribute with nested type"
         (defs, ref) <- flattenSchemaRef ds
         let qn = referenceQName ref
         let attrDefn =
               AttributeDefn nam
                 (SingleAttributeDefn qn $ stringToAttributeUsage use)
-                l (pickOrCombine innerDoc outerDoc)
+                (qName nam) l (pickOrCombine innerDoc outerDoc)
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" $ defs ++ [attrDefn]
 
       flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) _i l d) = do
-        whenAnyDebugging $
-          dbgLn flattening 1 "[fSI'] Relaying to flattenAttributeGroupItem for "
+        dbgLn flattening 1 "[fSI'] Relaying to flattenAttributeGroupItem for "
         flattenAttributeGroupItem nr cs l d
-
+
       flattenSchemaItem' (CTS cts ats ifNam l d) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSI'] Relaying to flattenComplexTypeScheme"
+        dbgLn flattening 1 "[fSI'] Relaying to flattenComplexTypeScheme"
         flattenComplexTypeScheme cts ats ifNam l d
 
       flattenSchemaItem' s@(STS (Just n) (Synonym base) ln d) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSI'] Flattening simple synonym " s
+        dbgBLabel flattening 1 "[fSI'] Flattening simple synonym " s
         indenting $ do
           let tyDefn = SimpleSynonymDefn n base ln d
           fileNewDefinition tyDefn
           dbgResult flattening 1 "Flattened [fSI'] to" [tyDefn]
-
+
       -- TODO Insert cases of SimpleRestriction that we /can/ handle in the
       -- types here
 
       flattenSchemaItem' sts@(STS (Just nam)
                                                (SimpleRestriction base)
                                                ln d) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSI'] Flattening simple restriction " sts
+        dbgBLabel flattening 1 "[fSI'] Flattening simple restriction " sts
         indenting $ do
           let tyDefn = SimpleSynonymDefn nam base ln d
           addTypeDefn nam tyDefn
@@ -810,7 +833,7 @@ instance AST DataScheme where
 
       flattenSchemaItem' sts@(STS (Just nam) (Union alts ns)
                                                ln d) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSI'] Flattening simple union " sts
+        dbgBLabel flattening 1 "[fSI'] Flattening simple union " sts
         let nameUnnamed :: QName -> DataScheme -> DataScheme
             nameUnnamed q (ElementScheme ctnts Nothing ifType ifRef ifId
                                          ifTag ifMin ifMax isAbstract l ifDoc) =
@@ -846,16 +869,15 @@ instance AST DataScheme where
             pullRefLabel qn = (withSuffix (firstToUpper $ qName qn) nam, qn)
 
         labelledAlts <- mapM pullNestedLabel alts
-        -- whenAnyDebugging $ dbgBLabel flattening 1 "- labelledAlts " labelledAlts
+        -- dbgBLabel flattening 1 "- labelledAlts " labelledAlts
         let (names, defnss) = unzip labelledAlts
             defns = concat defnss
-        whenAnyDebugging $ do
-          dbgBLabel flattening 1 "- names " names
+        dbgBLabel flattening 1 "- names " names
           -- dbgBLabel flattening 1 "- defnss " defnss
         let fromMemberList = map pullRefLabel ns
-        whenAnyDebugging $ dbgBLabel flattening 1 "- fromMemberList " fromMemberList
+        dbgBLabel flattening 1 "- fromMemberList " fromMemberList
         let uDef = UnionDefn nam (names ++ fromMemberList) ln d
-        whenAnyDebugging $ dbgBLabel flattening 1 "- uDef " uDef
+        dbgBLabel flattening 1 "- uDef " uDef
         fileNewDefinition uDef
         dbgResult flattening 1 "Flattened [fSI'] to" $ defns ++ [uDef]
 
@@ -863,8 +885,7 @@ instance AST DataScheme where
       flattenSchemaItem' s@(STS (Just nam)
                              (List (Just elemTyp) Nothing)
                              ln d) = do
-        whenAnyDebugging $
-          dbgBLabel flattening 1
+        dbgBLabel flattening 1
             "[fSI'] Flattening simple list with referenced element type " s
         indenting $ do
           let lDef = ListDefn nam elemTyp ln d
@@ -874,8 +895,7 @@ instance AST DataScheme where
       flattenSchemaItem' s@(STS (Just nam)
                                              (List Nothing (Just inlineTyp))
                                              ln d) = do
-        whenAnyDebugging $
-          dbgBLabel flattening 1 "[fSI'] Flattening simple list with inline element " s
+        dbgBLabel flattening 1 "[fSI'] Flattening simple list with inline element " s
         indenting $ do
           (subdefs, subref) <- flattenSchemaRef inlineTyp
           let lDef = ListDefn nam (referenceQName subref) ln d
@@ -883,7 +903,7 @@ instance AST DataScheme where
           dbgResult flattening 1 "Flattened [fSI'] to" $ subdefs ++ [lDef]
 
       flattenSchemaItem' gs@(GroupScheme (WithName name) (Just cts) ln doc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1
+        dbgBLabel flattening 1
           "[fSI'] Flattening group scheme with name and present content " gs
         -- let typeSchemeName = withSuffix "GroupContent" name
         defs <- flattenComplexTypeScheme cts []
@@ -904,7 +924,7 @@ instance AST DataScheme where
         dbgResult flattening 1 "Flattened [fSI'] to" $ defs -- ++ [defn]
 
       flattenSchemaItem' gs@(GroupScheme (WithRef ref) Nothing ln _doc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1
+        dbgBLabel flattening 1
           "[fSI'] Flattening group scheme with reference and no content " gs
         boxed $ do
           dbgLn flattening 1 "TODO flattenSchemaItem' group with ref, no contents"
@@ -916,11 +936,12 @@ instance AST DataScheme where
           ++ maybe "(no XSD line num)" show ln
 
       flattenSchemaItem' s = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSI'] missed case"
+        dbgLn flattening 1 "[fSI'] missed case"
         boxed $ do
           dbgLn flattening 1 "TODO flattenSchemaItem' missed case"
           dbgBLabel flattening 1 "ARG " s
         error $ show $ labelBlock "TODO another flatten case: " $ block s
+
 
       flattenAttributeGroupItem ::
         NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
@@ -935,14 +956,14 @@ instance AST DataScheme where
           dbgLn flattening 1 $ "LN " ++ show l
           error "TODO flattenAttributeGroupItem unmatched"
         where flattenWithName n = do
-                whenAnyDebugging $ dbgLn flattening 1 "[fAGI] Flattening attribute group item"
+                dbgLn flattening 1 "[fAGI] Flattening attribute group item"
                 let names = map grabNameAndUsage cs
                 defs <- indenting $ flattenAttributes cs
-                let attrDefn = AttributeDefn n (AttributeGroupDefn names) l d
+                let attrDefn = AttributeDefn n (AttributeGroupDefn names)
+                                             (qName n) l d
                 fileNewDefinition attrDefn
                 let res = defs ++ [attrDefn]
                 return res
-
 
       flattenComplexTypeScheme ::
         ComplexTypeScheme -> [AttributeScheme] -> Maybe QName
@@ -950,7 +971,7 @@ instance AST DataScheme where
         -> XSDQ [Definition]
 
       flattenComplexTypeScheme c@(Composing cts ats0) ats (Just nam) l d = do
-        whenAnyDebugging $ dbgBLabel flattening 1 ("[fCTS] Complex composition at " ++ show l) c
+        dbgBLabel flattening 1 ("[fCTS] Complex composition at " ++ show l) c
         (defs, refs) <- indenting $
           musterComplexSequenceComponents (filter nonSkip cts) (ats0 ++ ats) nam
             -- TODO DOC possible to add a docstring here?
@@ -964,13 +985,13 @@ instance AST DataScheme where
         dbgResult flattening 1 "Flattened [fCTS] to" $ defs ++ [ tyDefn ]
 
       flattenComplexTypeScheme c@(ComplexRestriction base) _ (Just nam) l d = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fCTS] Complex restriction " c
+        dbgBLabel flattening 1 "[fCTS] Complex restriction " c
         let defn = ComplexSynonymDefn nam base l d
         fileNewDefinition defn
         dbgResult flattening 1 "Flattened [fCTS] to" $ [defn]
 
       flattenComplexTypeScheme e@(Extension base ds) _ats (Just nam) l d = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fCTS] Complex extension " e
+        dbgBLabel flattening 1 "[fCTS] Complex extension " e
         (defs, refs) <- indenting $ flattenSchemaRefs ds
         let defn =
               ExtensionDefn nam (TypeRef base (Just 1) (Just 1) l d) refs l d
@@ -978,10 +999,9 @@ instance AST DataScheme where
         dbgResult flattening 1 "Flattened [fCTS] to" $ defs ++ [defn]
 
       flattenComplexTypeScheme c@(Choice ifName contents) _ ifOuter ln doc = do
-        whenAnyDebugging $ do
-          dbgBLabel flattening 1 "[fCTS] Choice " c
-          dbgLn flattening 1 $ "- Line " ++ show ln
-          -- dbgBLabel flattening 1 "- contents " contents
+        dbgBLabel flattening 1 "[fCTS] Choice " c
+        dbgLn flattening 1 $ "- Line " ++ show ln
+        dbgBLabel flattening 5 "- contents " contents
         let name = maybe (maybe (QName "???" Nothing Nothing) id ifOuter)
                          id ifName
         (defs, refs) <- flattenSchemaRefs contents
@@ -995,24 +1015,24 @@ instance AST DataScheme where
       flattenComplexTypeScheme (Group (WithName n) (Just ctnt) ifMin ifMax)
                                ats ifName l d = do
         (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
-        whenAnyDebugging $ boxed $ do
+        boxed $ do
           dbgLn flattening 1 "TODO [fCTS] Group/WithName case"
           dbgLn flattening 1 "Group:"
-          dbgBLabel flattening 1 ". WithName N " n
-          dbgBLabel flattening 1 ". CTNT " $ ctnt
-          dbgBLabel flattening 1 ". IFMIN " ifMin
-          dbgBLabel flattening 1 ". IFMAX " ifMax
-          dbgBLabel flattening 1 "ATS " ats
-          dbgBLabel flattening 1 "IFNAME " ifName
-          dbgLn flattening 1 $ "L " ++ show l
-          dbgBLabel flattening 1 "FLATCTNT " $ flatCtnt
+          dbgBLabel flattening 3 ". WithName N " n
+          dbgBLabel flattening 3 ". CTNT " $ ctnt
+          dbgBLabel flattening 3 ". IFMIN " ifMin
+          dbgBLabel flattening 3 ". IFMAX " ifMax
+          dbgBLabel flattening 3 "ATS " ats
+          dbgBLabel flattening 3 "IFNAME " ifName
+          dbgLn flattening 3 $ "L " ++ show l
+          dbgBLabel flattening 3 "FLATCTNT " $ flatCtnt
         let defn = GroupDefn n ctntRef l d
         fileNewDefinition defn
         dbgResult flattening 1 "Flattened [fCTS] to" $ flatCtnt ++ [defn]
 
       flattenComplexTypeScheme (Group (WithRef r) Nothing ifMin ifMax)
                                ats (Just name) l d = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fCTS] Group/WithRef case"
+        dbgLn flattening 1 "[fCTS] Group/WithRef case"
         (defs, refs) <- indenting $ musterAttributesForComplexSequence [] [
           GroupRef r ifMin ifMax l d
           ] ats
@@ -1022,7 +1042,7 @@ instance AST DataScheme where
 
       flattenComplexTypeScheme (Group WithNeither (Just ctnt) ifMin ifMax)
                                ats (Just name) l d = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fCTS] Group/WithNeither case"
+        dbgLn flattening 1 "[fCTS] Group/WithNeither case"
         (flatCtnt, ctntRef) <- flattenSchemaRef ctnt
         boxed $ do
           dbgLn flattening 1 "TODO flattenComplexTypeScheme Group case"
@@ -1058,16 +1078,16 @@ instance AST DataScheme where
         -> XSDQ [Definition]
       flattenElementSchemeItem Nothing (Just nam) (Just typ) Nothing (Just tag)
                                _ _ _ ln ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESI] With name/type"
+        dbgLn flattening 1 "[fESI] With name/type"
         indenting $ flattenWithNameTypeOnly nam typ tag ln ifDoc
       flattenElementSchemeItem (Just Skip) (Just nam) (Just typ) _ (Just tag)
                                _ _ _ ln ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESI] Enclosing skip"
+        dbgLn flattening 1 "[fESI] Enclosing skip"
         indenting $ flattenWithNameTypeOnly nam typ tag ln ifDoc
       flattenElementSchemeItem (Just (STS _ ts ln d))
                                ifName@(Just nam) Nothing Nothing (Just tag)
                                 _ _ _ _ ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESI] Enclosing simple type scheme"
+        dbgLn flattening 1 "[fESI] Enclosing simple type scheme"
         flatTS <- flattenSchemaItem' $ STS ifName ts ln d
         -- TODO This will change when we switch ElementDefn to the new
         -- name/tag idea.
@@ -1077,11 +1097,10 @@ instance AST DataScheme where
       flattenElementSchemeItem (Just (CTS ts attrs ifCTSName l d))
                                ifElementName@(Just nam) Nothing Nothing
                                (Just tag) _ _ _ _ ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESI] Enclosing complex type scheme"
+        dbgLn flattening 1 "[fESI] Enclosing complex type scheme"
         let typeName = maybe nam id ifCTSName
         let ifTypeName = maybe ifElementName Just ifCTSName
-        whenAnyDebugging $
-          dbgLn flattening 1 "Flattening element scheme enclosing complex type scheme"
+        dbgLn flattening 1 "Flattening element scheme enclosing complex type scheme"
         flatTS <- flattenSchemaItem' $ CTS ts attrs ifTypeName l d
         -- TODO This will change when we switch ElementDefn to the new
         -- name/tag idea.
@@ -1091,7 +1110,7 @@ instance AST DataScheme where
       flattenElementSchemeItem Nothing ifName@(Just _)
                                Nothing Nothing t@(Just _) ifMax ifMin
                                True ifLine ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1
+        dbgLn flattening 1
           "[fESI] Abstract with name but no contents/type --- relay with any"
         anyType <- anyTypeQName
         flattenElementSchemeItem Nothing ifName (Just anyType) Nothing
@@ -1114,7 +1133,7 @@ instance AST DataScheme where
         QName -> QName -> QName -> Maybe Line -> Maybe String
         -> XSDQ [Definition]
       flattenWithNameTypeOnly nam typ impl ln ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "flattenWithNameTypeOnly"
+        dbgLn flattening 1 "flattenWithNameTypeOnly"
         -- TODO This will change when we switch ElementDefn to the new
         -- name/tag idea.
         let elemDefn = ElementDefn nam typ (qName impl) ln ifDoc
@@ -1126,26 +1145,23 @@ instance AST DataScheme where
         [DataScheme] ->  [AttributeScheme] -> QName
         -> XSDQ ([Definition], [Reference])
       musterComplexSequenceComponents steps ats _ = do
-        whenAnyDebugging $ do
-          dbgLn flattening 1 "musterComplexSequenceComponents"
-          dbgBLabel flattening 1 "- STEPS " steps
-          dbgBLabel flattening 1 "- ATS " ats
+        dbgLn flattening 1 "musterComplexSequenceComponents"
+        dbgBLabel flattening 1 "- STEPS " steps
+        dbgBLabel flattening 1 "- ATS " ats
         (otherDefs, refs) <- indenting $ flattenSchemaRefs steps
-        whenAnyDebugging $ do
-          dbgBLabel flattening 1 "- OTHERDEFS " otherDefs
-          dbgBLabel flattening 1 "- REFS " refs
-          dbgLn flattening 1 "Relaying to musterAttributesForComplexSequence"
+        dbgBLabel flattening 1 "- OTHERDEFS " otherDefs
+        dbgBLabel flattening 1 "- REFS " refs
+        dbgLn flattening 1 "Relaying to musterAttributesForComplexSequence"
         musterAttributesForComplexSequence otherDefs refs ats
 
       musterAttributesForComplexSequence ::
         [Definition] -> [Reference] ->  [AttributeScheme]
         -> XSDQ ([Definition], [Reference])
       musterAttributesForComplexSequence defs refs ats = do
-        whenAnyDebugging $ do
-          dbgLn flattening 1 "musterAttributesForComplexSequence"
-          dbgBLabel flattening 1 "- DEFS " defs
-          dbgBLabel flattening 1 "- REFS " refs
-          dbgBLabel flattening 1 "- ATS " ats
+        dbgLn flattening 1 "musterAttributesForComplexSequence"
+        dbgBLabel flattening 1 "- DEFS " defs
+        dbgBLabel flattening 1 "- REFS " refs
+        dbgBLabel flattening 1 "- ATS " ats
         (atsDefs, atsRefs) <- indenting $ flattenSchemaAttributeRefs ats
         dbgResult flattening 1 "Result [mAFCS]:" $
           (defs ++ atsDefs, atsRefs ++ refs)
@@ -1164,55 +1180,55 @@ instance AST DataScheme where
       flattenSchemaAttributeRefs ::
         [AttributeScheme] -> XSDQ ([Definition], [Reference])
       flattenSchemaAttributeRefs ass = do
-        whenAnyDebugging $
-          dbgLn flattening 1 "[flattenSchemaAttributeRefs] processing each by [fSchAR]"
+        dbgLn flattening 1 "[flattenSchemaAttributeRefs] processing each by [fSchAR]"
         defsRefs <- indenting $ mapM flattenSchemaAttributeRef ass
-        whenAnyDebugging $ dbgLn flattening 1 "returned from (mapM flattenSchemaAttributeRef)"
+        dbgLn flattening 1 "returned from (mapM flattenSchemaAttributeRef)"
         dbgResult flattening 1 "Result [fSAR]:" $
           applyFst concat $ unzip defsRefs
 
       flattenSchemaAttributeRef ::
         AttributeScheme -> XSDQ ([Definition], Reference)
       flattenSchemaAttributeRef r@(SingleAttribute nr t m d) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSchAR -> fSngAR] " r
+        dbgBLabel flattening 1 "[fSchAR -> fSngAR] " r
         flattenSingleAttributeRef nr t m Nothing d
       flattenSchemaAttributeRef r@(AttributeGroup nameRef cs d) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSchAR -> fAGR] " r
+        dbgBLabel flattening 1 "[fSchAR -> fAGR] " r
         flattenAttributeGroupRef nameRef cs Nothing d
 
       flattenSchemaRefs :: [DataScheme] -> XSDQ ([Definition], [Reference])
       flattenSchemaRefs =
         fmap (applyFst concat) . fmap unzip . mapM flattenSchemaRef
+
 
       flattenSchemaRef :: DataScheme -> XSDQ ([Definition], Reference)
       flattenSchemaRef (ElementScheme c ifName ifType ifRef _ifId _ifTag
                                       ifLower ifUpper _isAbstract ln ifDoc) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSR -> flattenElementSchemeRef]"
+        dbgLn flattening 1 "[fSR -> flattenElementSchemeRef]"
         flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
       flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') _i l d) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSR -> flattenSingleAttributeRef]"
+        dbgLn flattening 1 "[fSR -> flattenSingleAttributeRef]"
         flattenSingleAttributeRef nr t m l (pickOrCombine d d')
       flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) _i l d) = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSR -> flattenAttributeGroupRef]"
+        dbgLn flattening 1 "[fSR -> flattenAttributeGroupRef]"
         flattenAttributeGroupRef nameRef cs l d
       flattenSchemaRef c@(CTS _ _ (Just n) ifLine ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] CTS " c
+        dbgBLabel flattening 1 "[fSR] CTS " c
         defns <- indenting $ flattenSchemaItem c
         dbgResult flattening 1 "Flattened [fSR.CTS] to" $
           (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
       flattenSchemaRef s@(STS (Just n) _ ifLine ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] STS " s
+        dbgBLabel flattening 1 "[fSR] STS " s
         defns <- indenting $ flattenSchemaItem s
         dbgResult flattening 1 "Flattened [fSR.STS] to" $
           (defns, TypeRef n (Just 1) (Just 1) ifLine ifDoc)
 
       flattenSchemaRef gs@(GroupScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] GS-WR " gs
+        dbgBLabel flattening 1 "[fSR] GS-WR " gs
         dbgResult flattening 1 "Flattened [fSR.GS-WR] to" $
           ([], GroupRef ref (Just 1) (Just 1) ifLn ifDoc)
       flattenSchemaRef gs@(GroupScheme (WithName name) (Just sub)
                                        ifLn ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] GS-WN " gs
+        dbgBLabel flattening 1 "[fSR] GS-WN " gs
         defns <- indenting $
           flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
         dbgResult flattening 1 "Flattened [fSR.GS-WN] to" $
@@ -1225,13 +1241,13 @@ instance AST DataScheme where
         error $ "TODO flattenSchemaRef > GroupScheme with no name/reference"
 
       flattenSchemaRef gs@(ChoiceScheme (WithRef ref) _ifCtnts ifLn ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] CS-WR " gs
+        dbgBLabel flattening 1 "[fSR] CS-WR " gs
         dbgResult flattening 1
           "Flattened [fSR.CS-WR, just converting to type reference] to" $
             ([], TypeRef ref (Just 1) (Just 1) ifLn ifDoc)
       flattenSchemaRef gs@(ChoiceScheme (WithName name) (Just sub)
                                         ifLn ifDoc) = do
-        whenAnyDebugging $ dbgBLabel flattening 1 "[fSR] CS-WN " gs
+        dbgBLabel flattening 1 "[fSR] CS-WN " gs
         defns <- indenting $
           flattenComplexTypeScheme sub [] (Just name) ifLn ifDoc
         dbgResult flattening 1 "Flattened [fSR.GS-WN] to" $
@@ -1244,24 +1260,26 @@ instance AST DataScheme where
         error $ "TODO flattenSchemaRef > ChoiceScheme with no name/reference"
 
       flattenSchemaRef (UnprocessedXML _ ifLn ifDoc) = do
-        dbgResult flattening 1 "Flattened [fSR.UNPROC] to" ([], RawXML ifLn ifDoc)
+        dbgResult flattening 1
+          "Flattened [fSR.UNPROC] to" ([], RawXML ifLn ifDoc)
 
       flattenSchemaRef s = do
         boxed $ do
           dbgLn flattening 1 "[fSR] flattenSchemaRef"
           dbgBLabel flattening 1 "arg " s
         error $ "TODO flattenSchemaRef > additional case:"
+
 
       flattenAttributeGroupRef ::
         NameOrRefOpt -> [AttributeScheme] -> Maybe Line -> Maybe String
         -> XSDQ ([Definition], Reference)
       flattenAttributeGroupRef n@(WithName name) contents l d = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fAGR] WithName "
+        dbgLn flattening 1 "[fAGR] WithName "
         refs <- indenting $ flattenAttributeGroupItem n contents l d
         dbgResult flattening 1 (showQName name ++ " [fAGR] flattened to") $
           (refs, AttributeRef name Optional)
       flattenAttributeGroupRef (WithRef ref) [] _ln _d = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fAGR] WithRef "
+        dbgLn flattening 1 "[fAGR] WithRef "
         dbgResult flattening 1 (showQName ref ++ " [fAGR] flattened to") $
           ([], AttributeRef ref Optional)
       flattenAttributeGroupRef nameRef contents _ln _d = do
@@ -1270,19 +1288,19 @@ instance AST DataScheme where
           dbgBLabel flattening 1 "NAMEREF " nameRef
           dbgBLabel flattening 1 "CONTENTS " contents
         error $ "TODO flattenAttributeGroupRef > unmatched"
-
 
       flattenSingleAttributeRef ::
         NameOrRefOpt -> QNameOr -> String -> Maybe Line -> Maybe String
         -> XSDQ ([Definition], Reference)
       flattenSingleAttributeRef (WithRef ref) Neither useStr _ _ = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSAR] WithRef+Neither "
+        dbgLn flattening 1 "[fSAR] WithRef+Neither "
         let res = AttributeRef ref (stringToAttributeUsage useStr)
         dbgResult flattening 1 (showQName ref ++ " [fSAR] flattened to") ([], res)
       flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fSAR] WithRef+NameRef "
+        dbgLn flattening 1 "[fSAR] WithRef+NameRef "
         let defn = AttributeDefn nam
-                     (SingleAttributeDefn t $ stringToAttributeUsage m) l d
+                     (SingleAttributeDefn t $ stringToAttributeUsage m)
+                     (qName nam) l d
             ref = AttributeRef nam (stringToAttributeUsage m)
         fileNewDefinition defn
         dbgResult flattening 1 (showQName nam ++ " [fSAR] flattened to") ([defn], ref)
@@ -1309,30 +1327,28 @@ instance AST DataScheme where
       -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
       flattenElementSchemeRef Nothing Nothing Nothing (Just r) lower upper
                               ln _ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESR.1] all Nothing"
+        dbgLn flattening 1 "[fESR.1] all Nothing"
         let result = ElementRef r lower upper ln
-        whenAnyDebugging $ do
-          dbgLn flattening 1 $ "Flattening element schema with reference only"
-          dbgBLabel flattening 1 "  to " result
+        dbgLn flattening 1 $ "Flattening element schema with reference only"
+        dbgBLabel flattening 1 "  to " result
         dbgResult flattening 1 ("Ref to " ++ showQName r ++ " flattened [fESR.2] to")
           ([], result)
       flattenElementSchemeRef Nothing (Just n)
                               (Just t@(QName resolvedName _resolvedURI _))
                               Nothing lo up ln ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESR.3] first Nothing"
+        dbgLn flattening 1 "[fESR.3] first Nothing"
         isKnown <- isKnownType t
-        whenAnyDebugging $ dbgLn flattening 1 $
+        dbgLn flattening 1 $
           "- Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
         if isKnown then (do impl <-
                               freshenStringForBinding Nothing (Just n) $ qName n
                             let defn = ElementDefn n t impl ln ifDoc
                                 ref = ElementRef n lo up ln
                             fileNewDefinition defn
-                            whenAnyDebugging $ do
-                              dbgLn flattening 1 "Flattening schema with type"
-                              -- dbgBLabel flattening 1 "       " e
-                              dbgBLabel flattening 1 "    to " defn
-                              dbgBLabel flattening 1 "       " ref
+                            dbgLn flattening 1 "Flattening schema with type"
+                            -- dbgBLabel flattening 1 "       " e
+                            dbgBLabel flattening 1 "    to " defn
+                            dbgBLabel flattening 1 "       " ref
                             dbgResult flattening 1
                               ("Name ref " ++ showQName n
                                 ++ " flattened [fESR.4] to")
@@ -1343,51 +1359,50 @@ instance AST DataScheme where
                        ref = ElementRef n lo up ln
                    addTypeDefn n defn1
                    fileNewDefinition defn2
-                   whenAnyDebugging $ do
-                     dbgLn flattening 1 "  > Flattening element schema with name and type"
-                     -- dbgBLabel flattening 1 "       " e
-                     dbgBLabel flattening 1 "    to " defn1
-                     dbgBLabel flattening 1 "       " defn2
-                     dbgBLabel flattening 1 "       " ref
+                   dbgLn flattening 1
+                     "  > Flattening element schema with name and type"
+                   -- dbgBLabel flattening 1 "       " e
+                   dbgBLabel flattening 1 "    to " defn1
+                   dbgBLabel flattening 1 "       " defn2
+                   dbgBLabel flattening 1 "       " ref
                    dbgResult flattening 1
                      ("Ref to " ++ showQName n ++ " flattened [fESR.5] to")
                        ([defn1, defn2], ref))
       flattenElementSchemeRef s@(Just (CTS _ _ Nothing _ _))
                               n@(Just nam) t@Nothing r@Nothing lower upper
                               ln ifDoc = do
-        whenAnyDebugging $ dbgLn flattening 1 "[fESR.6] t and r and Nothing"
+        dbgLn flattening 1 "[fESR.6] t and r and Nothing"
         -- impl <- freshenStringForBinding Nothing n $ qName nam
         prev <- flattenElementSchemeItem s n t r n lower upper False ln ifDoc
         let ref = ElementRef nam lower upper ln
-        whenAnyDebugging $ do
-          dbgLn flattening 1 "Flattening element schema with name and nested complex type"
-          dbgBLabel flattening 1 "       " s
-          dbgBLabel flattening 1 "    to " prev
-          dbgBLabel flattening 1 "       " ref
+        dbgLn flattening 1
+          "Flattening element schema with name and nested complex type"
+        dbgBLabel flattening 1 "       " s
+        dbgBLabel flattening 1 "    to " prev
+        dbgBLabel flattening 1 "       " ref
         dbgResult flattening 1 "Flattened [fESR.7] to" (prev, ref)
       flattenElementSchemeRef s@(Just (CTS _ _ (Just schemeName) _ _))
                               n@(Just nam) t@Nothing r@Nothing
                               lower upper ln ifDoc = do
-        whenAnyDebugging $ do
-          dbgLn flattening 1 "[fESR.8] CTS name, scheme name, no t, no r"
-          indenting $ do
-            dbgBLabel flattening 1 "CONTENTS " s
-            dbgLn flattening 1 $ "SCHEMANAME (inner name) " ++ show schemeName
-            dbgLn flattening 1 $ "NAM " ++ show nam
-            dbgLn flattening 1 $ "IFTYPE Nothing"
-            dbgLn flattening 1 $ "IFREF  Nothing"
-            dbgLn flattening 1 $ "LOWER " ++ show lower
-            dbgLn flattening 1 $ "UPPER " ++ show upper
-            dbgLn flattening 1 $ "LN " ++ show ln
+        dbgLn flattening 1 "[fESR.8] CTS name, scheme name, no t, no r"
+        indenting $ do
+          dbgBLabel flattening 1 "CONTENTS " s
+          dbgLn flattening 1 $ "SCHEMANAME (inner name) " ++ show schemeName
+          dbgLn flattening 1 $ "NAM " ++ show nam
+          dbgLn flattening 1 $ "IFTYPE Nothing"
+          dbgLn flattening 1 $ "IFREF  Nothing"
+          dbgLn flattening 1 $ "LOWER " ++ show lower
+          dbgLn flattening 1 $ "UPPER " ++ show upper
+          dbgLn flattening 1 $ "LN " ++ show ln
         -- impl <- freshenStringForBinding Nothing n $ qName nam
         prev <- flattenElementSchemeItem s n t r n lower upper False ln ifDoc
-        whenAnyDebugging $ dbgBLabel flattening 1 "- prev " prev
+        dbgBLabel flattening 1 "- prev " prev
         let ref = ElementRef nam lower upper ln
-        whenAnyDebugging $ dbgBLabel flattening 1 "- ref " ref
+        dbgBLabel flattening 1 "- ref " ref
         dbgResult flattening 1 "Flattened [fESR.9] to" (prev, ref)
       flattenElementSchemeRef ctnts ifName ifType ifRef lower upper _ _ = do
         boxed $ do
-          whenAnyDebugging $ dbgLn flattening 1 "[fESR.10] flattenElementSchemeRef"
+          dbgLn flattening 1 "[fESR.10] flattenElementSchemeRef"
           dbgBLabel flattening 1 "CONTENTS " ctnts
           dbgLn flattening 1 $ "IFNAME " ++ show ifName
           dbgLn flattening 1 $ "IFTYPE " ++ show ifType
@@ -1402,60 +1417,53 @@ instance AST DataScheme where
 
       flattenAttribute :: AttributeScheme -> XSDQ [Definition]
       flattenAttribute (SingleAttribute (WithRef _) Neither _ _) = do
-        whenAnyDebugging $ do
-          dbgLn flattening 1 "[fA] single attribute by ref"
-          dbgLn flattening 1 "- Defined elsewhere --- returning []"
+        dbgLn flattening 1 "[fA] single attribute by ref"
+        dbgLn flattening 1 "- Defined elsewhere --- returning []"
         return []
       flattenAttribute sa@(SingleAttribute (WithName n) (NameRef typ)
                                            mode d) = do
-        whenAnyDebugging $
-          dbgBLabel flattening 1 "[fA] single attribute with type reference " sa
+        dbgBLabel flattening 1 "[fA] single attribute with type reference " sa
         indenting $ do
           let defn = AttributeDefn n (SingleAttributeDefn typ $
                                         stringToAttributeUsage mode)
-                                   Nothing d
+                                   (qName n) Nothing d
           fileNewDefinition defn
           dbgResult flattening 1 "Flattened [fA] to" $ [defn]
       flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
-        whenAnyDebugging $
-          dbgBLabel flattening 1 "[fA] Single attribute with nested type " sa
+        dbgBLabel flattening 1 "[fA] Single attribute with nested type " sa
         (defs, ref) <- indenting $ flattenSchemaRef ds
-        whenAnyDebugging $ do
-          dbgLn flattening 1 $ "(Back in flattenAttribute)"
-          dbgBLabel flattening 1 "- defs " defs
-          dbgBLabel flattening 1 "- ref " ref
+        dbgLn flattening 1 $ "(Back in flattenAttribute)"
+        dbgBLabel flattening 1 "- defs " defs
+        dbgBLabel flattening 1 "- ref " ref
         case ref of
           TypeRef qn (Just 1) (Just 1) _ _ -> do
-            whenAnyDebugging $
-              dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", min/max single"
+            dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", min/max single"
             let defn = AttributeDefn n
                          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         Nothing d
+                         (qName n) Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn Nothing Nothing _ _ -> do
-            whenAnyDebugging $
-              dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", no bounds"
+            dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", no bounds"
             let defn = AttributeDefn n
                          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         Nothing d
+                         (qName n) Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn mn (Just 1) _ _ -> do
-            whenAnyDebugging $ do
-              dbgLn flattening 1 $
-                "Case for TypeRef " ++ showQName qn ++ ", min bound "
-                  ++ show mn ++ ", max bound 1"
-              boxed $ do
-                dbgLn flattening 1 "flattenAttribute nested single"
-                dbgBLabel flattening 1 "N " n
-                dbgBLabel flattening 1 "DS " ds
-                dbgLn flattening 1 $ "MODE " ++ mode
-                dbgLn flattening 1 $ "D " ++ show d
-                dbgLn flattening 1 ""
-                dbgLn flattening 1 "flattenAttribute nested single (II)"
-                dbgBLabel flattening 1 "DEFS" defs
-                dbgBLabel flattening 1 "REF" ref
+            dbgLn flattening 1 $
+              "Case for TypeRef " ++ showQName qn ++ ", min bound "
+                ++ show mn ++ ", max bound 1"
+            boxed $ do
+              dbgLn flattening 1 "flattenAttribute nested single"
+              dbgBLabel flattening 1 "N " n
+              dbgBLabel flattening 1 "DS " ds
+              dbgLn flattening 1 $ "MODE " ++ mode
+              dbgLn flattening 1 $ "D " ++ show d
+              dbgLn flattening 1 ""
+              dbgLn flattening 1 "flattenAttribute nested single (II)"
+              dbgBLabel flattening 1 "DEFS" defs
+              dbgBLabel flattening 1 "REF" ref
             error $ "minOccurs " ++ show mn ++ ", max 1 for attribute type "
                     ++ showQName qn ++ " of " ++ showQName n ++ " not allowed"
           TypeRef qn mn Nothing _ _ ->
@@ -1468,11 +1476,11 @@ instance AST DataScheme where
           _ -> error $ "Nested type " ++ bpp ref ++
                  " for attribute " ++ showQName n ++ " not allowed"
       flattenAttribute ag@(AttributeGroup (WithName n) schemes d) = do
-        whenAnyDebugging $
-          dbgBLabel flattening 1 "[fA] Attribute group with name reference " ag
+        dbgBLabel flattening 1 "[fA] Attribute group with name reference " ag
         indenting $ do
           let names = map grabNameAndUsage schemes
-              defn = AttributeDefn n (AttributeGroupDefn names) Nothing d
+              defn = AttributeDefn n (AttributeGroupDefn names)
+                       (qName n) Nothing d
           fileNewDefinition defn
           sub <- fmap concat $ mapM flattenAttribute schemes
           dbgResult flattening 1 "Flattened [fA] to" $ sub ++ [defn]
@@ -1496,9 +1504,8 @@ instance AST DataScheme where
 
       inputSchemaItems' :: String -> [Content] -> XSDQ [DataScheme]
       inputSchemaItems' outer items = do
-        whenAnyDebugging $ do
-          dbgPt input 1 $ "inputSchemaItems' with \"" ++ outer ++ "\""
-          dbgBLabel input 1 "  items " items
+        dbgPt input 1 $ "inputSchemaItems' with \"" ++ outer ++ "\""
+        dbgBLabel input 1 "  items " items
         res <- mapM (\(s, i) ->
                        indenting $ inputSchemaItem (outer ++ show i) s) $
                     zip items disambigNums
@@ -1507,16 +1514,16 @@ instance AST DataScheme where
 
       inputSchemaItem :: String -> Content -> XSDQ DataScheme
       inputSchemaItem o e@(Elem (Element q a c l)) = do
-        whenAnyDebugging $ dbgPt input 1 $ "[iSI] Encoding element " ++ showContent e
+        dbgPt input 1 $ "[iSI] Encoding element " ++ showContent e
         ifDoc <- getAnnotationDocFrom c
         res <- indenting $ inputElement q a c o l ifDoc
-        whenAnyDebugging $ dbgBLabel input 1 "  Encoding result " res
+        dbgBLabel input 1 "  Encoding result " res
         return res
       inputSchemaItem _ (Text _) = do
-        whenAnyDebugging $ dbgPt input 1 "[iSI] Dropping Text entry "
+        dbgPt input 1 "[iSI] Dropping Text entry "
         return Skip
       inputSchemaItem _ (CRef txt) = do
-        whenAnyDebugging $ dbgPt input 1 $ "[iSI] Dropping CRef entry " ++ txt
+        dbgPt input 1 $ "[iSI] Dropping CRef entry " ++ txt
         return Skip
 
 
@@ -1525,9 +1532,8 @@ instance AST DataScheme where
         -> XSDQ DataScheme
 
       inputElement (QName "element" _ _) ats content outer ln _d = do
-        whenAnyDebugging $ do
-          dbgPt input 1 $ "inputElement for element tag"
-          dbgLn input 1 $ "  outer tag " ++ outer
+        dbgPt input 1 $ "inputElement for element tag"
+        dbgLn input 1 $ "  outer tag " ++ outer
         included <- indenting $
           fmap (filter nonSkip) $ inputSchemaItems (outer ++ "Elem")  $
             filter isNonKeyNonNotationElem content
@@ -1544,12 +1550,11 @@ instance AST DataScheme where
                  [] -> return Nothing
                  [x] -> return $ Just x
                  _ -> do
-                   whenAnyDebugging $ boxed $ do
-                     dbgLn input 1 $
-                       "More than one subelement to <element>" ++ ifAtLine ln
-                     dbgBLabel input 1 "ATS " ats
-                     dbgBLabel input 1 "CONTENT " content
-                     dbgBLabel input 1 "INCLUDED " included
+                   dbgLn input 1 $
+                     "More than one subelement to <element>" ++ ifAtLine ln
+                   dbgBLabel input 1 "ATS " ats
+                   dbgBLabel input 1 "CONTENT " content
+                   dbgBLabel input 1 "INCLUDED " included
                    error $
                      "More than one subelement to <element>" ++ ifAtLine ln
         tagName <- case nameQName of
@@ -1565,27 +1570,25 @@ instance AST DataScheme where
                    isAbstract ln ifDoc
 
       inputElement q@(QName "attribute" _ _) a c o l _d = do
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "inputElement for attribute tag"
-          dbgPt input 1 $ "outer tag " ++ o
+        dbgLn input 1 $ "inputElement for attribute tag"
+        dbgPt input 1 $ "outer tag " ++ o
         ifDoc <- indenting $ getAnnotationDocFrom c
         scheme <- indenting $
           encodeAttribute (o ++ "Attr") q a (filter isFocusElem c) l ifDoc
-        whenAnyDebugging $ dbgBLabel input 1 "- scheme " scheme
+        dbgBLabel input 1 "- scheme " scheme
         let implName = case attributeSchemeQname scheme of
                          Nothing -> o ++ "Attr"
                          Just s -> qName s
         return $ AttributeScheme scheme implName l ifDoc
 
       inputElement q@(QName "attributeGroup" _ _) a c o l _d = do
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "inputElement for attribute group"
-          dbgPt input 1 $ "outer tag " ++ o
+        dbgLn input 1 $ "inputElement for attribute group"
+        dbgPt input 1 $ "outer tag " ++ o
         ifDoc <- getAnnotationDocFrom c
         scheme <- indenting $
           encodeAttribute (o ++ "AtrGrp") q a
                           (filter isNonKeyNonNotationElem c) l ifDoc
-        whenAnyDebugging $ dbgBLabel input 1 "- scheme " scheme
+        dbgBLabel input 1 "- scheme " scheme
         let implName = case attributeSchemeQname scheme of
                          Nothing -> o ++ "Attr"
                          Just s -> qName s
@@ -1609,15 +1612,14 @@ instance AST DataScheme where
               return $ CTS ct [] name l d
 
             "choice" -> do
-              whenAnyDebugging $
-                dbgLn input 1 "inputElement > complexType > case \"choice\""
+              dbgLn input 1 "inputElement > complexType > case \"choice\""
               choiceName <- pullAttrQName "name" ats'
               cts <- indenting $ encodeChoiceTypeScheme choiceName ats' subctnts
               let res = CTS cts [] name l d
               dbgResult input 1 "Result is " res
 
             "complexContent" -> do
-              whenAnyDebugging $ dbgLn input 1
+              dbgLn input 1
                 "      inputElement > complexType > case \"complexContent\""
               (pr', _, _) <- separateComplexContents subctnts l
               case pr' of
@@ -1669,7 +1671,7 @@ instance AST DataScheme where
 
 
             "simpleContent" -> do
-              whenAnyDebugging $ dbgLn input 1
+              dbgLn input 1
                 "      inputElement > complexType > case \"simpleContent\""
               error "inputElement > complexType > case \"simpleContent\""
 
@@ -1694,14 +1696,12 @@ instance AST DataScheme where
 
       inputElement (QName "simpleType" _ _) ats ctnts outer ifLn ifDoc = do
         let ctnts' = filter isElem ctnts
-        whenAnyDebugging $ do
-          dbgPt input 1 "Input element is simpletype"
-          dbgLn input 1 $ "  Outer name " ++ outer
+        dbgPt input 1 "Input element is simpletype"
+        dbgLn input 1 $ "  Outer name " ++ outer
         indenting $ case separateSimpleTypeContents ats ctnts' of
 
           (nam, One restr, Zero, Zero) -> do
-            whenAnyDebugging $ do
-              dbgPt input 1 "Subcase restr"
+            dbgPt input 1 "Subcase restr"
             qnam <- mapM decodePrefixedName nam
             res <- indenting $ encodeSimpleTypeByRestriction qnam
                                  (maybe (outer ++ "Simple") (outer ++) nam)
@@ -1712,27 +1712,25 @@ instance AST DataScheme where
            One (Elem (Element (QName "union" _ _) ats' cs' _)), Zero) -> do
             let outerUnion = outer ++ "Union"
                 nam = maybe outerUnion id ifNam
-            whenAnyDebugging $ do
-              dbgPt input 1 "Subcase union"
-              dbgBLabel input 1 "- ifNam " $ show ifNam
-              dbgBLabel input 1 "- cs' " cs'
+            dbgPt input 1 "Subcase union"
+            dbgBLabel input 1 "- ifNam " $ show ifNam
+            dbgBLabel input 1 "- cs' " cs'
             qnam <- decodePrefixedName nam
-            whenAnyDebugging $ do
-              dbgBLabel input 1 "- qnam " qnam
-              dbgPt input 1 "Calling inputSchemaItems' "
+            dbgBLabel input 1 "- qnam " qnam
+            dbgPt input 1 "Calling inputSchemaItems' "
             nestedAlts <- indenting $
                       inputSchemaItems' outerUnion $ filter isElem cs'
-            whenAnyDebugging $ dbgBLabel input 1 "- nestedAlts " nestedAlts
+            dbgBLabel input 1 "- nestedAlts " nestedAlts
             -- Extract from the memberTypes attribute here
             membersAttr <- pullAttrQNameList "memberTypes" ats'
-            whenAnyDebugging $ dbgBLabel input 1 "- membersAttr " membersAttr
+            dbgBLabel input 1 "- membersAttr " membersAttr
             let members = maybe [] id membersAttr
             dbgResult input 1 "Subcase result" $
               STS (Just qnam) (Union nestedAlts members) ifLn ifDoc
 
           (ifNam, Zero, Zero,
            One (Elem (Element (QName "list" _ _) ats' ctnts'' _))) -> do
-            whenAnyDebugging $ dbgPt input 1 "Subcase list"
+            dbgPt input 1 "Subcase list"
             itemTypeAttr <- pullAttrQName "itemType" ats'
             let simpleWithin = pullContent "simpleType" ctnts''
             indenting $ case (itemTypeAttr, simpleWithin) of
@@ -1741,7 +1739,7 @@ instance AST DataScheme where
                 "Simple type list without itemType attribute" ++ ifAtLine ifLn
 
               (Nothing, One node) -> do
-                whenAnyDebugging $ dbgPt input 1 "Subcase with included element type"
+                dbgPt input 1 "Subcase with included element type"
                 tds <- indenting $ inputSchemaItem (outer ++ "List") node
                 thisName <- case ifNam of
                   Just n -> inDefaultNamespace n
@@ -1757,7 +1755,7 @@ instance AST DataScheme where
                                    ifLn ifDoc
 
               (Just itemType, Zero) -> do
-                whenAnyDebugging $ dbgPt input 1 "Subcase with element type reference"
+                dbgPt input 1 "Subcase with element type reference"
                 qnam <- case ifNam of
                   Just n -> decodePrefixedName n
                   Nothing -> return $ QName ("List_" ++ qName itemType)
@@ -1779,7 +1777,6 @@ instance AST DataScheme where
 
 
           (ifName, zomRestr, zomUnion, zomList) -> do
-            -- whenAnyDebugging
             boxed $ do
               dbgLn input 1 "TODO inputElement > simpleType > another separation case"
               dbgBLabel input 1 "ATS " ats
@@ -1795,7 +1792,7 @@ instance AST DataScheme where
       inputElement (QName "annotation" _ _) _ _ _ _ _ = do
         -- We do nothing with documentation and other annotations; currently
         -- there is no way to pass Haddock docstrings via the TH API.
-        whenAnyDebugging $ dbgPt input 1 $ "Dropping <annotation> element"
+        dbgPt input 1 $ "Dropping <annotation> element"
         return Skip
 
       inputElement (QName tag _ _) _ _ _ l _d
@@ -1806,12 +1803,12 @@ instance AST DataScheme where
 
       inputElement (QName tagname _ _) _ _ _ _ _
         | tagname == "key" || tagname == "keyref" = do
-        whenAnyDebugging $ dbgPt input 1 $ "Dropping <" ++ tagname ++ "> entry "
+        dbgPt input 1 $ "Dropping <" ++ tagname ++ "> entry "
         return Skip
 
       inputElement (QName "sequence" _ _) ats ctnts outer ifLn ifDoc = do
         ifName <- pullAttrQName "name" ats
-        whenAnyDebugging $ dbgLn input 1 $
+        dbgLn input 1 $
           maybe "- Sequence (unnamed)"
                 (\n -> "- Sequence \"" ++ showQName n ++ "\"")
                 ifName
@@ -1822,7 +1819,7 @@ instance AST DataScheme where
                             [] (Just name) ifLn ifDoc
 
       inputElement (QName "restriction" _ _) ats ctnts outer ifLn ifDoc = do
-        whenAnyDebugging $ dbgPt input 1 $ "Restriction, outer name " ++ outer
+        dbgPt input 1 $ "Restriction, outer name " ++ outer
         ifDoc' <- getAnnotationDocFrom ctnts
         ifName <- pullAttrQName "name" ats
         case pullAttr "base" ats of
@@ -1840,20 +1837,19 @@ instance AST DataScheme where
 
 
       inputElement (QName "extension" _ _) ats ctnts outer ifLn ifDoc = do
-        whenAnyDebugging $ dbgPt input 1 $ "Extension, outer name " ++ outer
+        dbgPt input 1 $ "Extension, outer name " ++ outer
         maybeBase <- pullAttrQName "base" ats
         let base = maybe (error $ "<extension> without base" ++ ifAtLine ifLn)
                       id maybeBase
         ifName <- pullAttrQName "name" ats
         name <- useNameOrWrap ifName outer "Ext"
         (ext, newAttrs, newAttrGroups) <- separateComplexContents ctnts ifLn
-        whenAnyDebugging $ do
-          dbgPt input 1 "Complex extension"
-          dbgPt input 1 $ "outer name " ++ outer
-          dbgBLabel input 1 "- base " base
-          dbgBLabel input 1 "- ext " ext
-          dbgBLabel input 1 "- newAttrs " newAttrs
-          dbgBLabel input 1 "- newAttrGroups " newAttrGroups
+        dbgPt input 1 "Complex extension"
+        dbgPt input 1 $ "outer name " ++ outer
+        dbgBLabel input 1 "- base " base
+        dbgBLabel input 1 "- ext " ext
+        dbgBLabel input 1 "- newAttrs " newAttrs
+        dbgBLabel input 1 "- newAttrGroups " newAttrGroups
         res <- case ext of
           Nothing -> do
             return $
@@ -1862,7 +1858,7 @@ instance AST DataScheme where
             e' <- indenting $ inputSchemaItem (outer ++ "ExtB") e
             return $
               CTS (Extension base [e']) [] (Just name) ifLn ifDoc
-        whenAnyDebugging $ dbgBLabel input 1 "  Extension result " res
+        dbgBLabel input 1 "  Extension result " res
         return res
 
 
@@ -1871,33 +1867,32 @@ instance AST DataScheme where
         ref <- pullAttrQName "ref" ats
         let subOuter = outer ++ "Group"
         let filtered = filter isFocusElem ctnts
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "inputElement case group" ++ ifAtLine ifLn
-          dbgPt input 1 $ "For <group> schema"
-            ++ maybe "(no line num)" (\x -> " at " ++ show x) ifLn
-            ++ ":"
-          dbgLn input 1 $ "  outer name " ++ outer
-          dbgLn input 1 $ "  name from attributes " ++ maybe "(none)" qName name
-          -- dbgLn input 1 $ "  filtered content " ++ show (map showContent filtered)
+        dbgLn input 1 $ "inputElement case group" ++ ifAtLine ifLn
+        dbgPt input 1 $ "For <group> schema"
+          ++ maybe "(no line num)" (\x -> " at " ++ show x) ifLn
+          ++ ":"
+        dbgLn input 1 $ "  outer name " ++ outer
+        dbgLn input 1 $ "  name from attributes " ++ maybe "(none)" qName name
+        -- dbgLn input 1 $
+        --   "  filtered content " ++ show (map showContent filtered)
         indenting $ case filtered of
           (Elem (Element (QName "choice" _ _) attrs' ctnts' ifLn')):[] -> do
-            whenAnyDebugging $ dbgPt input 1 "choice subcase"
+            dbgPt input 1 "choice subcase"
             ts <- indenting $ encodeChoiceTypeScheme name attrs' ctnts'
             dbgResult input 1 "Subcase result" $
               finishGroupScheme (nameOrRefOpt name ref) (Just ts) ifLn' ifDoc
           (Elem (Element (QName "sequence" _ _) _ats ctnts' _)):[] -> do
-            whenAnyDebugging $ do
-              dbgPt input 1 "sequence subcase after (filter isElem ctnts)"
-              indenting $ do
-                dbgBLabel input 1 "- group attrs " ats
-                dbgBLabel input 1 "- name " name
-                dbgBLabel input 1 "- ctnts " $ filter isElem ctnts
-                dbgBLabel input 1 "- ctnts' " $ filter isElem ctnts'
+            dbgPt input 1 "sequence subcase after (filter isElem ctnts)"
+            indenting $ do
+              dbgBLabel input 1 "- group attrs " ats
+              dbgBLabel input 1 "- name " name
+              dbgBLabel input 1 "- ctnts " $ filter isElem ctnts
+              dbgBLabel input 1 "- ctnts' " $ filter isElem ctnts'
             seqn <- indenting $ encodeSequenceTypeScheme subOuter ctnts' []
             dbgResult input 1 "Subcase result" $
               finishGroupScheme (nameOrRefOpt name ref) (Just seqn) ifLn ifDoc
           (Elem (Element (QName "all" _ _) _ats _contents ifLn')):[] -> do
-            whenAnyDebugging $ dbgPt input 1 "all subcase"
+            dbgPt input 1 "all subcase"
             -- ifDoc' <- getAnnotationDocFrom contents
             boxed $ do
               dbgLn input 1 $
@@ -1908,7 +1903,7 @@ instance AST DataScheme where
                 (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
             error $ "TODO inputElement > group with all" ++ ifAtLine ifLn'
           _ -> do
-            whenAnyDebugging $ dbgPt input 1 "Default subcase is group of nothing"
+            dbgPt input 1 "Default subcase is group of nothing"
             dbgResult input 1 "Subcase result" $
               finishGroupScheme (nameOrRefOpt name ref) Nothing ifLn ifDoc
 
@@ -1927,39 +1922,34 @@ instance AST DataScheme where
 
 
       inputElement (QName "choice" _ _) ats ctnts outer ifLn ifDoc = do
-        whenAnyDebugging $ dbgPt input 1 "For <choice> scheme:"
-        -- whenAnyDebugging $ do
+        dbgPt input 1 "For <choice> scheme:"
         name <- pullAttrQName "name" ats
         ref <- pullAttrQName "ref" ats
         nameRef <- nameOrRefOptDft name ref $ outer ++ "Choice"
         let minOcc = decodeMaybeIntOrUnbound1 $ pullAttr "minOccurs" ats
             maxOcc = decodeMaybeIntOrUnbound1 $ pullAttr "maxOccurs" ats
-        whenAnyDebugging $ do
-          dbgPt input 1 $ "inputElement > choice" ++ ifAtLine ifLn
-          dbgLn input 1 $ "-- minOccurs " ++ show minOcc
-          dbgLn input 1 $ "-- maxOccurs " ++ show maxOcc
-          dbgBLabel input 1 "-- ats " ats
-          dbgBLabel input 1 "-- ctnts " $ filter isElem ctnts
+        dbgPt input 1 $ "inputElement > choice" ++ ifAtLine ifLn
+        dbgLn input 1 $ "-- minOccurs " ++ show minOcc
+        dbgLn input 1 $ "-- maxOccurs " ++ show maxOcc
+        dbgBLabel input 1 "-- ats " ats
+        dbgBLabel input 1 "-- ctnts " $ filter isElem ctnts
         ts <- indenting $ encodeChoiceTypeScheme name ats ctnts
         dbgResult input 1 "Choice encoding" $ ChoiceScheme nameRef (Just ts) ifLn ifDoc
 
       inputElement (QName "any" _ _) ats _ outer ifLn ifDoc = do
-        whenAnyDebugging $ dbgPt input 1 "For <any> scheme:"
+        dbgPt input 1 "For <any> scheme:"
         ifName <- pullAttrQName "name" ats
         name <- useNameOrWrap ifName outer "Any"
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "TODO <any>" ++ ifAtLine ifLn
-          dbgLn input 1 $ "NAME " ++ showQName name
-          dbgLn input 1 $ "OUTER " ++ outer
+        dbgLn input 1 $ "TODO <any>" ++ ifAtLine ifLn
+        dbgLn input 1 $ "NAME " ++ showQName name
+        dbgLn input 1 $ "OUTER " ++ outer
         dbgResult input 1 "Encoded as" $ UnprocessedXML (Just name) ifLn ifDoc
 
       inputElement (QName "notation" _ _) _ _ _ _ _ = do
-        whenAnyDebugging $ dbgPt input 1 "For <notation> scheme:"
-        -- whenAnyDebugging $ do
+        dbgPt input 1 "For <notation> scheme:"
         dbgResult input 1 "Encoded as" Skip
 
       inputElement (QName tag _ _) ats ctnts outer ifLn _ifDoc = do
-        -- whenAnyDebugging $ do
         boxed $ do
           dbgLn input 1 $ "TODO inputElement > unmatched case" ++ ifAtLine ifLn
           dbgLn input 1 $ "TAG " ++ show tag
@@ -1972,7 +1962,7 @@ instance AST DataScheme where
       encodeSequenceTypeScheme ::
         String -> [Content] -> [Content] -> XSDQ ComplexTypeScheme
       encodeSequenceTypeScheme outer subcontents attrSpecs = indenting $ do
-        whenAnyDebugging $ dbgLn input 1 $
+        dbgLn input 1 $
           "encodeSequenceTypeScheme outer=\"" ++ outer ++ "\""
         included <- indenting $ inputSchemaItems' (outer ++ "Seq") subcontents
         atrSpecs <- indenting $
@@ -1982,28 +1972,25 @@ instance AST DataScheme where
 
       encodeChoiceTypeScheme ::
         Maybe QName -> [Attr] -> [Content] -> XSDQ ComplexTypeScheme
-      encodeChoiceTypeScheme ifNam _attrs allCtnts = indenting $ do
-        whenAnyDebugging $ dbgLn input 1 "encodeChoiceTypeScheme"
+      encodeChoiceTypeScheme ifNam attrs allCtnts = indenting $ do
+        dbgLn input 1 "encodeChoiceTypeScheme"
         let ctnts = filter isElem allCtnts
-        {-
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
-          dbgLn input 1 $ "IFNAM " ++ show ifNam
-          dbgLn input 1 $ "CTNTS " ++
-              (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
-        -}
+        dbgLn input 5 $ "ATS " ++ (intercalate "\n    " $ map showAttr attrs)
+        dbgLn input 5 $ "IFNAM " ++ show ifNam
+        dbgLn input 5 $ "CTNTS " ++
+            (intercalate "\n    " $ map ppContent $ filter isElem ctnts)
         contentSchemes <- indenting $ mapM (inputSchemaItem "X") ctnts
         return $ Choice ifNam $ filter nonSkip contentSchemes
 
 
       encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
       encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
-        whenAnyDebugging $ dbgBLabel input 1 "- Encoding attribute scheme " q
+        dbgBLabel input 1 "- Encoding attribute scheme " q
         ifDoc <- getAnnotationDocFrom c
         res <- indenting $
           encodeAttribute (outer ++ "Elem") q a
                           (filter isNonKeyNonNotationElem c) l ifDoc
-        whenAnyDebugging $ dbgBLabel input 1 "  Encoding result " res
+        dbgBLabel input 1 "  Encoding result " res
         return res
       encodeAttributeScheme _o c = do
         dbgBLabel input 1 "** Nonattribute" c
@@ -2021,11 +2008,11 @@ instance AST DataScheme where
                    (maybe "optional" id $ pullAttr "use" ats)
                    d
       encodeAttribute outer (QName "attribute" _ _) ats (st:sts) l d = do
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "encodeSequenceTypeScheme attribute outer=\"" ++ outer ++ "\""
-          dbgBLabel input 1 "- ats " ats
-          dbgBLabel input 1 "- st "  st
-          dbgBLabel input 1 "- sts " sts
+        dbgLn input 1 $
+          "encodeSequenceTypeScheme attribute outer=\"" ++ outer ++ "\""
+        dbgBLabel input 1 "- ats " ats
+        dbgBLabel input 1 "- st "  st
+        dbgBLabel input 1 "- sts " sts
         typeQName <- pullAttrQName "type" ats
         case typeQName of
           Just n -> do
@@ -2041,11 +2028,10 @@ instance AST DataScheme where
                                           l d
       encodeAttribute o (QName "attributeGroup" _ _) ats ctnts _ d = do
         indenting $ do
-          whenAnyDebugging $ do
-            dbgLn input 1 $
-              "encodeSequenceTypeScheme attributeGroup outer=\"" ++ o ++ "\""
-            dbgBLabel input 1 "- ats " ats
-            dbgBLabel input 1 "- ctnts " ctnts
+          dbgLn input 1 $
+            "encodeSequenceTypeScheme attributeGroup outer=\"" ++ o ++ "\""
+          dbgBLabel input 1 "- ats " ats
+          dbgBLabel input 1 "- ctnts " ctnts
         name <- pullAttrQName "name" ats
         ref <- pullAttrQName "ref" ats
         let attrs = filterTagged "attribute" ctnts
@@ -2066,13 +2052,13 @@ instance AST DataScheme where
         -> Maybe Line -> Maybe String
         -> XSDQ AttributeScheme
       encodeAttributeWithNestedType outer nameOrRef tySpec [] use _ d = do
-        whenAnyDebugging $ do
-          dbgLn input 1 $ "encodeAttributeWithNestedType outer=\"" ++ outer ++ "\""
-          dbgBLabel input 1 "- nameOrRef " nameOrRef
-          dbgBLabel input 1 "- tySpec " tySpec
-          dbgBLabel input 1 "- use " use
+        dbgLn input 1 $
+          "encodeAttributeWithNestedType outer=\"" ++ outer ++ "\""
+        dbgBLabel input 1 "- nameOrRef " nameOrRef
+        dbgBLabel input 1 "- tySpec " tySpec
+        dbgBLabel input 1 "- use " use
         ds <- inputSchemaItem outer tySpec
-        whenAnyDebugging $ dbgBLabel input 1 "- ds " ds
+        dbgBLabel input 1 "- ds " ds
         dbgResult input 1 "Result [encodeAttributeWithNestedType]:" $
           SingleAttribute nameOrRef (Nested ds) use d
       encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
@@ -2139,18 +2125,17 @@ instance AST DataScheme where
       encodeSimpleTypeByRestriction -- Note ignoring ats
           ifName outer _ (Elem (Element (QName "restriction" _ _) ats'
                                         cs ln)) = do
-        whenAnyDebugging $
-          dbgPt input 1 $ "encode simple by restr, outer name " ++ outer
+        dbgPt input 1 $ "encode simple by restr, outer name " ++ outer
         ifDoc <- getAnnotationDocFrom cs
         case pullAttr "base" ats' of
           Just base -> do
-            whenAnyDebugging $ dbgLn input 1 $ "- base " ++ base
+            dbgLn input 1 $ "- base " ++ base
             baseQName <- decodePrefixedName base
-            whenAnyDebugging $ dbgBLabel input 1 "- baseQName " baseQName
+            dbgBLabel input 1 "- baseQName " baseQName
             let useName = maybe (Just $ withPrefix (outer ++ "Restr") baseQName)
                                 (const ifName) ifName
                           -- TODO --- make sure this is in target namespace
-            whenAnyDebugging $ dbgBLabel input 1 "- useName " useName
+            dbgBLabel input 1 "- useName " useName
             -- freshUseName <- freshenQNameForBinding (Just outer) useName
             -- freshBaseName <- freshenQNameForBinding (Just outer) baseQName
             dbgResult input 1 "Encoding result" $

@@ -74,13 +74,13 @@ import QDHXB.Options
 
 import QDHXB.Internal.Debugln hiding (dbgLn, dbgBLabel, dbgResult, dbgResultM)
 import qualified QDHXB.Internal.Debugln as DBG
-dbgLn :: (MonadDebugln m n, MonadIO m) => String -> m ()
+dbgLn :: (MonadDebugln m n) => String -> m ()
 dbgLn = DBG.dbgLn xsdq 0
-dbgBLabel :: (MonadDebugln m n, MonadIO m, Blockable c) => String -> c -> m ()
+dbgBLabel :: (MonadDebugln m n, Blockable c) => String -> c -> m ()
 dbgBLabel = DBG.dbgBLabel xsdq 0
-dbgResult :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> a -> m a
+dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
 dbgResult = DBG.dbgResult xsdq 0
-dbgResultM :: (MonadDebugln m n, MonadIO m, Blockable a) => String -> m a -> m a
+dbgResultM :: (MonadDebugln m n, Blockable a) => String -> m a -> m a
 dbgResultM = DBG.dbgResultM xsdq 0
 
 -- | Synonym for an association list from a `String` to the argument
@@ -257,9 +257,9 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
-fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _) _ _)  = do
+fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _) _ _ _)  = do
   addAttributeType qn defn
-fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _)  = do
+fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _ _)  = do
   addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d

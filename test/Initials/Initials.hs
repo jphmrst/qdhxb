@@ -6,11 +6,9 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
-{-
-import QDHXB.Internal.Debugln
-qdhxb (setDebugging unique 3 . setDebugging flattening 3)
-  ["test/Initials/initials.xsd"]
--}
+-- import QDHXB.Internal.Debugln
+-- qdhxb (setDebugging unique 3 . setDebugging flattening 3)
+--   ["test/Initials/initials.xsd"]
 qdhxb' ["test/Initials/initials.xsd"]
 
 testInitials :: TLT IO ()
