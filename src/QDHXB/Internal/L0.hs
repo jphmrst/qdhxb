@@ -46,7 +46,12 @@ import QDHXB.Internal.Debugln
 maybeqname_to_stringlist :: Maybe QName -> [String]
 maybeqname_to_stringlist (Just qn) = [qName qn]
 maybeqname_to_stringlist _ = []
+
+maybe_to_list :: Maybe a -> [a]
+maybe_to_list (Just qn) = [qn]
+maybe_to_list _ = []
 
+
 
 -- | A sort of variation of `Maybe` with two `Just` forms, for schema
 -- which allow either a @name@ or a @ref@ attribute, but not both, and
@@ -57,12 +62,10 @@ data NameOrRefOpt =
   | WithNeither   -- ^ Case for neither
   deriving Show
 
-{-
-nameOrRefOptToMaybeName :: NameOrRefOpt -> Maybe QName
-nameOrRefOptToMaybeName (WithName qn) = Just qn
-nameOrRefOptToMaybeName (WithRef qn)  = Just qn
-nameOrRefOptToMaybeName (WithNeither) = Nothing
--}
+nameOrRefOptToMaybeString :: NameOrRefOpt -> Maybe String
+nameOrRefOptToMaybeString (WithName qn) = Just $ qName qn
+nameOrRefOptToMaybeString (WithRef qn)  = Just $ qName qn
+nameOrRefOptToMaybeString (WithNeither) = Nothing
 
 -- | Assemble a `NameOrRefOpt` value from two @(`Maybe` `QName`)@
 -- values.  The first argument corresponds to a possible @name@
@@ -323,6 +326,8 @@ unique_internals_cts cts@(Group nameOrRef ifDS ifMin ifMax) = do
 -- | Details of attributes
 data AttributeScheme =
   SingleAttribute NameOrRefOpt -- ^ Name or reference, or neither
+                  (Maybe String) -- ^ Base name for Haskell type
+                                 -- translation.
                   QNameOr -- ^ ifType
                   String -- ^ use mode: prohibited, optional
                          -- (default), required
@@ -338,14 +343,15 @@ data AttributeScheme =
   deriving Show
 
 {-
-SingleAttribute nameOrRef ifTypeOr mode ifDoc
+SingleAttribute nameOrRef ifHName ifTypeOr mode ifDoc
 AttributeGroup nameOrRef attrSchs ifDoc
 -}
 
 instance Blockable AttributeScheme where
-  block (SingleAttribute nameOrRef ifType mode _d) =
+  block (SingleAttribute nameOrRef ifHName ifType mode _d) =
     stringToBlock "single attr "
     `follow` block nameOrRef
+    `follow` block ifHName
     `stack2` stringToBlock "  type="
     `follow` block ifType
     `follow` stringToBlock " mode="
@@ -360,20 +366,22 @@ instance Blockable [AttributeScheme] where block = verticalBlockListFn
 
 
 attributeSchemeQname :: AttributeScheme -> Maybe QName
-attributeSchemeQname (SingleAttribute (WithName qn) _ _ _) = Just qn
-attributeSchemeQname (SingleAttribute (WithRef qn) _ _ _) = Just qn
-attributeSchemeQname (SingleAttribute (WithNeither) _ _ _) = Nothing
+attributeSchemeQname (SingleAttribute (WithName qn) _ _ _ _) = Just qn
+attributeSchemeQname (SingleAttribute (WithRef qn) _ _ _ _) = Just qn
+attributeSchemeQname (SingleAttribute (WithNeither) _ _ _ _) = Nothing
 attributeSchemeQname (AttributeGroup (WithName qn) _ _) = Just qn
 attributeSchemeQname (AttributeGroup (WithRef qn) _ _) = Just qn
 attributeSchemeQname (AttributeGroup (WithNeither) _ _) = Nothing
 
 subst_attr_scheme ::
   Substitutions -> AttributeScheme -> MaybeUpdated AttributeScheme
-subst_attr_scheme ss aspec@(SingleAttribute nameOrRef ifType mode ifDoc) =
+subst_attr_scheme ss aspec@(SingleAttribute nameOrRef ifhn ifType mode ifDoc) =
   let nameOrRef' = subst_NameOrRefOpt ss nameOrRef
       ifType' = substQNameOr ss ifType
-  in assembleIfUpdated [Upd nameOrRef', Upd ifType'] aspec $
-       SingleAttribute nameOrRef (resultOnly ifType') mode ifDoc
+      ifhn' = hoistUpdate $ fmap (substString ss) ifhn
+  in assembleIfUpdated [Upd nameOrRef', Upd ifType', Upd ifhn'] aspec $
+       SingleAttribute nameOrRef (resultOnly ifhn') (resultOnly ifType')
+                       mode ifDoc
 subst_attr_scheme ss aspec@(AttributeGroup nameOrRef schemes ifDoc) =
   let nameOrRef' = subst_NameOrRefOpt ss nameOrRef
       schemes' = hoistUpdate $ map (subst_attr_scheme ss) schemes
@@ -382,12 +390,13 @@ subst_attr_scheme ss aspec@(AttributeGroup nameOrRef schemes ifDoc) =
 
 unique_internals_attr_scheme ::
   AttributeScheme -> XSDQ (MaybeUpdated AttributeScheme)
-unique_internals_attr_scheme attrsc@(SingleAttribute nameOrRef ifType
+  -- TODO substitute in ifhn?
+unique_internals_attr_scheme attrsc@(SingleAttribute nameOrRef ifhn ifType
                                                      mode ifDoc) = do
   dbgLn unique 3 $ "unique_internals for attr " ++ show nameOrRef
   ifType' <- indenting $ unique_internals_QNameOr ifType
   return $ assembleIfUpdated [Upd ifType'] attrsc $
-    SingleAttribute nameOrRef (resultOnly ifType') mode ifDoc
+    SingleAttribute nameOrRef ifhn (resultOnly ifType') mode ifDoc
 unique_internals_attr_scheme ag@(AttributeGroup nameOrRef attrDefs ifDoc) = do
   dbgLn unique 3 $ "unique_internals for attr group " ++ show nameOrRef
   attrDefs' <- indenting $ fmap hoistUpdate $
@@ -396,8 +405,7 @@ unique_internals_attr_scheme ag@(AttributeGroup nameOrRef attrDefs ifDoc) = do
     AttributeGroup nameOrRef (resultOnly attrDefs') ifDoc
 
 bound_names_attrsch :: AttributeScheme -> [String]
-bound_names_attrsch (SingleAttribute nameOrRef _ _ _) =
-  nameonly_to_stringlist nameOrRef
+bound_names_attrsch (SingleAttribute _ ifHName _ _ _) = maybe_to_list ifHName
 bound_names_attrsch (AttributeGroup nameOrRef attrSchs _) =
   nameonly_to_stringlist nameOrRef ++ concat (map bound_names_attrsch attrSchs)
 
@@ -496,7 +504,7 @@ data DataScheme =
 {-
 Skip ->
 (ElementScheme ctnts ifName ifType ifRef ifId tagName ifMin ifMax isAbst _ _) ->
-(AttributeScheme (SingleAttribute nameOrRef ifType mode ifDoc) impl _ _) ->
+(AttributeScheme (SingleAttribute nameOrRef ifHName ifType mode ifDoc) impl _ _) ->
 (AttributeScheme (AttributeGroup nameOrRef attrDefs _) impl _ _) ->
 (CTS form attrs ifName _ _) ->
 (STS name (Synonym base) _ _) ->
@@ -521,10 +529,10 @@ labelOf (ElementScheme _ _ (Just name) _ _ _ _ _ _ _ _) = Just name
 labelOf (ElementScheme _ _ _ (Just typ) _ _ _ _ _ _ _) = Just typ
 labelOf (ElementScheme (Just sub) _ _ _ _ _ _ _ _ _ _) = labelOf sub
 labelOf (ElementScheme _ _ _ _ _ _ _ _ _ _ _) = Nothing
-labelOf (AttributeScheme (SingleAttribute (WithName n) _ _ _) _ _ _) = Just n
-labelOf (AttributeScheme (SingleAttribute _ (NameRef qn) _ _) _ _ _) = Just qn
-labelOf (AttributeScheme (SingleAttribute _ (Nested d) _ _) _ _ _) = labelOf d
-labelOf (AttributeScheme (SingleAttribute (WithRef r) _ _ _) _ _ _) = Just r
+labelOf (AttributeScheme (SingleAttribute (WithName n) _ _ _ _) _ _ _) = Just n
+labelOf (AttributeScheme (SingleAttribute _ _ (NameRef qn) _ _) _ _ _) = Just qn
+labelOf (AttributeScheme (SingleAttribute _ _ (Nested d) _ _) _ _ _) = labelOf d
+labelOf (AttributeScheme (SingleAttribute (WithRef r) _ _ _ _) _ _ _) = Just r
 labelOf (AttributeScheme (AttributeGroup (WithName n) _ _) _ _ _) = Just n
 labelOf (AttributeScheme (AttributeGroup (WithRef r) _ _) _ _ _) = Just r
 labelOf (AttributeScheme _ _ _ _) = Nothing
@@ -776,22 +784,23 @@ instance AST DataScheme where
                                  abst l ifDoc
 
       flattenSchemaItem' (AttributeScheme
-                          (SingleAttribute (WithName nam) (NameRef typ) m d')
+                          (SingleAttribute (WithName nam) (Just hnam)
+                                           (NameRef typ) m d')
                           _impl l d) = do
         dbgLn flattening 1 "[fSI'] Flattening single attribute"
         let attrDefn =
               AttributeDefn nam
                 (SingleAttributeDefn typ $ stringToAttributeUsage m)
-                (qName nam) l (pickOrCombine d d')
+                hnam l (pickOrCombine d d')
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" [attrDefn]
 
-      flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _)
+      flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _ _)
                                           _impl _l _d) = do
         return $ error "[fSI'] Reference in attribute"
 
       flattenSchemaItem' (AttributeScheme
-                          (SingleAttribute (WithName nam) (Nested ds)
+                          (SingleAttribute (WithName nam) _ (Nested ds)
                                            use innerDoc)
                           _impl l outerDoc) = do
         dbgLn flattening 1 "[fSI'] attribute with nested type"
@@ -840,9 +849,10 @@ instance AST DataScheme where
               ElementScheme ctnts (Just q) ifType ifRef ifId
                             ifTag ifMin ifMax isAbstract l ifDoc
             nameUnnamed q (AttributeScheme
-                           (SingleAttribute (WithRef _) ifType usage d')
+                           (SingleAttribute (WithRef _) _ ifType usage d')
                            impl ln' d'') =
-              AttributeScheme (SingleAttribute (WithName q) ifType usage d')
+              AttributeScheme (SingleAttribute (WithName q) (Just $ qName q)
+                                               ifType usage d')
                 impl ln' (pickOrCombine d d'')
             nameUnnamed q (CTS form attrs Nothing l d') =
               CTS form attrs (Just q) l d'
@@ -1167,11 +1177,11 @@ instance AST DataScheme where
           (defs ++ atsDefs, atsRefs ++ refs)
 
       grabNameAndUsage :: AttributeScheme -> (QName, AttributeUsage)
-      grabNameAndUsage (SingleAttribute (WithName n) _ useStr _) =
+      grabNameAndUsage (SingleAttribute (WithName n) _ _ useStr _) =
         (n, stringToAttributeUsage useStr)
-      grabNameAndUsage (SingleAttribute (WithRef n) _ useStr _) =
+      grabNameAndUsage (SingleAttribute (WithRef n) _ _ useStr _) =
         (n, stringToAttributeUsage useStr)
-      grabNameAndUsage (SingleAttribute WithNeither (NameRef t) useStr _) =
+      grabNameAndUsage (SingleAttribute WithNeither _ (NameRef t) useStr _) =
         (t, stringToAttributeUsage useStr)
       grabNameAndUsage (AttributeGroup (WithName n) _ _) = (n, Optional)
       grabNameAndUsage (AttributeGroup (WithRef n) _ _) = (n, Optional)
@@ -1188,9 +1198,9 @@ instance AST DataScheme where
 
       flattenSchemaAttributeRef ::
         AttributeScheme -> XSDQ ([Definition], Reference)
-      flattenSchemaAttributeRef r@(SingleAttribute nr t m d) = do
+      flattenSchemaAttributeRef r@(SingleAttribute nr hn t m d) = do
         dbgBLabel flattening 1 "[fSchAR -> fSngAR] " r
-        flattenSingleAttributeRef nr t m Nothing d
+        flattenSingleAttributeRef nr hn t m Nothing d
       flattenSchemaAttributeRef r@(AttributeGroup nameRef cs d) = do
         dbgBLabel flattening 1 "[fSchAR -> fAGR] " r
         flattenAttributeGroupRef nameRef cs Nothing d
@@ -1205,9 +1215,9 @@ instance AST DataScheme where
                                       ifLower ifUpper _isAbstract ln ifDoc) = do
         dbgLn flattening 1 "[fSR -> flattenElementSchemeRef]"
         flattenElementSchemeRef c ifName ifType ifRef ifLower ifUpper ln ifDoc
-      flattenSchemaRef (AttributeScheme (SingleAttribute nr t m d') _i l d) = do
+      flattenSchemaRef (AttributeScheme (SingleAttribute nr hn t m d') _i l d) = do
         dbgLn flattening 1 "[fSR -> flattenSingleAttributeRef]"
-        flattenSingleAttributeRef nr t m l (pickOrCombine d d')
+        flattenSingleAttributeRef nr hn t m l (pickOrCombine d d')
       flattenSchemaRef (AttributeScheme (AttributeGroup nameRef cs _) _i l d) = do
         dbgLn flattening 1 "[fSR -> flattenAttributeGroupRef]"
         flattenAttributeGroupRef nameRef cs l d
@@ -1290,31 +1300,33 @@ instance AST DataScheme where
         error $ "TODO flattenAttributeGroupRef > unmatched"
 
       flattenSingleAttributeRef ::
-        NameOrRefOpt -> QNameOr -> String -> Maybe Line -> Maybe String
+        NameOrRefOpt -> Maybe String
+        -> QNameOr -> String -> Maybe Line -> Maybe String
         -> XSDQ ([Definition], Reference)
-      flattenSingleAttributeRef (WithRef ref) Neither useStr _ _ = do
+      flattenSingleAttributeRef (WithRef ref) _ Neither useStr _ _ = do
         dbgLn flattening 1 "[fSAR] WithRef+Neither "
         let res = AttributeRef ref (stringToAttributeUsage useStr)
         dbgResult flattening 1 (showQName ref ++ " [fSAR] flattened to") ([], res)
-      flattenSingleAttributeRef (WithName nam) (NameRef t) m l d = do
+      flattenSingleAttributeRef (WithName nam) (Just hn) (NameRef t) m l d = do
         dbgLn flattening 1 "[fSAR] WithRef+NameRef "
         let defn = AttributeDefn nam
                      (SingleAttributeDefn t $ stringToAttributeUsage m)
-                     (qName nam) l d
+                     hn l d
             ref = AttributeRef nam (stringToAttributeUsage m)
         fileNewDefinition defn
         dbgResult flattening 1 (showQName nam ++ " [fSAR] flattened to") ([defn], ref)
-      flattenSingleAttributeRef (WithName nam) (Nested t) m _ _ = do
+      flattenSingleAttributeRef (WithName nam) _ (Nested t) m _ _ = do
         boxed $ do
           dbgLn flattening 1 "[fSAR] new nested case"
           dbgBLabel flattening 1 "NAM " nam
           dbgBLabel flattening 1 "T " t
           dbgLn flattening 1 $ "MODE " ++ m
         error "TODO new Nested case"
-      flattenSingleAttributeRef nameRef maybeType mode _ _ = do
+      flattenSingleAttributeRef nameRef ifHName maybeType mode _ _ = do
         boxed $ do
           dbgLn flattening 1 "[fSAR] flattenSingleAttributeRef"
           dbgBLabel flattening 1 "NAMEREF " nameRef
+          dbgBLabel flattening 1 "IFHNAME " ifHName
           dbgBLabel flattening 1 "IFTYPE " maybeType
           dbgLn flattening 1 $ "MODE " ++ mode
         error "TODO flattenSingleAttributeRef > unmatched case"
@@ -1416,20 +1428,21 @@ instance AST DataScheme where
       flattenAttributes = fmap concat . mapM flattenAttribute
 
       flattenAttribute :: AttributeScheme -> XSDQ [Definition]
-      flattenAttribute (SingleAttribute (WithRef _) Neither _ _) = do
+      flattenAttribute (SingleAttribute (WithRef _) _ Neither _ _) = do
         dbgLn flattening 1 "[fA] single attribute by ref"
         dbgLn flattening 1 "- Defined elsewhere --- returning []"
         return []
-      flattenAttribute sa@(SingleAttribute (WithName n) (NameRef typ)
+      flattenAttribute sa@(SingleAttribute (WithName n) (Just hn) (NameRef typ)
                                            mode d) = do
         dbgBLabel flattening 1 "[fA] single attribute with type reference " sa
         indenting $ do
           let defn = AttributeDefn n (SingleAttributeDefn typ $
                                         stringToAttributeUsage mode)
-                                   (qName n) Nothing d
+                                   hn Nothing d
           fileNewDefinition defn
           dbgResult flattening 1 "Flattened [fA] to" $ [defn]
-      flattenAttribute sa@(SingleAttribute (WithName n) (Nested ds) mode d) = do
+      flattenAttribute sa@(SingleAttribute (WithName n) (Just hn) (Nested ds)
+                                           mode d) = do
         dbgBLabel flattening 1 "[fA] Single attribute with nested type " sa
         (defs, ref) <- indenting $ flattenSchemaRef ds
         dbgLn flattening 1 $ "(Back in flattenAttribute)"
@@ -1437,17 +1450,19 @@ instance AST DataScheme where
         dbgBLabel flattening 1 "- ref " ref
         case ref of
           TypeRef qn (Just 1) (Just 1) _ _ -> do
-            dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", min/max single"
+            dbgLn flattening 1 $
+              "Case for TypeRef " ++ showQName qn ++ ", min/max single"
             let defn = AttributeDefn n
                          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         (qName n) Nothing d
+                         hn Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn Nothing Nothing _ _ -> do
-            dbgLn flattening 1 $ "Case for TypeRef " ++ showQName qn ++ ", no bounds"
+            dbgLn flattening 1 $
+              "Case for TypeRef " ++ showQName qn ++ ", no bounds"
             let defn = AttributeDefn n
                          (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         (qName n) Nothing d
+                         hn Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn mn (Just 1) _ _ -> do
@@ -2003,7 +2018,9 @@ instance AST DataScheme where
         typeQName <- pullAttrQName "type" ats
         refQName <- pullAttrQName "ref" ats
         nameQname <- pullAttrQName "name" ats
-        return $ SingleAttribute (nameOrRefOpt nameQname refQName)
+        let nameOrRef = nameOrRefOpt nameQname refQName
+        return $ SingleAttribute nameOrRef
+                   (nameOrRefOptToMaybeString nameOrRef)
                    (maybe Neither NameRef typeQName)
                    (maybe "optional" id $ pullAttr "use" ats)
                    d
@@ -2060,7 +2077,8 @@ instance AST DataScheme where
         ds <- inputSchemaItem outer tySpec
         dbgBLabel input 1 "- ds " ds
         dbgResult input 1 "Result [encodeAttributeWithNestedType]:" $
-          SingleAttribute nameOrRef (Nested ds) use d
+          SingleAttribute nameOrRef (nameOrRefOptToMaybeString nameOrRef)
+                          (Nested ds) use d
       encodeAttributeWithNestedType _ _ tySpec (s:ss) _ _ _ = do
         boxed $ do
           dbgLn input 1 "Too many nested types for attribute"
@@ -2194,7 +2212,7 @@ instance AST DataScheme where
   debugSlug Skip = "Skip"
   debugSlug (ElementScheme _ ifName _ _ _ _ _ _ _ _ _) =
     maybe "element (unnamed)" (("element " ++) . qName) ifName
-  debugSlug (AttributeScheme (SingleAttribute nameOrRef _ _ _) impl _ _) =
+  debugSlug (AttributeScheme (SingleAttribute nameOrRef _ _ _ _) impl _ _) =
     "attribute " ++ show nameOrRef ++ " as " ++ impl
   debugSlug (AttributeScheme (AttributeGroup nameOrRef _ _) impl _ _) =
     "attribute group " ++ show nameOrRef ++ " as " ++ impl

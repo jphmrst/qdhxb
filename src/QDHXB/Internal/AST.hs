@@ -29,7 +29,7 @@ type Substitutions = [(String, String)]
 data MaybeUpdated a = Same { resultOnly :: a } | Updated { resultOnly :: a }
 
 instance Blockable a => Blockable (MaybeUpdated a) where
-  block (Same v) = stringToBlock "[Unchanged]"
+  block (Same _) = stringToBlock "[Unchanged]"
   block (Updated v) = stringToBlock "[Updated]" `stack2` block v
 
 instance Functor MaybeUpdated where
