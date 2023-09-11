@@ -80,7 +80,7 @@ maybeToList (Just n) = [n]
 -- | Synonym for `Data.Time.LocalTime.ZonedTime` with `Eq` membership
 -- (based on conversion to UTC per
 -- [https://hackage.haskell.org/package/time-1.12.2/docs/Data-Time-LocalTime.html]).
-newtype ZonedTime = ZonedTime LT.ZonedTime
+newtype ZonedTime = ZonedTime LT.ZonedTime deriving (Show, Read)
 
 instance Eq ZonedTime where
   (ZonedTime zt1) == (ZonedTime zt2) = zonedTimeToUTC zt1 == zonedTimeToUTC zt2
