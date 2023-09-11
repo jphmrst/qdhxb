@@ -70,18 +70,8 @@ import QDHXB.Utils.TH (
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType, firstToUpper)
 import QDHXB.Internal.Types
+import QDHXB.Internal.Debugln
 import QDHXB.Options
-
-import QDHXB.Internal.Debugln hiding (dbgLn, dbgBLabel, dbgResult, dbgResultM)
-import qualified QDHXB.Internal.Debugln as DBG
-dbgLn :: (MonadDebugln m n) => String -> m ()
-dbgLn = DBG.dbgLn xsdq 0
-dbgBLabel :: (MonadDebugln m n, Blockable c) => String -> c -> m ()
-dbgBLabel = DBG.dbgBLabel xsdq 0
-dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
-dbgResult = DBG.dbgResult xsdq 0
-dbgResultM :: (MonadDebugln m n, Blockable a) => String -> m a -> m a
-dbgResultM = DBG.dbgResultM xsdq 0
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.
@@ -257,9 +247,9 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
-fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _) _ _ _)  = do
+fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _ _) _ _)  = do
   addAttributeType qn defn
-fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _) _ _ _)  = do
+fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _ _) _ _)  = do
   addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
@@ -490,30 +480,44 @@ getGroupDefnOrFail name = do
     Just gr -> return gr
     Nothing -> error $ "No such group " ++ showQName name
 
+defn_to_haskell_name :: Definition -> QName -> String
+defn_to_haskell_name defn qn = case defn of
+  ElementDefn _ hn _ _ _ -> firstToUpper $ qName hn
+  AttributeDefn _ (SingleAttributeDefn _ _ hn) _ _ -> firstToUpper hn
+  AttributeDefn _ (AttributeGroupDefn _ hn) _ _ -> firstToUpper hn
+  BuiltinDefn _ hn _ _ -> hn
+  _ -> firstToUpper $ qName qn
+
 -- | If the argument names an XSD type known to the translator, then
 -- return the `String` name of the corresponding Haskell type (and
 -- throw on error in the `XSDQ` monad otherwise).
 getTypeHaskellName :: QName -> XSDQ String
 getTypeHaskellName qn = do
-  ifDefn <- getTypeDefn qn
+  ifDefn <- get_defn_via [getTypeDefn, get_attribute_type_defn] qn
   case ifDefn of
     Nothing -> liftExcepttoXSDQ $ throwError $
       "No type \"" ++ bpp qn ++ "\" found"
-    Just defn -> return $ case defn of
-                            BuiltinDefn _ hn _ _ -> hn
-                            _ -> firstToUpper $ qName qn
+    Just defn -> return $ defn_to_haskell_name defn qn
+
+get_defn_via ::
+  [QName -> XSDQ (Maybe Definition)] -> QName -> XSDQ (Maybe Definition)
+get_defn_via [] _ = return Nothing
+get_defn_via (f:fs) qn = do
+  ifDefn <- f qn
+  case ifDefn of
+    Just defn -> return $ Just defn
+    Nothing -> get_defn_via fs qn
 
 -- | If the argument names an XSD type known to the translator, then
 -- return the the corresponding TH `Type` (and throw on error in the
 -- `XSDQ` monad otherwise).
 getTypeHaskellType :: QName -> XSDQ Type
 getTypeHaskellType qn = do
-  ifDefn <- getTypeDefn qn
+  ifDefn <- get_defn_via [getTypeDefn, get_attribute_type_defn] qn
   case ifDefn of
     Nothing -> liftExcepttoXSDQ $ throwError $ "No type " ++ bpp qn ++ " found"
-    Just defn -> return $ case defn of
-                            BuiltinDefn _ _ ht _ -> ht
-                            _ -> ConT $ mkName $ firstToUpper $ qName qn
+    Just defn -> return $
+      ConT $ mkName $ firstToUpper $ defn_to_haskell_name defn qn
 
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the `String` name of the corresponding
@@ -615,6 +619,12 @@ getAttributeDefn name = liftStatetoXSDQ $ do
   st <- get
   return $ lookupFirst (stateAttributeTypes st) name
 
+get_attribute_type_defn :: QName -> XSDQ (Maybe Definition)
+get_attribute_type_defn qn = do
+  -- dbgBLabel generate 3 "get_attribute_type_defn " qn
+  ifAD <- getAttributeDefn qn
+  return $ fmap (\ad -> AttributeDefn qn ad Nothing Nothing) ifAD
+
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
 -- such attribute name.
@@ -622,8 +632,8 @@ getAttributeType :: QName -> XSDQ (Maybe QName)
 getAttributeType name = do
   defn <- getAttributeDefn name
   case defn of
-    Just (SingleAttributeDefn t _) -> return $ Just t
-    Just (AttributeGroupDefn _) -> throwError $
+    Just (SingleAttributeDefn t _ _) -> return $ Just t
+    Just (AttributeGroupDefn _ _) -> throwError $
       "Single attribute type requested for " ++ qName name ++
       " but group definition found"
     Nothing -> throwError $ "No attribute information for " ++ qName name
@@ -646,30 +656,30 @@ adjustTypeForUsage Required t = t
 -- context of a particular usage declaration.
 getAttributeOrGroupTypeForUsage :: (QName, AttributeUsage) -> XSDQ Type
 getAttributeOrGroupTypeForUsage (qn, _usage) = do
-  whenAnyDebugging $ dbgBLabel "[gAoGTfU @XSDQ] for " qn
+  whenAnyDebugging $ dbgBLabel xsdq 2 "[gAoGTfU @XSDQ] for " qn
   ifDefn <- getAttributeOrGroup qn
   case ifDefn of
     Nothing -> throwError $ "No attribute or group " ++ show qn
     Just defn -> do
       typ <- indenting $ buildAttrOrGroupHaskellType qn
-      whenAnyDebugging $ dbgBLabel "- typ " typ
+      whenAnyDebugging $ dbgBLabel xsdq 2 "- typ " typ
       case defn of
-        SingleAttributeDefn _ usage -> do
-          whenAnyDebugging $ dbgBLabel "- defn Single attr with usage " usage
-          dbgResult "Returns type:" $ adjustTypeForUsage usage typ
-        AttributeGroupDefn _subAttrs {- usage -} -> do
-          whenAnyDebugging $ dbgLn "- defn Attr group, assuming Optional"
-          dbgResult "Returns type as-is:" $ typ
+        SingleAttributeDefn _ usage _ -> do
+          whenAnyDebugging $ dbgBLabel xsdq 2 "- defn Single attr with usage " usage
+          dbgResult xsdq 2 "Returns type:" $ adjustTypeForUsage usage typ
+        AttributeGroupDefn _subAttrs {- usage -} _hn -> do
+          whenAnyDebugging $ dbgLn xsdq 2 "- defn Attr group, assuming Optional"
+          dbgResult xsdq 2 "Returns type as-is:" $ typ
 
 -- | Return the `Definition` of an XSD attribute or attribute group
 -- from the tracking tables in the `XSDQ` state.
 getAttributeOrGroup :: QName -> XSDQ (Maybe AttributeDefn)
 getAttributeOrGroup name = indenting $ do
-  whenAnyDebugging $ dbgBLabel "[XSDQ.getAttributeOrGroup] " name
+  whenAnyDebugging $ dbgBLabel xsdq 2 "[XSDQ.getAttributeOrGroup] " name
   ifSingle <- getAttributeDefn name
   case ifSingle of
-    Just _ -> dbgResult "- returns" ifSingle
-    Nothing -> dbgResultM "- returns" $ getAttributeGroup name
+    Just _ -> dbgResult xsdq 2 "- returns" ifSingle
+    Nothing -> dbgResultM xsdq 2 "- returns" $ getAttributeGroup name
 
 -- | Register the name associated with an attribute group
 -- @AttributeDefn@.

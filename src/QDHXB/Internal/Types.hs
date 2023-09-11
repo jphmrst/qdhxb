@@ -94,17 +94,22 @@ data AttributeDefn =
   SingleAttributeDefn -- ^ Defining a single attribute
       QName   -- ^ ifType
       AttributeUsage -- ^ use mode: prohibited, optional (default), required
+      String -- ^ Base (type) name for the methods of this
+             -- attribute/group.
   | AttributeGroupDefn -- ^ Defining a group of attributes
       [(QName, AttributeUsage)] -- ^ Names of included attributes and
                                 -- attribute groups, with how each is
                                 -- required within this group
+      String -- ^ Base (type) name for the methods of this
+             -- attribute/group.
   deriving Show
 
 instance Blockable AttributeDefn where
-  block (SingleAttributeDefn t m) = stringToBlock $
-    "Single " ++ showQName t ++ " (" ++ show m ++ ")"
-  block (AttributeGroupDefn ds) =
-    labelBlock "AttributeGroup " $ stackBlocks $ map usagePairBlock ds
+  block (SingleAttributeDefn t m hn) = stringToBlock $
+    "Single " ++ showQName t ++ " (" ++ show m ++ ", Haskell name " ++ hn ++ ")"
+  block (AttributeGroupDefn ds hn) =
+    labelBlock ("AttributeGroup (Haskell name " ++ hn ++ ")") $
+      stackBlocks $ map usagePairBlock ds
     where usagePairBlock :: (QName, AttributeUsage) -> Block
           usagePairBlock (qn, u) =
             labelBlock (showQName qn ++ " used ") $ block u
@@ -124,8 +129,6 @@ data Definition =
     -- ^ Defining the attributes and groups.
         QName -- ^ Name of the attribute/group.
         AttributeDefn -- ^ Specification of the attribute or group
-        String -- ^ Base (type) name for the methods of this
-               -- attribute/group.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | SimpleSynonymDefn
@@ -217,9 +220,8 @@ instance Blockable Definition where
     `stack2` stringToBlock ("as " ++ impl)
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
-  block (AttributeDefn n sp hn _ _) =
-    labelBlock ("Attribute " ++ showQName n ++ " Haskell type " ++ hn ++ " ") $
-      block sp
+  block (AttributeDefn n sp _ _) =
+    labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $

@@ -810,8 +810,8 @@ instance AST DataScheme where
         dbgLn flattening 1 "[fSI'] Flattening single attribute"
         let attrDefn =
               AttributeDefn nam
-                (SingleAttributeDefn typ $ stringToAttributeUsage m)
-                hnam l (pickOrCombine d d')
+                (SingleAttributeDefn typ (stringToAttributeUsage m) hnam)
+                l (pickOrCombine d d')
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" [attrDefn]
 
@@ -828,8 +828,9 @@ instance AST DataScheme where
         let qn = referenceQName ref
         let attrDefn =
               AttributeDefn nam
-                (SingleAttributeDefn qn $ stringToAttributeUsage use)
-                (qName nam) l (pickOrCombine innerDoc outerDoc)
+                (SingleAttributeDefn qn (stringToAttributeUsage use)
+                                     (qName nam))
+                l (pickOrCombine innerDoc outerDoc)
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" $ defs ++ [attrDefn]
 
@@ -989,8 +990,8 @@ instance AST DataScheme where
                 dbgLn flattening 1 "[fAGI] Flattening attribute group item"
                 let names = map grabNameAndUsage cs
                 defs <- indenting $ flattenAttributes cs
-                let attrDefn = AttributeDefn n (AttributeGroupDefn names)
-                                             (qName n) l d
+                let attrDefn = AttributeDefn
+                                 n (AttributeGroupDefn names $ qName n) l d
                 fileNewDefinition attrDefn
                 let res = defs ++ [attrDefn]
                 return res
@@ -1330,8 +1331,8 @@ instance AST DataScheme where
       flattenSingleAttributeRef (WithName nam) (Just hn) (NameRef t) m l d = do
         dbgLn flattening 1 "[fSAR] WithRef+NameRef "
         let defn = AttributeDefn nam
-                     (SingleAttributeDefn t $ stringToAttributeUsage m)
-                     hn l d
+                     (SingleAttributeDefn t (stringToAttributeUsage m) hn)
+                     l d
             ref = AttributeRef nam (stringToAttributeUsage m)
         fileNewDefinition defn
         dbgResult flattening 1 (showQName nam ++ " [fSAR] flattened to") ([defn], ref)
@@ -1456,9 +1457,9 @@ instance AST DataScheme where
                                            mode d) = do
         dbgBLabel flattening 1 "[fA] single attribute with type reference " sa
         indenting $ do
-          let defn = AttributeDefn n (SingleAttributeDefn typ $
-                                        stringToAttributeUsage mode)
-                                   hn Nothing d
+          let defn = AttributeDefn n (SingleAttributeDefn typ
+                                        (stringToAttributeUsage mode) hn)
+                                   Nothing d
           fileNewDefinition defn
           dbgResult flattening 1 "Flattened [fA] to" $ [defn]
       flattenAttribute sa@(SingleAttribute (WithName n) (Just hn) (Nested ds)
@@ -1473,16 +1474,18 @@ instance AST DataScheme where
             dbgLn flattening 1 $
               "Case for TypeRef " ++ showQName qn ++ ", min/max single"
             let defn = AttributeDefn n
-                         (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         hn Nothing d
+                         (SingleAttributeDefn qn (stringToAttributeUsage mode)
+                                              hn)
+                         Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn Nothing Nothing _ _ -> do
             dbgLn flattening 1 $
               "Case for TypeRef " ++ showQName qn ++ ", no bounds"
             let defn = AttributeDefn n
-                         (SingleAttributeDefn qn $ stringToAttributeUsage mode)
-                         hn Nothing d
+                         (SingleAttributeDefn qn (stringToAttributeUsage mode)
+                                              hn)
+                         Nothing d
             fileNewDefinition defn
             dbgResult flattening 1 "Flattened [fA] to" $ defs ++ [defn]
           TypeRef qn mn (Just 1) _ _ -> do
@@ -1514,8 +1517,8 @@ instance AST DataScheme where
         dbgBLabel flattening 1 "[fA] Attribute group with name reference " ag
         indenting $ do
           let names = map grabNameAndUsage schemes
-              defn = AttributeDefn n (AttributeGroupDefn names)
-                       (qName n) Nothing d
+              defn = AttributeDefn n (AttributeGroupDefn names (qName n))
+                       Nothing d
           fileNewDefinition defn
           sub <- fmap concat $ mapM flattenAttribute schemes
           dbgResult flattening 1 "Flattened [fA] to" $ sub ++ [defn]

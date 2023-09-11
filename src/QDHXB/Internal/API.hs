@@ -76,8 +76,8 @@ translate_parsed_xsd xsds = do
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
           whenDebugging input 0 $ liftIO $ do
-            putStrLn "----------------------------------------"
-            bLabelPrintln "Final: " schemaReps
+            putStrLn "Final ----------------------------------------"
+            putStrLn $ bpp schemaReps
 
           whenDebugging unique 0 $ liftIO $ putStrLn
             "======================================== RENAMED NESTED INPUT"
@@ -85,8 +85,8 @@ translate_parsed_xsd xsds = do
           putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
             ++ "\n------------------------------ "
           whenDebugging unique 0 $ liftIO $ do
-            putStrLn "----------------------------------------"
-            bLabelPrintln "Final: " renamedSchemaReps
+            putStrLn "Final ----------------------------------------"
+            putStrLn $ bpp renamedSchemaReps
 
           whenDebugging flattening 0 $ liftIO $ putStrLn
             "======================================== FLATTEN"
@@ -94,8 +94,8 @@ translate_parsed_xsd xsds = do
           putLog $ " FLATTENED INPUT\n" ++ bpp ir
             ++ "\n------------------------------ "
           whenDebugging flattening 0 $ liftIO $ do
-            putStrLn "----------------------------------------"
-            bLabelPrintln "Final: " ir
+            putStrLn "Final ----------------------------------------"
+            putStrLn $ bpp ir
 
           return ir
         _ -> error "Expected top-level <schema> element") cores
@@ -107,17 +107,22 @@ translate_parsed_xsd xsds = do
     ++ "\n==============================\n"
   whenDebugging flattening 0 $ do
     debugXSDQ
-    liftIO $ putStrLn "======================================== FULL FLATTENED"
-    liftIO $ putStrLn $ bpp flattened
-    liftIO $ putStrLn "----------------------------------------"
+    liftIO $ do
+      putStrLn "======================================== FULL FLATTENED"
+      putStrLn $ bpp flattened
+      putStrLn "----------------------------------------"
     debugXSDQ
 
   whenDebugging generate 0 $ do
     liftIO $ putStrLn "======================================== GENERATE"
+  whenDebugging generate 2 $ do
+    debugXSDQ
+    liftIO $ putStrLn "----------------------------------------"
   decls <- xsdDeclsToHaskell flattened
   putLog $ " OUTPUT\n" ++ bpp decls ++ "\n==============================\n"
   whenDebugging generate 0 $ liftIO $ do
-    bLabelPrintln "Final: " decls
+    putStrLn "Final ----------------------------------------"
+    putStrLn $ bpp decls
     putStrLn "======================================== end "
 
   return decls

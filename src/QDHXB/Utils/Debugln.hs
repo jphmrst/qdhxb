@@ -205,7 +205,8 @@ makeDebuglnDefs switch = do
         forall m n . (MonadDebugln m n) => String -> m ()
       _putStrIndenting str = do
         state <- debuggingState
-        liftIO $ putStrLn $ indentation state ++ str
+        liftIO $ putStr $ concat $
+          map ((indentation state ++) . (++ "\n")) (lines str)
 
       dbgLn ::
         forall m n . (MonadDebugln m n) =>
