@@ -7,8 +7,8 @@ import QDHXB
 import qualified QDHXB.Expansions
 
 import QDHXB.Internal.Debugln
-qdhxb (setDebugging generate 4) ["test/PersonAttr1/personattr1.xsd"]
--- qdhxb' ["test/PersonAttr1/personattr1.xsd"]
+-- qdhxb (setDebugging generate 4) ["test/PersonAttr1/personattr1.xsd"]
+qdhxb' ["test/PersonAttr1/personattr1.xsd"]
 
 testPersonAttr1 :: TLT IO ()
 testPersonAttr1 = inGroup "XSD PersonAttr 1" $ do
