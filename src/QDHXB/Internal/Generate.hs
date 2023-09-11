@@ -658,11 +658,10 @@ getSafeDecoderCall qn = do
 
   where baseByName :: XSDQ (BlockMaker Content dt)
         baseByName =
-          do let base :: BlockMaker Content dt
-                 base = \src dest -> [
-                   BindS (VarP dest) $
-                     AppE (buildSafeDecoderExpFor $ qName qn) (VarE src)
-                   ]
+          do fnExp <- buildSafeDecoderExpFor qn
+             let base :: BlockMaker Content dt
+                 base = \src dest ->
+                   [ BindS (VarP dest) $ AppE fnExp (VarE src) ]
              return base
 
 -- | Return an invocation of a safe decoder expected to be defined
@@ -910,7 +909,7 @@ getAttrRefSafeDecoder ref = do
   dbgLn "getAttrRefSafeDecoder only case"
   typeHName <- getTypeHaskellName ref
   dbgBLabel "  - typeHName " typeHName
-  let safeDec = buildSafeDecoderExpFor typeHName
+  let safeDec = buildSafeDecoderExpForTypeString typeHName
   dbgBLabel "  - safeDec " safeDec
   return $ \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
 
@@ -1217,8 +1216,17 @@ newAssemble base tyDec safeDec ifDoc = do
 -- decoder function `Exp`ression.  __Note__ that this function will
 -- just operate on the name; there is no assurance that the name will
 -- actually exist.
-buildSafeDecoderExpFor :: String -> Exp
-buildSafeDecoderExpFor typeName =
+buildSafeDecoderExpFor :: QName -> XSDQ Exp
+buildSafeDecoderExpFor qn = do
+  hname <- getTypeHaskellName qn
+  return $ buildSafeDecoderExpForTypeString hname
+
+-- | From an element reference, construct the associated Haskell
+-- decoder function `Exp`ression.  __Note__ that this function will
+-- just operate on the name; there is no assurance that the name will
+-- actually exist.
+buildSafeDecoderExpForTypeString :: String -> Exp
+buildSafeDecoderExpForTypeString typeName =
   VarE $ mkName $ "tryDecodeAs" ++ firstToUpper typeName
 
 -- | Builds a list of two `Match`es for a `Maybe` expression, given

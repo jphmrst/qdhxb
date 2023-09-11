@@ -6,8 +6,9 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb (useDebugging . logByFile True) ["test/PersonAttr1/personattr1.xsd"]
-qdhxb' ["test/PersonAttr1/personattr1.xsd"]
+import QDHXB.Internal.Debugln
+qdhxb (setDebugging generate 4) ["test/PersonAttr1/personattr1.xsd"]
+-- qdhxb' ["test/PersonAttr1/personattr1.xsd"]
 
 testPersonAttr1 :: TLT IO ()
 testPersonAttr1 = inGroup "XSD PersonAttr 1" $ do
