@@ -7,7 +7,7 @@ import QDHXB
 import qualified QDHXB.Expansions
 import Data.Symbol
 
--- TODO Can't handle using the same name in different XML scopes
+-- TODO ZonedTime not declared Eq? (previously: same name in different XML scopes)
 -- qdhxb (setDebugging (intern "unique") 3) ["test/CustomersOrders/customersorders.xsd"]
 -- qdhxb' ["test/CustomersOrders/customersorders.xsd"]
 

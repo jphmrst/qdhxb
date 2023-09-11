@@ -19,14 +19,14 @@ import Control.Monad.Except (
 import Text.Read (readMaybe)
 import Text.XML.Light.Types (Content, QName)
 import Data.Time.Calendar.OrdinalDate (Day)
-import Data.Time.LocalTime (TimeOfDay, ZonedTime)
+import Data.Time.LocalTime (TimeOfDay)
 import Data.Time.Clock (DiffTime)
 import QDHXB.Errs
 import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.XMLLight (
   __loadElement, __loadContent,
   pullContentFrom, pullAttrFrom, pullCRefContent)
-import QDHXB.Utils.Misc (spaceSep)
+import QDHXB.Utils.Misc (spaceSep, ZonedTime)
 import QDHXB.Utils.BPP (bpp)
 import QDHXB.Internal.Generate (simpleTypeDecoder)
 

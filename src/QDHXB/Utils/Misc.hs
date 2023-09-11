@@ -3,10 +3,12 @@
 module QDHXB.Utils.Misc (
   applyFst, applySnd,
   compressMaybe, qFirstToUpper, qTransformName, spaceSep, chomp, pickOrCombine,
-  ifAtLine, maybeToList
+  ifAtLine, maybeToList, ZonedTime(..)
   ) where
 import Data.Char (isSpace)
 import Text.XML.Light.Types
+import Data.Time.LocalTime (zonedTimeToUTC)
+import qualified Data.Time.LocalTime as LT
 import QDHXB.Utils.TH
 
 -- | Apply a function to the first element of a pair, and return a
@@ -74,3 +76,12 @@ ifAtLine ifLine = maybe "" (\line -> " at XSD line " ++ show line) ifLine
 maybeToList :: Maybe a -> [a]
 maybeToList Nothing = []
 maybeToList (Just n) = [n]
+
+-- | Synonym for `Data.Time.LocalTime.ZonedTime` with `Eq` membership
+-- (based on conversion to UTC per
+-- [https://hackage.haskell.org/package/time-1.12.2/docs/Data-Time-LocalTime.html]).
+newtype ZonedTime = ZonedTime LT.ZonedTime
+
+instance Eq ZonedTime where
+  (ZonedTime zt1) == (ZonedTime zt2) = zonedTimeToUTC zt1 == zonedTimeToUTC zt2
+

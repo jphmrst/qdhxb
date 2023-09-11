@@ -291,15 +291,15 @@ doubleBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "Double" Nothing) $
     SigE (AppE readMaybeVarE expr) $ appMaybeType doubleType
 
--- | TH `Name` for `Data.Time.LocalTime.ZonedTime`
+-- | TH `Name` for `QDHXB.Utils.Misc.ZonedTime`
 zonedTimeName :: Name
 zonedTimeName = mkName "QDHXB.Expansions.ZonedTime"
 
--- | TH `Type` for `Data.Time.LocalTime.ZonedTime`
+-- | TH `Type` for `QDHXB.Utils.Misc.ZonedTime`
 zonedTimeConT :: Type
 zonedTimeConT = ConT zonedTimeName
 
--- | TH `Data.Time.LocalTime.ZonedTime` converter from `String`.
+-- | TH `QDHXB.Utils.Misc.ZonedTime` converter from `String`.
 zonedTimeBasicDecoder :: Exp -> Exp
 zonedTimeBasicDecoder expr =
   maybeToExceptExp (qthCouldNotDecodeSimpleType "ZonedTime" Nothing) $
