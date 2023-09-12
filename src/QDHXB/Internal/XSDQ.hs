@@ -302,6 +302,9 @@ installXmlPrimitives ns pfx = do
 installXsdPrimitives :: String -> Maybe String -> XSDQ ()
 installXsdPrimitives ns pfx = do
   let anyTypeQN = QName "anyType" (Just ns) pfx
+      stringQN = QName "string" (Just ns) pfx
+
+  -- XSD-specific
   fileNewDefinition $
     BuiltinDefn anyTypeQN "String" stringType stringBasicDecoder
   fileNewDefinition $
@@ -401,8 +404,7 @@ installXsdPrimitives ns pfx = do
     BuiltinDefn (QName "negativeInteger" (Just ns) pfx) "Int"
       intType intBasicDecoder
   fileNewDefinition $
-    BuiltinDefn (QName "string" (Just ns) pfx) "String"
-      stringType stringBasicDecoder
+    BuiltinDefn stringQN "String" stringType stringBasicDecoder
   fileNewDefinition $
     BuiltinDefn (QName "normalizedString" (Just ns) pfx) "String"
       stringType stringBasicDecoder
@@ -442,6 +444,22 @@ installXsdPrimitives ns pfx = do
   fileNewDefinition $
     BuiltinDefn (QName "MNTOKENS" (Just ns) pfx) "StringList"
       stringListType stringListBasicDecoder
+
+  -- XML attributes which we need to load in the XML/XSD specs
+  let stringSingleAttribute = SingleAttributeDefn stringQN Optional "String"
+      fileStringAttribute name =
+        fileNewDefinition $ AttributeDefn (QName name (Just ns) pfx)
+                                          stringSingleAttribute Nothing Nothing
+  fileStringAttribute "base"
+  fileStringAttribute "lang"
+  fileStringAttribute "space"
+  fileStringAttribute "id"
+  fileNewDefinition $
+    BuiltinDefn (QName "language" (Just ns) pfx) "String"
+      stringType stringBasicDecoder
+  fileNewDefinition $
+    BuiltinDefn (QName "ID" (Just ns) pfx) "String"
+      stringType stringBasicDecoder
 
 -- | Register the `Definition` of an XSD type with the tracking tables
 -- in the `XSDQ` state.
@@ -662,12 +680,14 @@ adjustTypeForUsage Required t = t
 
 -- | Return the Haskell type of an attribute or attribute group in the
 -- context of a particular usage declaration.
-getAttributeOrGroupTypeForUsage :: (QName, AttributeUsage) -> XSDQ Type
-getAttributeOrGroupTypeForUsage (qn, _usage) = do
+getAttributeOrGroupTypeForUsage ::
+  Maybe Line -> (QName, AttributeUsage) -> XSDQ Type
+getAttributeOrGroupTypeForUsage ln (qn, _usage) = do
   dbgBLabel xsdq 2 "[gAoGTfU @XSDQ] for " qn
   ifDefn <- getAttributeOrGroup qn
   case ifDefn of
-    Nothing -> throwError $ "No attribute or group " ++ show qn
+    Nothing -> throwError $
+      "No attribute or group " ++ showQName qn ++ ifAtLine ln
     Just defn -> do
       typ <- getTypeHaskellType qn
              {- indenting $ buildAttrOrGroupHaskellType qn -}

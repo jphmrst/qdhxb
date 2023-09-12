@@ -16,7 +16,7 @@ import QDHXB.Utils.Debugln.BPP
 makeDebuglnDefs True
 makeDebuglnBPPDefs True
 
-xsdq, flattening, generate, input, unique, blocks :: Subject
+input, unique, flattening, generate, xsdq, blocks :: Subject
 -- | Canonical instance for a QDHXB debugging subject.
 xsdq = subject "xsdq"
 -- | Canonical instance for a QDHXB debugging subject.

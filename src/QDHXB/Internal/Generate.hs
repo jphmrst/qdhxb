@@ -187,12 +187,12 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
 
   dbgResult "Generated" $ extractor ++ subextractor ++ loader
 
-xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) _ln doc) = do
+xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
   dbgBLabel "Generating from (f) " d
   decoder <- getSafeDecoderBody nam
   dbgBLabelSrcDest "- decoder " decoder
   dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
-  hrefOut <- indenting $ mapM getAttributeOrGroupTypeForUsage ads
+  hrefOut <- indenting $ mapM (getAttributeOrGroupTypeForUsage ln) ads
   dbgResultM "Generated" $
     newAssemble nam (Just $ \tn ->
                         DataD [] tn [] Nothing [
@@ -559,8 +559,8 @@ getSafeDecoderBody qn = indenting $ do
         Just (AttributeGroupDefn subqns _) -> do
           dbgLn "- AttributeGroupDefn (2aa) found"
           typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
-          haskellType <- buildAttrOrGroupHaskellType qn
           dbgBLabel "- typeAndConstrName " typeAndConstrName
+          haskellType <- buildAttrOrGroupHaskellType qn
           dbgBLabel "- haskellType " haskellType
           dbgPt "Mapping getSafeDecoderUsageCall onto group items"
           subdecoders <- indenting $ mapM getSafeDecoderUsageCall subqns
