@@ -1,0 +1,20 @@
+
+<!-- Derived from portions of the XSD spec,
+     https://www.w3.org/TR/xmlschema11-1/#normative-schemaSchema
+     -->
+<?xml version='1.0'?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+            targetNamespace="urn:groupbasic0"
+            xmlns:gb="urn:groupbasic0">
+
+  <xs:attribute name="attr1" type="xs:string"/>
+  <xs:attributeGroup name="attgr">
+    <xs:attribute ref="attr1"/>
+    <xs:attribute ref="xs:lang"/>
+  </xs:attributeGroup>
+  <xs:complexType name="cType">
+    <xs:attributeGroup ref="attgr"/>
+  </xs:complexType>
+
+  <xs:element name="item" type="cType"/>
+</xs:schema>

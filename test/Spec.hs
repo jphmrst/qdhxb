@@ -28,6 +28,8 @@ import GroupBasic.MinGroup0 (testMinGroup0)
 import GroupBasic.MinGroup1 (testMinGroup1)
 import GroupBasic.GroupBasic0 (testGB0)
 import GroupBasic.GroupBasic1 (testGB1)
+import GroupBasic.GroupRefs3 (testGB3)
+import GroupBasic.GroupRefs4 (testGB4)
 import ChoiceBasic.ChoiceBasic0 (testCB0)
 import ChoiceBasic.ChoiceBasic1 (testCB1)
 import ChoiceBasic.ChoiceBasic2 (testCB2)
@@ -82,6 +84,7 @@ main = do
     testMinGroup1
     testGB0
     testGB1
+    testGB3
     testCB0
     testCB1
     testCB2
