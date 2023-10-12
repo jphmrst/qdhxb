@@ -6,9 +6,11 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
+-- TODO Attributes defined in xs: not loading correctly
+
 import QDHXB.Internal.Debugln
-qdhxb (setDebugging generate 3)
-  ["test/GroupBasic/group-refs2.xsd"]
+qdhxb (setDebugging generate 3) ["test/GroupBasic/group-refs2.xsd"]
+
 {-
 qdhxb' ["test/GroupBasic/group-refs2.xsd"]
 -}

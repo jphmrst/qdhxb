@@ -186,6 +186,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
         ]
 
   dbgResult "Generated" $ extractor ++ subextractor ++ loader
+
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
   dbgBLabel "Generating from (f) " d
@@ -647,22 +648,17 @@ decoderForSimpleType qn = do
 getSafeDecoderCall :: QName -> XSDQ (BlockMaker Content dt)
 getSafeDecoderCall qn = do
   dbgPt $ "getSafeDecoderCall for " ++ showQName qn
-  ifDefn <- getTypeDefn qn
-  case ifDefn of
-    Just defn -> do
-      dbgBLabel "- Found type " defn
-      indenting $ case defn of
-        BuiltinDefn _ _ _ _ -> decoderForSimpleType qn
-        _ -> baseByName
-    _ -> baseByName
-
-  where baseByName :: XSDQ (BlockMaker Content dt)
-        baseByName =
-          do fnExp <- buildSafeDecoderExpFor qn
-             let base :: BlockMaker Content dt
-                 base = \src dest ->
-                   [ BindS (VarP dest) $ AppE fnExp (VarE src) ]
-             return base
+  indenting $ do
+    ifDefn <- getTypeDefn qn
+    case ifDefn of
+      Just defn -> do
+        dbgBLabel "- Found type " defn
+        indenting $ case defn of
+          BuiltinDefn _ _ _ _ -> decoderForSimpleType qn
+          _ -> indenting $ getAttrRefSafeDecoder qn
+      _ -> do
+        dbgLn "- No type found, building via baseByName"
+        indenting $ getAttrRefSafeDecoder qn
 
 -- | Return an invocation of a safe decoder expected to be defined
 -- elsewhere.
@@ -683,7 +679,7 @@ getSafeDecoderUsageCall (qn, usage) = do
     Forbidden -> return $ \_ dest ->
       [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
 
-  dbgResultSrcDest "  gives" result
+  dbgResultSrcDest "  gives " result
 
 
 -- | Calculate the Haskell type corresponding to a bound QName.
@@ -907,11 +903,17 @@ getRefSafeDecoder (RawXML _ _) = do
 getAttrRefSafeDecoder :: QName -> XSDQ (BlockMaker Content dt)
 getAttrRefSafeDecoder ref = do
   dbgLn "getAttrRefSafeDecoder only case"
-  typeHName <- getTypeHaskellName ref
-  dbgBLabel "  - typeHName " typeHName
-  let safeDec = buildSafeDecoderExpForTypeString typeHName
-  dbgBLabel "  - safeDec " safeDec
-  return $ \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
+  indenting $ do
+    typeHName <- getTypeHaskellName ref
+    dbgBLabel "  - typeHName " typeHName
+    -- TODO --- This isn't (generally) right --- need to look at the
+    -- type, and actually extract the attribute.
+    let safeDec = VarE $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
+    dbgBLabel "  - safeDec " safeDec
+    let result = \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
+    dbgBLabelSrcDest "- result " result
+    return result
+
 
 unpackAttrDecoderForUsage :: AttributeUsage -> QName -> XSDQ (BlockMaker st dt)
 unpackAttrDecoderForUsage Forbidden name = do
@@ -931,6 +933,7 @@ unpackAttrDecoderForUsage Required name = do
   return $ \src dest ->
     [LetS [ValD (VarP dest) (NormalB $ CaseE (VarE src) matches) []]]
 
+
 -- | Convert a `Reference` into a `BlockMaker` calculating its value.
 referenceToBlockMaker :: Reference -> XSDQ (BlockMaker Content dt)
 
@@ -1212,23 +1215,6 @@ newAssemble base tyDec safeDec ifDoc = do
         "Representation of the @" ++ baseNameStr ++ "@ type"
       return $ tf typeName : baseList
 
--- | From an element reference, construct the associated Haskell
--- decoder function `Exp`ression.  __Note__ that this function will
--- just operate on the name; there is no assurance that the name will
--- actually exist.
-buildSafeDecoderExpFor :: QName -> XSDQ Exp
-buildSafeDecoderExpFor qn = do
-  hname <- getTypeHaskellName qn
-  return $ buildSafeDecoderExpForTypeString hname
-
--- | From an element reference, construct the associated Haskell
--- decoder function `Exp`ression.  __Note__ that this function will
--- just operate on the name; there is no assurance that the name will
--- actually exist.
-buildSafeDecoderExpForTypeString :: String -> Exp
-buildSafeDecoderExpForTypeString typeName =
-  VarE $ mkName $ "tryDecodeAs" ++ firstToUpper typeName
-
 -- | Builds a list of two `Match`es for a `Maybe` expression, given
 -- the alternative expressions for `Nothing` and `Just` (the latter
 -- parameterized over a `Name`).
@@ -1380,7 +1366,6 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
               (qthNoValidContentInUnion baseName ln) names
 
   return (safeCore, names, decs)
-
 
 -- |Given a computation result which is a function of two arguments
 -- corresponding to source and destination, emit debugging information
