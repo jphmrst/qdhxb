@@ -110,6 +110,14 @@ dbgResultFn2 ::
   (MonadDebugln m n, Blockable r) =>
     String -> a -> b -> (a -> b -> r) -> m (a -> b -> r)
 dbgResultFn2 = DBG.dbgResultFn2 generate 0
+dbgBLabelSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ ()
+{-# INLINE dbgBLabelSrcDest #-}
+dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
+dbgResultSrcDest ::
+  Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
+{-# INLINE dbgResultSrcDest #-}
+dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
 
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.
@@ -459,11 +467,91 @@ getSafeStringDecoder qn = do
 
 getSafeDecoderBody :: QName -> XSDQ (BlockMaker Content dt)
 getSafeDecoderBody qn = indenting $ do
-  dbgBLabel "getSafeDecoderBody for " qn
-  ifDefn <- getTypeDefn qn
-  case ifDefn of
+  retr <- retrieveDeclaration qn
+  case retr of
+    IsTypeDefinition d -> decoderBodyForTypeDefn d
+    IsAttributeGroup ad -> decoderBodyForAttributeGroupDefn ad
+    IsAttributeType ad -> decoderBodyForSingleAttributeDefn ad
+    IsGroupDefinition _ -> liftExcepttoXSDQ $ throwError $
+      "getSafeDecoderBody received unexpected GroupDefinition for " ++ bpp qn
+    IsElementType et -> liftExcepttoXSDQ $ throwError $
+      "getSafeDecoderBody received unexpected Element type " ++ bpp et
+       ++ " for " ++ bpp qn
 
-    Just defn -> do
+  where
+
+    decoderBodyForSingleAttributeDefn sad = case sad of
+      SingleAttributeDefn typ _usage _hn -> do
+
+              -- TODO Move decoder generation to here from
+              -- xsdDeclToHaskell clause (g)?  Then generate for
+              -- AttributeGroups from the same framework?
+              attrName <- newName "attr"
+              -- paramName <- newName "content"
+              -- haskellTyp <- getTypeHaskellType typ
+              coreDecoder <- getSafeStringDecoder typ
+              let decoder :: BlockMaker Content dt
+                  decoder src dest = [
+                    LetS [SigD attrName (AppT maybeConT stringConT),
+                          ValD (VarP attrName)
+                          (NormalB $
+                           applyPullAttrFrom (qName qn) (VarE src))
+                          []],
+                    BindS (VarP dest) $
+                      caseNothingJust' (VarE attrName)
+                      (applyReturn nothingConE)
+                      xName (DoE Nothing $ coreDecoder xName resName ++ [
+                                NoBindS $ applyReturn $ applyJust (VarE resName)
+                                ])
+                    ]
+              return decoder
+
+      AttributeGroupDefn _ _ -> do
+              throwError $
+                "Found AttributeGroupDefn in single attribute table for "
+                ++ qName qn
+
+    decoderBodyForAttributeGroupDefn agd = case agd of
+      AttributeGroupDefn subqns _ -> do
+          dbgLn "- AttributeGroupDefn (2aa) found"
+          typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
+          dbgBLabel "- typeAndConstrName " typeAndConstrName
+          haskellType <- buildAttrOrGroupHaskellType qn
+          dbgBLabel "- haskellType " haskellType
+          dbgPt "Mapping getSafeDecoderUsageCall onto group items"
+          subdecoders <- indenting $ mapM getSafeDecoderUsageCall subqns
+          dbgLn "- subdecoders"
+          whenDebugging generate 3 $ indenting $ forM_ subdecoders $ \sd ->
+              dbgBLabel "- " $ sd (mkName "SRC") (mkName "DEST")
+          (subBinder, subNames) <- labelBlockMakers subdecoders
+          dbgBLabelFn1 "- subBinder " (mkName "SRC") $ subBinder
+          dbgBLabel "- subNames " $ show subNames
+          let res :: BlockMaker Content dt
+              res src dest = subBinder src ++ [
+                LetS [
+                    SigD dest (appMaybeType $ ConT typeAndConstrName),
+                    ValD (VarP dest)
+                      (NormalB $ applyJust $
+                        -- Note above applyJust: right now the Maybe
+                        -- constructor is built-in.  We should capture
+                        -- the usage attribute in the
+                        -- AttributeGroupDefn, and proceed based on
+                        -- what it says.
+                        foldl AppE (ConE typeAndConstrName) $
+                          map VarE subNames)
+                      []
+                    ]
+                ]
+          dbgBLabelSrcDest "- result " res
+          return res
+
+
+      SingleAttributeDefn typ _usage _hn -> do
+          throwError $
+            "Found (2bb) SingleAttributeDefn in attribute group table for "
+            ++ qName typ
+
+    decoderBodyForTypeDefn defn = do
       dbgBLabel "- Found type " defn
       case defn of
         BuiltinDefn ty _ _ _ -> do
@@ -552,88 +640,6 @@ getSafeDecoderBody qn = indenting $ do
           error "REDO/4"
           -- forSimpleType listType
         _ -> error "TODO"
-
-    -- No type definition found, so look for an attribute group.
-    Nothing -> do
-      ifGroupDefn <- getAttributeGroup qn
-      case ifGroupDefn of
-        Just (AttributeGroupDefn subqns _) -> do
-          dbgLn "- AttributeGroupDefn (2aa) found"
-          typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
-          dbgBLabel "- typeAndConstrName " typeAndConstrName
-          haskellType <- buildAttrOrGroupHaskellType qn
-          dbgBLabel "- haskellType " haskellType
-          dbgPt "Mapping getSafeDecoderUsageCall onto group items"
-          subdecoders <- indenting $ mapM getSafeDecoderUsageCall subqns
-          dbgLn "- subdecoders"
-          whenDebugging generate 3 $ indenting $ forM_ subdecoders $ \sd ->
-              dbgBLabel "- " $ sd (mkName "SRC") (mkName "DEST")
-          (subBinder, subNames) <- labelBlockMakers subdecoders
-          dbgBLabelFn1 "- subBinder " (mkName "SRC") $ subBinder
-          dbgBLabel "- subNames " $ show subNames
-          let res :: BlockMaker Content dt
-              res src dest = subBinder src ++ [
-                LetS [
-                    SigD dest (appMaybeType $ ConT typeAndConstrName),
-                    ValD (VarP dest)
-                      (NormalB $ applyJust $
-                        -- Note above applyJust: right now the Maybe
-                        -- constructor is built-in.  We should capture
-                        -- the usage attribute in the
-                        -- AttributeGroupDefn, and proceed based on
-                        -- what it says.
-                        foldl AppE (ConE typeAndConstrName) $
-                          map VarE subNames)
-                      []
-                    ]
-                ]
-          dbgBLabelSrcDest "- result " res
-          return res
-
-
-        Just (SingleAttributeDefn typ _usage _hn) -> do
-          throwError $
-            "Found (2bb) SingleAttributeDefn in attribute group table for "
-            ++ qName typ
-
-        -- And no attribute group definition found, so look for a
-        -- single attrubute definition.
-        Nothing -> do
-          ifSingleDefn <- getAttributeDefn qn
-          case ifSingleDefn of
-
-            Just (SingleAttributeDefn typ _usage _hn) -> do
-
-              -- TODO Move decoder generation to here from
-              -- xsdDeclToHaskell clause (g)?  Then generate for
-              -- AttributeGroups from the same framework?
-              attrName <- newName "attr"
-              -- paramName <- newName "content"
-              -- haskellTyp <- getTypeHaskellType typ
-              coreDecoder <- getSafeStringDecoder typ
-              let decoder :: BlockMaker Content dt
-                  decoder src dest = [
-                    LetS [SigD attrName (AppT maybeConT stringConT),
-                          ValD (VarP attrName)
-                          (NormalB $
-                           applyPullAttrFrom (qName qn) (VarE src))
-                          []],
-                    BindS (VarP dest) $
-                      caseNothingJust' (VarE attrName)
-                      (applyReturn nothingConE)
-                      xName (DoE Nothing $ coreDecoder xName resName ++ [
-                                NoBindS $ applyReturn $ applyJust (VarE resName)
-                                ])
-                    ]
-              return decoder
-
-            Just (AttributeGroupDefn _ _) -> do
-              throwError $
-                "Found AttributeGroupDefn in single attribute table for "
-                ++ qName qn
-
-            Nothing -> liftExcepttoXSDQ $ throwError $
-              "No type or attribute/group (zz) " ++ bpp qn ++ " found"
 
 decoderForSimpleType :: QName -> XSDQ (BlockMaker Content dt)
 decoderForSimpleType qn = do
@@ -1366,19 +1372,3 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
               (qthNoValidContentInUnion baseName ln) names
 
   return (safeCore, names, decs)
-
--- |Given a computation result which is a function of two arguments
--- corresponding to source and destination, emit debugging information
--- about it if debugging mode is on.
-dbgBLabelSrcDest ::
-  Blockable c => String -> (Name -> Name -> c) -> XSDQ ()
-{-# INLINE dbgBLabelSrcDest #-}
-dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
-
--- |Given a computation result which is a function of two arguments
--- corresponding to source and destination, emit debugging information
--- about it if debugging mode is on.
-dbgResultSrcDest ::
-  Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
-{-# INLINE dbgResultSrcDest #-}
-dbgResultSrcDest msg = dbgResultFn2 msg srcName destName

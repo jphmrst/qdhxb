@@ -11,7 +11,7 @@ module QDHXB.Internal.XSDQ (
   -- * Monad transformer
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ, liftExcepttoXSDQ,
   -- * Information about declarations
-  fileNewDefinition, anyTypeQName,
+  fileNewDefinition, anyTypeQName, Retrieved(..), retrieveDeclaration,
   -- ** Elements
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
@@ -156,6 +156,40 @@ instance Blockable QdxhbState where
               ++ maybe "(inactive)" id (stateLocalLog st) ++ "\"")
     `stack2` (stringToBlock $ "- File logging "
               ++ maybe "inactive" (const "active") (stateLocalLog st))
+
+data Retrieved =
+  IsElementType QName
+  | IsAttributeType AttributeDefn
+  | IsAttributeGroup AttributeDefn
+  | IsTypeDefinition Definition
+  | IsGroupDefinition Definition
+  | NotDefinedInXSDQ
+
+-- | Look for a name's definition in the current `XSDQ` state, and
+-- return a `Retrieved` classifier to describe where it was found.
+-- Used when multiple referants are acceptable in a particular
+-- context.
+retrieveDeclaration :: QName -> XSDQ Retrieved
+retrieveDeclaration qn = do
+  ifDefn <- getTypeDefn qn
+  case ifDefn of
+    Just defn -> return $ IsTypeDefinition defn
+    Nothing -> do
+      ifAttrGroupDefn <- getAttributeGroup qn
+      case ifAttrGroupDefn of
+        Just d@(AttributeGroupDefn _ _) -> return $ IsAttributeGroup d
+        Just (SingleAttributeDefn _ _ _) -> throwError $
+          "Found (2bb) SingleAttributeDefn in attribute group table for "
+            ++ qName qn
+        Nothing -> do
+          ifSingleDefn <- getAttributeDefn qn
+          case ifSingleDefn of
+            Just d@(SingleAttributeDefn _ _ _) -> return $ IsAttributeType d
+            Just (AttributeGroupDefn _ _) -> do
+              throwError $
+                "Found AttributeGroupDefn in single attribute table for "
+                ++ qName qn
+            Nothing -> return NotDefinedInXSDQ
 
 -- | The base URL for the XML/XSD specification
 baseXmlNamespace :: String
