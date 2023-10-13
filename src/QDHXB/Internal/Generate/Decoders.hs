@@ -122,35 +122,29 @@ getSafeDecoderBody qn = indenting $ do
   where
 
     decoderBodyForSingleAttributeDefn sad = case sad of
-      SingleAttributeDefn typ _usage _hn -> do
 
-              -- TODO Move decoder generation to here from
-              -- xsdDeclToHaskell clause (g)?  Then generate for
-              -- AttributeGroups from the same framework?
-              attrName <- newName "attr"
-              -- paramName <- newName "content"
-              -- haskellTyp <- getTypeHaskellType typ
-              coreDecoder <- getSafeStringDecoder typ
-              let decoder :: BlockMaker Content dt
-                  decoder src dest = [
-                    LetS [SigD attrName (AppT maybeConT stringConT),
-                          ValD (VarP attrName)
-                          (NormalB $
-                           applyPullAttrFrom (qName qn) (VarE src))
-                          []],
-                    BindS (VarP dest) $
-                      caseNothingJust' (VarE attrName)
-                      (applyReturn nothingConE)
-                      xName (DoE Nothing $ coreDecoder xName resName ++ [
-                                NoBindS $ applyReturn $ applyJust (VarE resName)
-                                ])
-                    ]
-              return decoder
+      SingleAttributeDefn typ _usage _hn -> do
+        -- TODO Move decoder generation to here from xsdDeclToHaskell
+        -- clause (g)?  Then generate for AttributeGroups from the
+        -- same framework?
+        attrName <- newName "attr"
+        coreDecoder <- getSafeStringDecoder typ
+        let decoder :: BlockMaker Content dt
+            decoder src dest = [
+              LetS [SigD attrName (AppT maybeConT stringConT),
+                    ValD (VarP attrName)
+                    (NormalB $ applyPullAttrFrom (qName qn) (VarE src)) []],
+              BindS (VarP dest) $
+                caseNothingJust' (VarE attrName)
+                (applyReturn nothingConE)
+                xName (DoE Nothing $ coreDecoder xName resName ++ [
+                          NoBindS $ applyReturn $ applyJust (VarE resName)
+                          ])]
+        return decoder
 
       AttributeGroupDefn _ _ -> do
-              throwError $
-                "Found AttributeGroupDefn in single attribute table for "
-                ++ qName qn
+        throwError $ "Found AttributeGroupDefn in single attribute table for "
+          ++ qName qn
 
 
     decoderBodyForAttributeGroupDefn agd = case agd of
