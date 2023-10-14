@@ -12,7 +12,7 @@ module QDHXB.Internal.Block (
   BlockMaker, blockMakerClose, blockMakerCloseWith, abstractOnSourceName,
   Unitized,
   -- ** Combinators on `BlockMaker`s
-  retrievingCRefFor, scaleBlockMakerToBounds,
+  retrievingCRefFor, scaleBlockMakerToBounds, stringBlockToAttributeBlock,
   -- ** Some atomic `BlockMaker`s
   listToMaybe, listToSingle,
   )
@@ -145,3 +145,24 @@ abstractOnSourceName :: (Name -> Exp) -> XSDQ Exp
 abstractOnSourceName ef = do
   src <- newName "src"
   return $ LamE [VarP src] $ ef src
+
+-- | Convert a `BlockMaker` operating on `String` input to a
+-- `BlockMaker` which uses the value of the given attribute of a piece
+-- of XML `Content`.
+stringBlockToAttributeBlock ::
+  BlockMaker String a -> QName -> XSDQ (BlockMaker Content a)
+stringBlockToAttributeBlock maker attrQName = do
+  attrName <- newName "attr"
+  let decoder :: BlockMaker Content dt
+      decoder src dest = [
+        LetS [SigD attrName (AppT maybeConT stringConT),
+              ValD (VarP attrName)
+                   (NormalB $ applyPullAttrFrom (qName attrQName) (VarE src))
+                   []],
+        BindS (VarP dest) $
+          caseNothingJust' (VarE attrName) (applyReturn nothingConE)
+            xName (DoE Nothing $ maker xName resName ++ [
+                     NoBindS $ applyReturn $ applyJust (VarE resName)
+                     ])]
+  return decoder
+

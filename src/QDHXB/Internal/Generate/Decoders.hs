@@ -25,9 +25,7 @@ import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
 import QDHXB.Internal.Generate.Types
 
-import QDHXB.Internal.Debugln hiding (
-  dbgLn, dbgPt, dbgBLabel, dbgBLabelFn1, dbgBLabelFn2,
-  dbgResult, dbgResultFn2, dbgResultM)
+import QDHXB.Internal.Debugln (MonadDebugln, indenting, whenDebugging, generate)
 import qualified QDHXB.Internal.Debugln as DBG
 dbgLn :: (MonadDebugln m n) => String -> m ()
 dbgLn = DBG.dbgLn generate 0
@@ -99,6 +97,80 @@ getSafeStringDecoder qn = do
         throwError "No string decoder for complex group"
       AttributeDefn _ (AttributeGroupDefn _ _) _ _ ->
         throwError "No string decoder for attr. defn. over group"
+
+
+-- | Returns a decoder for an entity via the string-values contents of
+-- an XSD simple type.
+decoderForSimpleType :: QName -> XSDQ (BlockMaker Content dt)
+decoderForSimpleType qn = do
+  dbgLn "- decoderForSimpleType"
+  dbgBLabel "  - qn " qn
+  strDec <- getSafeStringDecoder qn
+  retrievingCRefFor qn strDec
+
+
+-- | Return an invocation of a safe decoder expected to be defined
+-- elsewhere.
+getSafeDecoderCall :: QName -> XSDQ (BlockMaker Content dt)
+getSafeDecoderCall qn = do
+  dbgPt $ "getSafeDecoderCall for " ++ showQName qn
+  indenting $ do
+    decl <- retrieveDeclaration qn
+    case decl of
+      IsElementType qn' -> getSafeDecoderCall qn'
+      IsAttributeType (SingleAttributeDefn typeQN usage _base) -> do
+        dbgLn "Relay to singleAttributeDecoder at (1a)"
+        indenting $ singleAttributeDecoder qn typeQN usage
+        {-
+        safeDecodingBlockMakerByName qn
+        -}
+      IsAttributeGroup (AttributeGroupDefn _elems _base) -> do
+        dbgLn "* safeDecodingBlockMakerByName via (1b)"
+        safeDecodingBlockMakerByName qn
+      IsTypeDefinition defn -> do
+        dbgLn "Dispatcher (2)"
+        dispatchDefinition defn
+      IsGroupDefinition defn -> do
+        dbgLn "Dispatcher (3)"
+        dispatchDefinition defn
+      NotDefinedInXSDQ -> do
+        dbgLn "* safeDecodingBlockMakerByName via (1c)"
+        safeDecodingBlockMakerByName qn
+      _ -> error "Internal error --- attribute type/group mismatch"
+
+  where
+    dispatchDefinition defn = indenting $ case defn of
+      BuiltinDefn _ _ _ _ -> decoderForSimpleType qn
+      ElementDefn _ _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (a)"
+        safeDecodingBlockMakerByName qn
+      AttributeDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (b)"
+        safeDecodingBlockMakerByName qn
+      SimpleSynonymDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (c)"
+        safeDecodingBlockMakerByName qn
+      ComplexSynonymDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (d)"
+        safeDecodingBlockMakerByName qn
+      SequenceDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (e)"
+        safeDecodingBlockMakerByName qn
+      UnionDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (f)"
+        safeDecodingBlockMakerByName qn
+      ChoiceDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (g)"
+        safeDecodingBlockMakerByName qn
+      ExtensionDefn _ _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (h)"
+        safeDecodingBlockMakerByName qn
+      GroupDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (i)"
+        safeDecodingBlockMakerByName qn
+      ListDefn _ _ _ _ -> indenting $ do
+        dbgLn "* safeDecodingBlockMakerByName via (j)"
+        safeDecodingBlockMakerByName qn
 
 -- | Given the qualified name of an XSD-defined entity (expected to be
 -- found in the XSDQ state), return the series of statement steps for
@@ -121,31 +193,14 @@ getSafeDecoderBody qn = indenting $ do
 
   where
 
-    decoderBodyForSingleAttributeDefn sad = case sad of
+    decoderBodyForSingleAttributeDefn attrDefn = case attrDefn of
 
-      SingleAttributeDefn typ _usage _hn -> do
-        -- TODO Move decoder generation to here from xsdDeclToHaskell
-        -- clause (g)?  Then generate for AttributeGroups from the
-        -- same framework?
-        attrName <- newName "attr"
-        coreDecoder <- getSafeStringDecoder typ
-        let decoder :: BlockMaker Content dt
-            decoder src dest = [
-              LetS [SigD attrName (AppT maybeConT stringConT),
-                    ValD (VarP attrName)
-                    (NormalB $ applyPullAttrFrom (qName qn) (VarE src)) []],
-              BindS (VarP dest) $
-                caseNothingJust' (VarE attrName)
-                (applyReturn nothingConE)
-                xName (DoE Nothing $ coreDecoder xName resName ++ [
-                          NoBindS $ applyReturn $ applyJust (VarE resName)
-                          ])]
-        return decoder
+      SingleAttributeDefn typ usage _hn ->
+        singleAttributeDecoder qn typ usage
 
       AttributeGroupDefn _ _ -> do
         throwError $ "Found AttributeGroupDefn in single attribute table for "
           ++ qName qn
-
 
     decoderBodyForAttributeGroupDefn agd = case agd of
       AttributeGroupDefn subqns _ -> do
@@ -175,9 +230,7 @@ getSafeDecoderBody qn = indenting $ do
                         -- what it says.
                         foldl AppE (ConE typeAndConstrName) $
                           map VarE subNames)
-                      []
-                    ]
-                ]
+                      []]]
           dbgBLabelSrcDest "- result " res
           return res
 
@@ -323,32 +376,6 @@ getSafeDecoderBody qn = indenting $ do
           [ LetS [ValD (VarP dest) (NormalB $ TupE []) []] ]
 
       dbgResultSrcDest "  gives " result
-
--- | Returns a decoder for an entity via the string-values contents of
--- an XSD simple type.
-decoderForSimpleType :: QName -> XSDQ (BlockMaker Content dt)
-decoderForSimpleType qn = do
-  dbgLn "- decoderForSimpleType"
-  dbgBLabel "  - qn " qn
-  strDec <- getSafeStringDecoder qn
-  retrievingCRefFor qn strDec
-
--- | Return an invocation of a safe decoder expected to be defined
--- elsewhere.
-getSafeDecoderCall :: QName -> XSDQ (BlockMaker Content dt)
-getSafeDecoderCall qn = do
-  dbgPt $ "getSafeDecoderCall for " ++ showQName qn
-  indenting $ do
-    ifDefn <- getTypeDefn qn
-    case ifDefn of
-      Just defn -> do
-        dbgBLabel "- Found type " defn
-        indenting $ case defn of
-          BuiltinDefn _ _ _ _ -> decoderForSimpleType qn
-          _ -> indenting $ getAttrRefSafeDecoder qn
-      _ -> do
-        dbgLn "- No type found, building via baseByName"
-        indenting $ getAttrRefSafeDecoder qn
 
 
 -- | Given a list of `Reference`s which should match subelements,
@@ -456,7 +483,6 @@ labelBlockMakers' (r@(TypeRef tqn lo hi _ _):rs) (n:ns) accNs accFns = do
                    ((\src -> f' src n) : accFns)
 -}
 
-
 
 -- | Construct the body of a @tryDecode@ function for the given
 -- `Reference`.
@@ -476,7 +502,7 @@ getRefSafeDecoder (AttributeRef ref usage) = do
     "- getRefSafeDecoder AttributeRef case: "
     ++ showQName ref ++ " " ++ show usage
   indenting $ do
-    coreFn  <- indenting $ getAttrRefSafeDecoder ref
+    coreFn  <- indenting $ safeDecodingBlockMakerByName ref
     dbgBLabelSrcDest "  - coreFn " coreFn
     usageFn <- indenting $ unpackAttrDecoderForUsage usage ref
     dbgBLabelSrcDest "  - usageFn " usageFn
@@ -538,19 +564,39 @@ getRefSafeDecoder (RawXML _ _) = do
   dbgLn "* getRefSafeDecoder RawXML"
   return $ \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ]
 
-getAttrRefSafeDecoder :: QName -> XSDQ (BlockMaker Content dt)
-getAttrRefSafeDecoder ref = do
-  dbgLn "getAttrRefSafeDecoder only case"
+safeDecodingBlockMakerByName :: QName -> XSDQ (BlockMaker Content dt)
+safeDecodingBlockMakerByName ref = do
+  dbgLn "safeDecodingBlockMakerByName only case"
   indenting $ do
-    typeHName <- getTypeHaskellName ref
-    dbgBLabel "  - typeHName " typeHName
     -- TODO --- This isn't (generally) right --- need to look at the
     -- type, and actually extract the attribute.
-    let safeDec = VarE $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
+    safeDec <- fmap VarE $ getSafeDecoderFnByName ref
     dbgBLabel "  - safeDec " safeDec
     let result = \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
     dbgBLabelSrcDest "- result " result
     return result
+
+singleAttributeDecoder ::
+  QName -> QName -> AttributeUsage -> XSDQ (BlockMaker Content dt)
+singleAttributeDecoder name typ usage = do
+  dbgPt $
+    "singleAttributeDecoder for " ++ showQName name ++ " :: " ++ showQName typ
+  indenting $ do
+    coreDecoder <- getSafeStringDecoder typ
+    dbgBLabelSrcDest "- coreDecoder " coreDecoder
+    attrDecoder <- stringBlockToAttributeBlock coreDecoder name
+    dbgBLabelSrcDest "- attrDecoder " attrDecoder
+    finalDecoder <- indenting $ makeUsageBinder attrDecoder usage
+    dbgBLabelSrcDest "finalDecoder " finalDecoder
+    return finalDecoder
+
+-- | Returns a safe-decoder function `Name`, considering only the text
+-- of the given qualified name.  It is entirely the duty of the
+-- calling function to make sure that the function is generated.
+getSafeDecoderFnByName :: QName -> XSDQ Name
+getSafeDecoderFnByName qn = do
+  typeHName <- getTypeHaskellName qn
+  return $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
 
 
 -- | Convert a `Reference` into a `BlockMaker` calculating its value.
@@ -575,8 +621,8 @@ referenceToBlockMaker r@(ElementRef eqn lo hi _) = do
 referenceToBlockMaker r@(AttributeRef _ usage) = do
   dbgBLabel "referenceToBlockMaker for" r
   safeDec <- indenting $ getRefSafeDecoder r
-  f' <- indenting $ makeUsageBinder safeDec usage
   dbgBLabelSrcDest "  - safeDec " safeDec
+  f' <- indenting $ makeUsageBinder safeDec usage
   dbgBLabelSrcDest "  - f' " f'
   return f'
 

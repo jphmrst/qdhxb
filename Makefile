@@ -2,7 +2,10 @@
 %.ps: src/QDHXB/Internal/%.hs
 	a2ps --line-numbers=5 -2r -o $@ $<
 
-%.ps: src/QDHXB/Internal/Utils/%.hs
+Gen-%.ps: src/QDHXB/Internal/Generate/%.hs
+	a2ps --line-numbers=5 -2r -o $@ $<
+
+Utils-%.ps: src/QDHXB/Internal/Utils/%.hs
 	a2ps --line-numbers=5 -2r -o $@ $<
 
 out.ps: out.txt Makefile

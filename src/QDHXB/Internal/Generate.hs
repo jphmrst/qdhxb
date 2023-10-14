@@ -83,7 +83,9 @@ import QDHXB.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
+import QDHXB.Internal.Generate.Assembly
 import QDHXB.Internal.Generate.Decoders
+import QDHXB.Internal.Generate.Types
 
 import QDHXB.Internal.Debugln hiding (
   dbgLn, dbgPt, dbgBLabel, dbgBLabelFn1, dbgBLabelFn2,
@@ -117,6 +119,7 @@ dbgBLabelSrcDest msg = dbgBLabelFn2 msg srcName destName
 --   Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
 -- {-# INLINE dbgResultSrcDest #-}
 -- dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
+
 
 -- | Translate a list of XSD definitions to top-level Haskell
 -- declarations in the Template Haskell quotation monad.
@@ -202,7 +205,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
   dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
   hrefOut <- indenting $ mapM (getAttributeOrGroupTypeForUsage ln) ads
   dbgResultM "Generated" $
-    newAssemble nam (Just $ \tn ->
+    assembleDecs nam (Just $ \tn ->
                         DataD [] tn [] Nothing [
                           NormalC tn $ map (\x -> (useBang, x)) hrefOut
                           ]
@@ -287,7 +290,7 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln ifDoc) = do
   -- Assemble the various declarations from the Haskell type synonym
   -- declaration, and the safe decoder steps transformer.
   dbgResultM "Generated" $
-    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+    assembleDecs nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
 xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ _ln ifDoc) = do
   dbgBLabel "Generating from (b) " decl
@@ -298,7 +301,7 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ _ln ifDoc) = do
   -- Assemble the various declarations from the Haskell type synonym
   -- declaration, and the safe decoder steps transformer.
   dbgResultM "Generated" $
-    newAssemble nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+    assembleDecs nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   dbgBLabel "Generating from (c) UnionDefn " decl
@@ -323,7 +326,7 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
 
   dbgResultM "Generated" $
-    newAssemble name (Just typDef)
+    assembleDecs name (Just typDef)
                 (\src dest -> [
                     BindS (VarP dest) $
                       LetE (concat $ map (\f -> f src) whereDecs) safeCore
@@ -337,7 +340,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeQName _ln ifDoc) = do
   elemTypeName <- getTypeHaskellName elemTypeQName
   let typDef tn = TySynD tn [] $ AppT ListT $ ConT $ mkName elemTypeName
   dec <- decoderForSimpleType name
-  dbgResultM "Generated" $ newAssemble name (Just typDef) dec ifDoc
+  dbgResultM "Generated" $ assembleDecs name (Just typDef) dec ifDoc
   {-
 
   {-
@@ -359,7 +362,7 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeQName _ln ifDoc) = do
   let haskellType = AppT ListT elemHaskellType
   decoder <- getSafeDecoderBody name
   dbgResultM "Generated" $
-    newAssemble name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+    assembleDecs name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
   -}
 
 xsdDeclToHaskell decl@(SequenceDefn nam refs _ln ifDoc) = do
@@ -369,7 +372,7 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs _ln ifDoc) = do
   hrefOut <- indenting $ mapM xsdRefToBangTypeQ refs
   dbgBLabel "- field types " hrefOut
   dbgResultM "Generated" $
-    newAssemble nam (Just $ \tn ->
+    assembleDecs nam (Just $ \tn ->
                         DataD [] tn [] Nothing [NormalC tn $ hrefOut]
                               [DerivClause Nothing [eqConT, showConT]])
                     decoder ifDoc
@@ -382,7 +385,7 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ doc) = do
   let typDef tn = DataD [] tn [] Nothing [NormalC tn $ hrefOut]
                     [DerivClause Nothing [eqConT, showConT]]
   dbgResultM "Generated" $
-    newAssemble qn (Just typDef) decoder doc
+    assembleDecs qn (Just typDef) decoder doc
 
 xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   dbgBLabel "Generating from (j) " decl
@@ -397,7 +400,7 @@ xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
   -- Assemble the various declarations from the Haskell type synonym
   -- declaration, and the safe decoder steps transformer.
   dbgResultM "Generated" $
-    newAssemble qn (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
+    assembleDecs qn (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
   -}
 
 
@@ -415,7 +418,7 @@ xsdDeclToHaskell (ChoiceDefn name fields ln ifDoc) = do
   dbgBLabelFn1 "- dataDef " (mkName "NAME") dataDef
   decoder <- getSafeDecoderBody name
   dbgBLabelSrcDest "- decoder " decoder
-  dbgResultM "Generated" $ newAssemble name (Just dataDef) decoder ifDoc
+  dbgResultM "Generated" $ assembleDecs name (Just dataDef) decoder ifDoc
 
 xsdDeclToHaskell decl = do
   boxed $ do

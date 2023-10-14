@@ -157,12 +157,27 @@ instance Blockable QdxhbState where
     `stack2` (stringToBlock $ "- File logging "
               ++ maybe "inactive" (const "active") (stateLocalLog st))
 
+-- | This record describes the possible locations for a stored name in
+-- the XSDQ state's lookup tables.
 data Retrieved =
-  IsElementType QName
-  | IsAttributeType AttributeDefn
-  | IsAttributeGroup AttributeDefn
-  | IsTypeDefinition Definition
-  | IsGroupDefinition Definition
+  IsElementType -- ^ Stored as an element tag name, and associated
+                -- with the name of the element value's XSD type.
+      QName
+  | IsAttributeType -- ^ Stored as a single attribute name, and
+                    -- associated with an
+                    -- `QDHXB.Internal.Types.AttributeDefn` record.
+      AttributeDefn
+  | IsAttributeGroup -- ^ Stored as an attribute group name, and
+                     -- associated with an
+                     -- `QDHXB.Internal.Types.AttributeDefn` record.
+      AttributeDefn
+  | IsTypeDefinition -- ^ Stored as the name of a defined type, and
+                     -- associated with a `Definition` record.
+      Definition
+  | IsGroupDefinition -- ^ Stored as the name of a field group
+                      -- specification, and associated with a
+                      -- `Definition` record.
+      Definition
   | NotDefinedInXSDQ
 
 -- | Look for a name's definition in the current `XSDQ` state, and
