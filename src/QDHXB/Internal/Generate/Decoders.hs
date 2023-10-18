@@ -19,7 +19,7 @@ import QDHXB.Errs
 import QDHXB.Utils.TH
 import QDHXB.Utils.XMLLight
 import QDHXB.Utils.BPP
--- import QDHXB.Utils.Misc (ifAtLine)
+import QDHXB.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
@@ -248,8 +248,8 @@ getSafeDecoderBody qn = indenting $ do
           dbgPt "Relay to decoderForSimpleType"
           decoderForSimpleType qn
 
-        SequenceDefn nam refs _ln _doc -> do
-          dbgPt "Sequence case (bb)"
+        SequenceDefn nam refs ln _doc -> do
+          dbgPt $ "Sequence case (bb)" ++ ifAtLine ln
           (bindingsF, boundNames) <- indenting $ makeSubexprLabeling refs
           let result :: BlockMaker Content dt
               result src dest =
@@ -282,9 +282,12 @@ getSafeDecoderBody qn = indenting $ do
                 in [BindS (VarP dest) $ foldl1 replaceOnError toDests]
           return decoder
 
-        ExtensionDefn edqn base refs _ _doc -> do
+        ExtensionDefn edqn base refs ln _doc -> do
           dbgBLabel "- Using getSafeDecoderBody (dd) with Extension for " edqn
           indenting $ do
+            dbgBLabel "- base " base
+            dbgBLabel "- refs " refs
+            dbgLn $ "- ln " ++ show ln
             hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
             dbgBLabel "- hrefOut " hrefOut
 
