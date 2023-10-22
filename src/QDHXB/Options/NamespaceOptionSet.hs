@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 
 -- | Options for QDHXB calls.
 module QDHXB.Options.NamespaceOptionSet (
@@ -26,6 +27,10 @@ instance Blockable NamespaceOptionSet where
   block (NamespaceOptionSetRecord defaultModule) =
     stringToBlock "Namespace options: "
     `stack2` (stringToBlock $ "- default module " ++ show defaultModule)
+instance Blockable (String, NamespaceOptionSet) where
+  block = horizontalMapPairFn
+instance Blockable [(String, NamespaceOptionSet)] where
+  block = verticalBlockListFn
 
 -- | The default set of options settings.
 defaultNamespaceOptionSet :: NamespaceOptionSet

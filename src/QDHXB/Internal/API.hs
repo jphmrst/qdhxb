@@ -6,7 +6,9 @@ module QDHXB.Internal.API (apiFunctions, API) where
 
 import Language.Haskell.TH (Q, Dec)
 import System.IO
+import System.Console.ANSI
 import Control.Monad.IO.Class
+import Control.Monad.Trans.State.Lazy
 import Data.List (intercalate)
 import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import Text.XML.Light.Input (parseXML)
@@ -37,6 +39,9 @@ apiFunctions = (qdhxbFn, qdhxbFn')
               whenResetLog $ resetLog file
               liftIO $ appendFile file $
                 "Files: " ++ intercalate ", " xsds ++ "\n"
+            whenDebugging names 1 $ do
+              st <- liftStatetoXSDQ $ get
+              liftIO $ putStrLn $ bpp st
             xsdContents <- mapM load_content xsds
             translate_parsed_xsd @ast xsdContents
 
@@ -65,8 +70,10 @@ translate_parsed_xsd xsds = do
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
           pushNamespaces attrs
+          liftIO $ setSGR [ SetColor Foreground Vivid Black ]
           whenDebugging input 0 $ liftIO $ do
             putStrLn "======================================== INPUT"
+          whenDebugging input 4 $ liftIO $ do
             bLabelPrintln "Source: " core
             putStrLn "----------------------------------------"
           putLog $ "------------------------------ SOURCE\n" ++ bpp core
@@ -78,15 +85,21 @@ translate_parsed_xsd xsds = do
           whenDebugging input 0 $ liftIO $ do
             putStrLn "Final ----------------------------------------"
             putStrLn $ bpp schemaReps
+          checkBreakAfterInput
 
-          whenDebugging unique 0 $ liftIO $ putStrLn
-            "======================================== RENAMED NESTED INPUT"
+          whenDebugging unique 0 $ do
+            liftIO $ putStrLn
+              "======================================== RENAMED NESTED INPUT"
+            debugXSDQ
           renamedSchemaReps <- ensureUniqueNames schemaReps
           putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
             ++ "\n------------------------------ "
-          whenDebugging unique 0 $ liftIO $ do
-            putStrLn "Final ----------------------------------------"
-            putStrLn $ bpp renamedSchemaReps
+          whenDebugging unique 0 $ do
+            debugXSDQ
+            liftIO $ do
+              putStrLn "Final ----------------------------------------"
+              putStrLn $ bpp renamedSchemaReps
+          checkBreakAfterUnique
 
           whenDebugging flattening 0 $ liftIO $ putStrLn
             "======================================== FLATTEN"
@@ -96,12 +109,14 @@ translate_parsed_xsd xsds = do
           whenDebugging flattening 0 $ liftIO $ do
             putStrLn "Final ----------------------------------------"
             putStrLn $ bpp ir
+          checkBreakAfterFlatten
 
           return ir
         _ -> error "Expected top-level <schema> element") cores
 
   -- Now concatenate the flattened definition lists together, and
   -- convert them all to Haskell declarations.
+  checkBreakAfterAllInput
   let flattened = concat flatteneds
   putLog $ " FULL FLATTENED\n" ++ bpp flattened
     ++ "\n==============================\n"
@@ -113,8 +128,9 @@ translate_parsed_xsd xsds = do
       putStrLn "----------------------------------------"
     debugXSDQ
 
-  whenDebugging generate 0 $ do
+  whenDebugging generate 0 $
     liftIO $ putStrLn "======================================== GENERATE"
+  whenDebugging names 0 $ debugXSDQ
   whenDebugging generate 2 $ do
     debugXSDQ
     liftIO $ putStrLn "----------------------------------------"

@@ -136,8 +136,8 @@ xsdDeclsToHaskell defns = do
 -- declarations in the Template Haskell quotation monad, and record
 -- the associated Haddock documentation.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
-xsdDeclToHaskell decl@(ElementDefn nam typ implName _ln ifDoc) = do
-  dbgBLabel "Generating from (e) " decl
+xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
+  dbgBLabel ("Generating from (e)" ++ ifAtLine ln ++ " ") decl
   dbgBLabel "- typ " typ
   let origName = qName nam
       baseName = firstToUpper $ implName

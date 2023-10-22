@@ -13,7 +13,7 @@ module QDHXB.Utils.BPP (
   verticalBlockList, bulletedVerticalBlockList,
   verticalBlockListFn, bulletedVerticalBlockListFn,
   verticalBlockablePair, verticalBlockablePairFn,
-  horizontalBlockablePair, horizontalBlockablePairFn,
+  horizontalBlockablePair, horizontalBlockablePairFn, horizontalMapPairFn,
   horizontalPair, horizontalBlocksPair,
   -- * Operations on `Block`s
   -- ** Creating a blocks
@@ -185,6 +185,10 @@ verticalBlockablePair t1 t2 =
 horizontalBlockablePairFn :: (Blockable m, Blockable n) => (m, n) -> Block
 horizontalBlockablePairFn (a, b) = labelBlock "(" $
     (postlabelBlock "," $ block a) `follow` (postlabelBlock ")" $ block b)
+
+-- | Standalone function rendering a pair on one line.
+horizontalMapPairFn :: (Blockable m, Blockable n) => (m, n) -> Block
+horizontalMapPairFn (a, b) = (postlabelBlock " |-> " $ block a) `follow` block b
 
 -- | For some types @s@ and @t@, declare @(s,t)@ to be rendered on one
 -- line.  Will raise an error if either @s@ or @t@ is not `Blockable`.

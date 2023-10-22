@@ -11,7 +11,9 @@ module QDHXB.Options.TranslationOptions (
   withXmlNamespacePrefix, logToFile,
   forNamespace,
   -- ** Built-in types
-  useXmlBindings
+  useXmlBindings,
+  -- ** Debugging
+  breakAfterInput, breakAfterUnique, breakAfterFlatten, breakAfterAllInput
   )
 where
 
@@ -59,3 +61,20 @@ logToFile s opts = opts { optLogToFile = Just s }
 forNamespace :: String -> NamespaceOption -> QDHXBOption
 forNamespace url namespaceOpt opts =
   opts { optNamespaceSpecs = (url, namespaceOpt) : optNamespaceSpecs opts }
+
+-- | Set the option of breaking execution after the input pass.
+breakAfterInput :: QDHXBOption
+breakAfterInput opts = opts { optBreakAfterInput = True }
+
+-- | Set the option of breaking execution after the unique renaming
+-- pass.
+breakAfterUnique :: QDHXBOption
+breakAfterUnique opts = opts { optBreakAfterUnique = True }
+
+-- | Set the option of breaking execution after the flatten pass.
+breakAfterFlatten :: QDHXBOption
+breakAfterFlatten opts = opts { optBreakAfterFlatten = True }
+
+-- | Set the option of breaking execution after the input pass.
+breakAfterAllInput :: QDHXBOption
+breakAfterAllInput opts = opts { optBreakAfterAllInput = True }

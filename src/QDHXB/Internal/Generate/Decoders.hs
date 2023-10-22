@@ -39,8 +39,8 @@ dbgBLabelFn1 = DBG.dbgBLabelFn1 generate 0
 dbgBLabelFn2 ::
   (MonadDebugln m n, Blockable r) => String -> a -> b -> (a -> b -> r) -> m ()
 dbgBLabelFn2 = DBG.dbgBLabelFn2 generate 0
--- dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
--- dbgResult = DBG.dbgResult generate 0
+dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
+dbgResult = DBG.dbgResult generate 0
 -- dbgResultM :: (MonadDebugln m n, Blockable a) => String -> m a -> m a
 -- dbgResultM = DBG.dbgResultM generate 0
 dbgResultFn2 ::
@@ -574,7 +574,9 @@ safeDecodingBlockMakerByName ref = do
   dbgLn "safeDecodingBlockMakerByName only case"
   indenting $ do
     -- TODO --- This isn't (generally) right --- need to look at the
-    -- type, and actually extract the attribute.
+    -- type, and actually extract the attribute.  But the fix has been
+    -- to catch incorrect uses higher in the AST of the XSD file than
+    -- where we call this function.
     safeDec <- fmap VarE $ get_safe_decoder_fn_by_name ref
     dbgBLabel "  - safeDec " safeDec
     let result = \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
@@ -600,8 +602,10 @@ single_attribute_decoder name typ usage = do
 -- calling function to make sure that the function is generated.
 get_safe_decoder_fn_by_name :: QName -> XSDQ Name
 get_safe_decoder_fn_by_name qn = do
-  typeHName <- getTypeHaskellName qn
-  return $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
+  dbgPt $ "get_safe_decoder_fn_by_name for " ++ showQName qn
+  indenting $ do
+    typeHName <- getTypeHaskellName qn
+    dbgResult "Built name " $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
 
 
 -- | Convert a `Reference` into a `BlockMaker` calculating its value.

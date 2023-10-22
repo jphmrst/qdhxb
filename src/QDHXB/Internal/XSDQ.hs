@@ -6,8 +6,6 @@
 
 -- | Internal monad for the XSD-to-Haskell rewriting.
 module QDHXB.Internal.XSDQ (
-  -- * Internal state definition
-  QdxhbState, initialQdxhbState,
   -- * Monad transformer
   XSDQ, runXSDQ, liftIOtoXSDQ, liftQtoXSDQ, liftStatetoXSDQ, liftExcepttoXSDQ,
   -- * Information about declarations
@@ -32,7 +30,7 @@ module QDHXB.Internal.XSDQ (
   -- *** XML and XSD primitive types
   installXmlPrimitives, installXsdPrimitives,
   -- * Configuration options
-  getOptions, getUseNewtype, ifDebuggingDoc,
+  getOptions, getNamespaceOptions, getUseNewtype, ifDebuggingDoc,
 
   -- * Managing namespaces
   pushNamespaces, popNamespaces,
@@ -44,7 +42,13 @@ module QDHXB.Internal.XSDQ (
   whenResetLog, whenLogging, whenLocalLogging, putLog,
 
   -- * Miscellaneous
-  NameStore, containForBounds, debugXSDQ)
+  NameStore, containForBounds, debugXSDQ,
+
+  -- * Breakpoints
+  checkBreakAfterInput, checkBreakAfterUnique, checkBreakAfterFlatten,
+  checkBreakAfterAllInput
+  )
+
 where
 
 import Language.Haskell.TH
@@ -71,7 +75,8 @@ import QDHXB.Utils.TH (
     stringListType, qnameType, firstToUpper)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Debugln
-import QDHXB.Options
+import QDHXB.Options.TranslationOptionSet
+import QDHXB.Options.NamespaceOptionSet
 
 -- | Synonym for an association list from a `String` to the argument
 -- type.
@@ -83,7 +88,7 @@ type QNameStore a = [(QName, a)]
 
 -- | The type of the internal state of an `XSDQ` computation, tracking
 -- the names of XSD entities and their definitions.
-data QdxhbState = QdxhbState {
+data QdhxbState = QdhxbState {
   stateOptions :: QDHXBOptionSet,
   stateElementTypes :: (QNameStore QName),
   stateAttributeTypes :: (QNameStore AttributeDefn),
@@ -101,7 +106,7 @@ data QdxhbState = QdxhbState {
   stateUsedTypeNames :: [String]
   }
 
-instance Blockable QdxhbState where
+instance Blockable QdhxbState where
   block st =
     stringToBlock "Current state"
     `stack2` (labelBlock "- " $ block $ stateOptions st)
@@ -211,12 +216,12 @@ baseXmlNamespace :: String
 baseXmlNamespace = "http://www.w3.org/2001/XMLSchema"
 
 -- | The initial value of `XSDQ` states.
-initialQdxhbState :: QDHXBOption -> QdxhbState
-initialQdxhbState optsF =
-  let opts = optsF defaultOptionSet
+initialQdhxbState :: QDHXBOption -> QdhxbState
+initialQdhxbState optsF =
+  let opts = finalizeNamespaceOptions $ optsF defaultOptionSet
       initNamespaces = map (\x -> [(x, baseXmlNamespace)]) $
         optXmlNamespacePrefixes opts
-  in QdxhbState {
+  in QdhxbState {
     stateOptions = opts,
     stateElementTypes = [],
     stateAttributeTypes = [],
@@ -236,15 +241,15 @@ initialQdxhbState optsF =
 
 -- | Monadic type for loading and interpreting XSD files, making
 -- definitions available after they are loaded.
-newtype XSDQ a = XSDQ (ExceptT String (StateT QdxhbState (Debugln Q)) a)
+newtype XSDQ a = XSDQ (ExceptT String (StateT QdhxbState (Debugln Q)) a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
 -- | Lift a computation from the `ExceptT` layer to the `XSDQ` wrapper.
-liftExcepttoXSDQ :: ExceptT String (StateT QdxhbState (Debugln Q)) a -> XSDQ a
+liftExcepttoXSDQ :: ExceptT String (StateT QdhxbState (Debugln Q)) a -> XSDQ a
 liftExcepttoXSDQ = XSDQ
 
 -- | Lift a computation from the `StateT` layer to the `XSDQ` wrapper.
-liftStatetoXSDQ :: StateT QdxhbState (Debugln Q) a -> XSDQ a
+liftStatetoXSDQ :: StateT QdhxbState (Debugln Q) a -> XSDQ a
 liftStatetoXSDQ = XSDQ . lift
 
 -- | Lift a computation from the `Q` monad to the `XSDQ` wrapper.
@@ -273,7 +278,7 @@ instance Quote XSDQ where
 -- | Run an `XSDQ` monad, exposing the underlying `Q` computation.
 runXSDQ :: QDHXBOption -> XSDQ a -> Q a
 runXSDQ optsF (XSDQ m) = do
-  let initialState = initialQdxhbState optsF
+  let initialState = initialQdhxbState optsF
       opts = stateOptions initialState
       debugSwitches = optDebugging opts
       debugMaster = not $ null debugSwitches
@@ -560,12 +565,47 @@ defn_to_haskell_name defn qn = case defn of
 -- throw on error in the `XSDQ` monad otherwise).
 getTypeHaskellName :: QName -> XSDQ String
 getTypeHaskellName qn = do
-  ifDefn <- get_defn_via [getTypeDefn, get_attribute_type_defn,
-                          get_attribute_group_type_defn] qn
-  case ifDefn of
-    Nothing -> liftExcepttoXSDQ $ throwError $
-      "No type \"" ++ bpp qn ++ "\" found"
-    Just defn -> return $ defn_to_haskell_name defn qn
+  dbgPt names 2 $ "getTypeHaskellName " ++ showQName qn
+  indenting $ do
+    ifDefn <- get_defn_via [getTypeDefn, get_attribute_type_defn,
+                            get_attribute_group_type_defn] qn
+    case ifDefn of
+      Just defn -> do
+        dbgBLabel names 2 "- by defn " defn
+        return $ defn_to_haskell_name defn qn
+
+      -- If we do not have a local definition of the type, let's see if
+      -- we have an external definition for it.
+      Nothing -> do
+        dbgPt names 2 "no defn "
+        ifExternally <- indenting $ getExternalTypeHaskellName qn
+        case ifExternally of
+          Just str -> do
+            dbgBLabel names 2 "- externally " str
+            return str
+          Nothing -> liftExcepttoXSDQ $ throwError $
+            "No type \"" ++ bpp qn ++ "\" found"
+
+getExternalTypeHaskellName :: QName -> XSDQ (Maybe String)
+getExternalTypeHaskellName qn = do
+  dbgPt names 2 "trying externally"
+  indenting $ case qURI qn of
+    Just uri -> do
+      dbgBLabel names 2 "URI is " uri
+      ifNamespaceOpts <- getNamespaceOptions uri
+      case ifNamespaceOpts of
+        Just opts -> do
+          dbgLn names 2 "no options for URI"
+          case optDefaultModule opts of
+            Just modName -> return $ Just $
+              modName ++ "." ++ (firstToUpper $ qName qn)
+            Nothing -> return Nothing
+        Nothing -> do
+          dbgLn names 2 "no options for URI"
+          return Nothing
+    Nothing -> do
+      dbgLn names 2 "no URI"
+      return Nothing
 
 get_defn_via ::
   [QName -> XSDQ (Maybe Definition)] -> QName -> XSDQ (Maybe Definition)
@@ -581,12 +621,16 @@ get_defn_via (f:fs) qn = do
 -- `XSDQ` monad otherwise).
 getTypeHaskellType :: QName -> XSDQ Type
 getTypeHaskellType qn = do
+  name <- getTypeHaskellName qn
+  return $ ConT $ mkName $ firstToUpper name
+  {-
   ifDefn <- get_defn_via [getTypeDefn, get_attribute_type_defn,
                           get_attribute_group_type_defn] qn
   case ifDefn of
     Nothing -> liftExcepttoXSDQ $ throwError $ "No type " ++ bpp qn ++ " found"
     Just defn -> return $
       ConT $ mkName $ firstToUpper $ defn_to_haskell_name defn qn
+  -}
 
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the `String` name of the corresponding
@@ -777,10 +821,18 @@ getAttributeTypeOrFail name = do
     Nothing -> error $ "Undefined attribute " ++ show name
 
 -- |Return the QDHXBOptionSet in effect for this run.
-getOptions :: XSDQ (QDHXBOptionSet)
+getOptions :: XSDQ QDHXBOptionSet
 getOptions = liftStatetoXSDQ $ do
   st <- get
   return $ stateOptions st
+
+getNamespaceOptions :: String -> XSDQ (Maybe NamespaceOptionSet)
+getNamespaceOptions uri = do
+  translationOptions <- getOptions
+  return $ for_namespace $ optNamespaces translationOptions
+  where for_namespace [] = Nothing
+        for_namespace ((u,opts):_) | u == uri = Just opts
+        for_namespace (_:pairs) = for_namespace pairs
 
 -- |Return whether @newtype@ should be used in this run.
 getUseNewtype :: XSDQ Bool
@@ -1076,3 +1128,31 @@ disambigString str = do
   sep <-getDisambigString
   num <- getNextDisambig
   return $ str ++ sep ++ show num
+
+checkBreakAfterInput :: XSDQ ()
+checkBreakAfterInput = do
+  st <- liftStatetoXSDQ get
+  when (optBreakAfterInput $ stateOptions st) $
+    throwError "Breaking after input"
+  return ()
+
+checkBreakAfterUnique :: XSDQ ()
+checkBreakAfterUnique = do
+  st <- liftStatetoXSDQ get
+  when (optBreakAfterInput $ stateOptions st) $
+    throwError "Breaking after uniqueness renaming"
+  return ()
+
+checkBreakAfterFlatten :: XSDQ ()
+checkBreakAfterFlatten = do
+  st <- liftStatetoXSDQ get
+  when (optBreakAfterInput $ stateOptions st) $
+    throwError "Breaking after flatten"
+  return ()
+
+checkBreakAfterAllInput :: XSDQ ()
+checkBreakAfterAllInput = do
+  st <- liftStatetoXSDQ get
+  when (optBreakAfterAllInput $ stateOptions st) $
+    throwError "Breaking before generation"
+  return ()

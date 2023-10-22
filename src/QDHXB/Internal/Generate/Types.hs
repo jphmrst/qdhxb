@@ -34,7 +34,7 @@ xsdRefToBangTypeQ (ElementRef ref lower upper _ln) = do
   return (useBang, typ)
 
 xsdRefToBangTypeQ (AttributeRef ref usage) = do
-  dbgBLabel "xsdRefToBangTypeQ call " ref
+  dbgBLabel "xsdRefToBangTypeQ AttributeRef " ref
   coreType <- getTypeHaskellType ref
   dbgBLabel "xsdRefToBangTypeQ coreType" coreType
   return (useBang, attrTypeForUsage usage coreType)

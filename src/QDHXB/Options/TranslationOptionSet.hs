@@ -47,16 +47,38 @@ data QDHXBOptionSet = QDHXBOptionSetRecord {
   optNamespaceSpecs :: [(String, NamespaceOption)], -- ^ Options for
                                                     -- declared
                                                     -- namespaces.
-  optNamespaces :: [(String, NamespaceOptionSet)]  -- ^ Final
+  optNamespaces :: [(String, NamespaceOptionSet)], -- ^ Final
                                                    -- namespace option
                                                    -- sets.
+  optBreakAfterInput :: Bool, -- ^ Debugging option for breaking after
+                              -- the input phase.  Will cause any call
+                              -- to fail if set, but will seriously
+                              -- cut the vomit of tracing output.
+  optBreakAfterUnique :: Bool, -- ^ Debugging option for breaking
+                               -- after the unique renaming.  Will
+                               -- cause any call to fail if set, but
+                               -- will seriously cut the vomit of
+                               -- tracing output.
+  optBreakAfterFlatten :: Bool, -- ^ Debugging option for breaking
+                                -- after flattening.  Will cause any
+                                -- call to fail if set, but will
+                                -- seriously cut the vomit of tracing
+                                -- output.
+  optBreakAfterAllInput :: Bool  -- ^ Debugging option for breaking
+                                 -- after all files are input (and
+                                 -- before any generation).  Will
+                                 -- cause any call to fail if set, but
+                                 -- will seriously cut the vomit of
+                                 -- tracing output.
   }
 
 instance Blockable QDHXBOptionSet where
   block (QDHXBOptionSetRecord newTypes xmlBuiltins xmlNsPrefixes
                               debuggingSettings debuggingDocOn
                               logFile resetLogging dftNamespaceOpt
-                              namespaceSpecs _) =
+                              _ namespaces breakAfterInput
+                              breakAfterUnique breakAfterFlatten
+                              breakAfterAllInput) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
     `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
@@ -65,12 +87,22 @@ instance Blockable QDHXBOptionSet where
     `stack2` (stringToBlock $ "- debuggingDocStrings " ++ show debuggingDocOn)
     `stack2` (stringToBlock $ "- logFile " ++ show logFile)
     `stack2` (stringToBlock $ "- resetLogging " ++ show resetLogging)
-    -- `stack2` (stringToBlock $ "- namespaceSpecs " ++ show namespaceSpecs)
+    `stack2` (stringToBlock $ "- namespaces " ++ bpp namespaces)
+    `stack2` (stringToBlock $
+                "- break after file input " ++ show breakAfterInput)
+    `stack2` (stringToBlock $
+                "- break after uniqueness pass " ++ show breakAfterUnique)
+    `stack2` (stringToBlock $
+                "- break after flatten pass " ++ show breakAfterFlatten)
+    `stack2` (stringToBlock $
+                "- break after all input pass " ++ show breakAfterAllInput)
+
 
 -- | The default set of options settings.
 defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSetRecord True False [] [] False Nothing True
                                         defaultNamespaceOptionSet [] []
+                                        False False False False
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
