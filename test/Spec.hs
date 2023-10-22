@@ -45,6 +45,7 @@ import Small.ElementType (testElementType)
 import Small.ElementSimples (testElementSimples)
 import Small.ElementTypeAttr (testElementTypeAttr)
 import Small.ElementTypeAttr2 (testElementTypeAttr2)
+import Assertions.Assertion01 (testAssertion01)
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -97,3 +98,4 @@ main = do
     testElementType
     testElementSimples
     testElementTypeAttr
+    testAssertion01
