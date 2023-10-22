@@ -605,7 +605,7 @@ get_safe_decoder_fn_by_name qn = do
   dbgPt $ "get_safe_decoder_fn_by_name for " ++ showQName qn
   indenting $ do
     typeHName <- getTypeHaskellName qn
-    dbgResult "Built name " $ mkName $ "tryDecodeAs" ++ firstToUpper typeHName
+    dbgResult "Built name " $ mkName $ prefixCoreName "tryDecodeAs" typeHName
 
 
 -- | Convert a `Reference` into a `BlockMaker` calculating its value.

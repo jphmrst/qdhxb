@@ -87,7 +87,7 @@ module QDHXB.Utils.TH (
   applyLoadContent, applyPullAttrFrom,
 
   -- * Functions used in TH expansions
-  simpleTypeDecoderVarE, spaceSepApp,
+  simpleTypeDecoderVarE, spaceSepApp, prefixCoreName,
 
   -- * Local names
   xName, yName, zName, resName,
@@ -100,6 +100,7 @@ where
 
 import Language.Haskell.TH
 import Data.Char
+import Data.List.Split
 import Text.XML.Light.Types (Line)
 
 -- | Convert the `String` representation of a primitive XSD type to a
@@ -1187,3 +1188,21 @@ applyLoadContent = AppE (VarE loadContentName)
 -- by the given `Exp`.
 applyRunExcept :: Exp -> Exp
 applyRunExcept = AppE runExceptVarE
+
+-- | Add a `String` to a Haskell name which may be module prefixed,
+-- respecting upper-camelCase capitalization.  So for @A.B.C.ddEeeFff@
+-- and some @prefix@, would return @A.B.C.prefixDdEeeFff@.
+prefixCoreName :: String -> String -> String
+prefixCoreName prefix name =
+  let segments = splitOn "." name
+      (revModules, core) = pull_core_name segments
+  in rewrap revModules $ prefix ++ firstToUpper core
+  where
+    pull_core_name :: [String] -> ([String], String)
+    pull_core_name [xs] = ([], xs)
+    pull_core_name (xs:xss) = let (yss, ys) = pull_core_name xss
+                              in ((xs:yss), ys)
+
+    rewrap :: [String] -> String -> String
+    rewrap [] zs = zs
+    rewrap (ys:yss) zs = rewrap yss $ ys ++ "." ++ zs

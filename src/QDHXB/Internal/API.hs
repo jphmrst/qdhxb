@@ -65,7 +65,7 @@ load_content xsdFile = do
 translate_parsed_xsd :: forall ast . AST ast => [[Content]] -> XSDQ [Dec]
 translate_parsed_xsd xsds = do
   let cores = map getCoreContent xsds
-  flatteneds <- mapM (
+  nesteds <- mapM (
     \core ->
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
@@ -87,6 +87,8 @@ translate_parsed_xsd xsds = do
             putStrLn $ bpp schemaReps
           checkBreakAfterInput
 
+          return schemaReps
+          {-
           whenDebugging unique 0 $ do
             liftIO $ putStrLn
               "======================================== RENAMED NESTED INPUT"
@@ -112,12 +114,38 @@ translate_parsed_xsd xsds = do
           checkBreakAfterFlatten
 
           return ir
+          -}
         _ -> error "Expected top-level <schema> element") cores
 
   -- Now concatenate the flattened definition lists together, and
   -- convert them all to Haskell declarations.
   checkBreakAfterAllInput
-  let flattened = concat flatteneds
+  let nested = concat nesteds
+
+  whenDebugging unique 0 $ do
+    liftIO $ putStrLn
+      "======================================== RENAMED NESTED INPUT"
+    debugXSDQ
+  renamedSchemaReps <- ensureUniqueNames nested
+  putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
+    ++ "\n------------------------------ "
+  whenDebugging unique 0 $ do
+    debugXSDQ
+    liftIO $ do
+      putStrLn "Final ----------------------------------------"
+      putStrLn $ bpp renamedSchemaReps
+  checkBreakAfterUnique
+
+  whenDebugging flattening 0 $ liftIO $ putStrLn
+    "======================================== FLATTEN"
+  flattened <- flatten renamedSchemaReps
+  putLog $ " FLATTENED INPUT\n" ++ bpp flattened
+    ++ "\n------------------------------ "
+  whenDebugging flattening 0 $ liftIO $ do
+    putStrLn "Final ----------------------------------------"
+    putStrLn $ bpp flattened
+  checkBreakAfterFlatten
+
   putLog $ " FULL FLATTENED\n" ++ bpp flattened
     ++ "\n==============================\n"
   whenDebugging flattening 0 $ do
