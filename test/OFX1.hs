@@ -6,9 +6,13 @@ import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
 
--- qdhxb useDebugging ["ofx/OFX2_Protocol.xsd"]
--- qdhxb' ["ofx/OFX2_Protocol.xsd"]
--- qdhxb' ["ofx/OFX_Common.xsd"]
+{-
+qdhxb' ["ofx/OFX_Common.xsd"] -- Standalone
+qdhxb' ["ofx/OFX_TypeDefinitions.xsd"] -- Uses AbstractTransactionRequest
+                                       -- in ofx/OFX_Common.xsd
+qdhxb' ["ofx/OFX2_Protocol.xsd"] -- Uses ofx:StatementTransactionRequest
+                                 -- in ofx/OFX_Banking_Message_Wrappers.xsd
+-}
 
 testOFX1 :: TLT IO ()
 testOFX1 = inGroup "OFX test 1" $ do
