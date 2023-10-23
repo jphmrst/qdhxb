@@ -137,7 +137,7 @@ xsdDeclsToHaskell defns = do
 -- the associated Haddock documentation.
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
-  dbgBLabel ("Generating from (e)" ++ ifAtLine ln ++ " ") decl
+  dbgBLabel ("Generating from (e" ++ ifAtLine ln ++ ") ") decl
   dbgBLabel "- typ " typ
   let origName = qName nam
       baseName = firstToUpper $ implName
@@ -199,7 +199,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
-  dbgBLabel "Generating from (f) " d
+  dbgBLabel ("Generating from (f" ++ ifAtLine ln ++ ") ") d
   decoder <- getSafeDecoderBody nam
   dbgBLabelSrcDest "- decoder " decoder
   dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
@@ -214,8 +214,8 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
-                                  _l ifd) = do
-  dbgBLabel "Generating from (g) " d
+                                  ln ifd) = do
+  dbgBLabel ("Generating from (g" ++ ifAtLine ln ++ ") ") d
   let xmlName = hnam -- qName nam
       rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName -- ++ "AttrType"
@@ -281,8 +281,8 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
         : [])
 
 
-xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln ifDoc) = do
-  dbgBLabel "Generating from (a) " decl
+xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
+  dbgBLabel ("Generating from (a" ++ ifAtLine ln ++ ") ") decl
   -- Get the Haskell type name of the base type
   haskellType <- getTypeHaskellType typ
   -- Make the safe decoder
@@ -292,8 +292,8 @@ xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ _ln ifDoc) = do
   dbgResultM "Generated" $
     assembleDecs nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
-xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ _ln ifDoc) = do
-  dbgBLabel "Generating from (b) " decl
+xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
+  dbgBLabel ("Generating from (b" ++ ifAtLine ln ++ ") ") decl
   -- Get the Haskell type name of the base type
   haskellType <- getTypeHaskellType typ
   -- Make the safe decoder
@@ -304,7 +304,7 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ _ln ifDoc) = do
     assembleDecs nam (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
-  dbgBLabel "Generating from (c) UnionDefn " decl
+  dbgBLabel ("Generating from (c" ++ ifAtLine ln ++ ") UnionDefn ") decl
 
   (safeCore, _, whereDecs) <- do
     dbgLn "- Calling unionDefnComponents"
@@ -334,8 +334,8 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
                 ifDoc
 
 
-xsdDeclToHaskell decl@(ListDefn name elemTypeQName _ln ifDoc) = do
-  dbgBLabel "Generating from (d) " decl
+xsdDeclToHaskell decl@(ListDefn name elemTypeQName ln ifDoc) = do
+  dbgBLabel ("Generating from (d" ++ ifAtLine ln ++ ") ") decl
   -- error "REDO/d"
   elemTypeName <- getTypeHaskellName elemTypeQName
   let typDef tn = TySynD tn [] $ AppT ListT $ ConT $ mkName elemTypeName
@@ -365,8 +365,8 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeQName _ln ifDoc) = do
     assembleDecs name (Just $ \tn -> TySynD tn [] haskellType) decoder ifDoc
   -}
 
-xsdDeclToHaskell decl@(SequenceDefn nam refs _ln ifDoc) = do
-  dbgBLabel "Generating from (h) " decl
+xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
+  dbgBLabel ("Generating from (h" ++ ifAtLine ln ++ ") ") decl
   decoder <- getSafeDecoderBody nam
   dbgBLabelSrcDest "- decoder " decoder
   hrefOut <- indenting $ mapM xsdRefToBangTypeQ refs
@@ -378,8 +378,8 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs _ln ifDoc) = do
                     decoder ifDoc
 
 
-xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ doc) = do
-  dbgBLabel "Generating from (i) " decl
+xsdDeclToHaskell decl@(ExtensionDefn qn base refs ln doc) = do
+  dbgBLabel ("Generating from (i" ++ ifAtLine ln ++ ") ") decl
   decoder <- getSafeDecoderBody qn
   hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
   let typDef tn = DataD [] tn [] Nothing [NormalC tn $ hrefOut]
@@ -387,8 +387,8 @@ xsdDeclToHaskell decl@(ExtensionDefn qn base refs _ doc) = do
   dbgResultM "Generated" $
     assembleDecs qn (Just typDef) decoder doc
 
-xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
-  dbgBLabel "Generating from (j) " decl
+xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) ln _ifDoc) = do
+  dbgBLabel ("Generating from (j" ++ ifAtLine ln ++ ") ") decl
   throwError
     "Should not encounter GroupDefn in flattened code, for XSDQ state only"
   {-
@@ -405,7 +405,7 @@ xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) _ifLn _ifDoc) = do
 
 
 xsdDeclToHaskell (ChoiceDefn name fields ln ifDoc) = do
-  dbgLn $ "Generating from (k)"
+  dbgLn $ "Generating from (k" ++ ifAtLine ln ++ ")"
       ++ ifAtLine ln ++ " on ChoiceDefn " ++ showQName name
   dbgBLabel
       ("- Calling mapM (makeChoiceConstructor " ++ showQName name ++ ") on ")
