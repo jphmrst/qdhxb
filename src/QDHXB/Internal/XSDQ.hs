@@ -185,6 +185,14 @@ data Retrieved =
       Definition
   | NotDefinedInXSDQ
 
+instance Blockable Retrieved where
+  block (IsElementType _) = stringToBlock "IsElementType"
+  block (IsAttributeType _) = stringToBlock "IsAttributeType"
+  block (IsAttributeGroup _) = stringToBlock "IsAttributeGroup"
+  block (IsTypeDefinition _) = stringToBlock "IsTypeDefinition"
+  block (IsGroupDefinition _) = stringToBlock "IsGroupDefinition"
+  block NotDefinedInXSDQ = stringToBlock "NotDefinedInXSDQ"
+
 -- | Look for a name's definition in the current `XSDQ` state, and
 -- return a `Retrieved` classifier to describe where it was found.
 -- Used when multiple referants are acceptable in a particular
@@ -595,7 +603,7 @@ getExternalTypeHaskellName qn = do
       ifNamespaceOpts <- getNamespaceOptions uri
       case ifNamespaceOpts of
         Just opts -> do
-          dbgLn names 2 "no options for URI"
+          dbgBLabel names 2 "options for URI: " opts
           case optDefaultModule opts of
             Just modName -> return $ Just $
               modName ++ "." ++ (firstToUpper $ qName qn)

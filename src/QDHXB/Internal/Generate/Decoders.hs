@@ -116,7 +116,8 @@ getSafeDecoderCall qn = do
   dbgPt $ "getSafeDecoderCall for " ++ showQName qn
   indenting $ do
     decl <- retrieveDeclaration qn
-    case decl of
+    dbgBLabel "- retr " decl
+    indenting $ case decl of
       IsElementType qn' -> getSafeDecoderCall qn'
       IsAttributeType (SingleAttributeDefn typeQN usage _base) -> do
         dbgLn "Relay to single_attribute_decoder at (1a)"
@@ -179,17 +180,20 @@ getSafeDecoderCall qn = do
 -- The top-level simply decodes the storage location of the given
 -- name, and then dispatches to a subsidiary definition.
 getSafeDecoderBody :: QName -> XSDQ (BlockMaker Content dt)
-getSafeDecoderBody qn = indenting $ do
-  retr <- retrieveDeclaration qn
-  case retr of
-    IsTypeDefinition d -> decoder_body_for_type_defn d
-    IsAttributeGroup ad -> decoder_body_for_attribute_group_defn ad
-    IsAttributeType ad -> decoder_body_for_single_attribute_defn ad
-    IsGroupDefinition _ -> liftExcepttoXSDQ $ throwError $
-      "getSafeDecoderBody received unexpected GroupDefinition for " ++ bpp qn
-    IsElementType et -> liftExcepttoXSDQ $ throwError $
-      "getSafeDecoderBody received unexpected Element type " ++ bpp et
-       ++ " for " ++ bpp qn
+getSafeDecoderBody qn = do
+  dbgPt $ "getSafeDecoderBody for " ++ showQName qn
+  indenting $ do
+    retr <- retrieveDeclaration qn
+    dbgBLabel "- retr " retr
+    case retr of
+      IsTypeDefinition d -> decoder_body_for_type_defn d
+      IsAttributeGroup ad -> decoder_body_for_attribute_group_defn ad
+      IsAttributeType ad -> decoder_body_for_single_attribute_defn ad
+      IsGroupDefinition _ -> liftExcepttoXSDQ $ throwError $
+        "getSafeDecoderBody received unexpected GroupDefinition for " ++ bpp qn
+      IsElementType et -> liftExcepttoXSDQ $ throwError $
+        "getSafeDecoderBody received unexpected Element type " ++ bpp et
+         ++ " for " ++ bpp qn
 
   where
 
@@ -604,7 +608,8 @@ get_safe_decoder_fn_by_name :: QName -> XSDQ Name
 get_safe_decoder_fn_by_name qn = do
   dbgPt $ "get_safe_decoder_fn_by_name for " ++ showQName qn
   indenting $ do
-    typeHName <- getTypeHaskellName qn
+    typeHName <- indenting $ getTypeHaskellName qn
+    dbgBLabel "- typeHName " typeHName
     dbgResult "Built name " $ mkName $ prefixCoreName "tryDecodeAs" typeHName
 
 
@@ -890,9 +895,10 @@ makeChoiceConstructor name (constrSuffix, ref) = do
     RawXML _ _ -> do
       dbgLn "- With RawXML"
       constrString <- getBindingName $ suffixCoreName typeRoot "RawXML"
+      let constrName = mkName constrString
       return $ (
-        NormalC (mkName constrString) [(useBang, contentConT)],
-        ConE contentName,
+        NormalC constrName [(useBang, contentConT)],
+        ConE constrName,
         \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ])
 
 

@@ -1196,8 +1196,8 @@ applyRunExcept = AppE runExceptVarE
 prefixCoreName :: String -> String -> String
 prefixCoreName prefix name =
   let segments = splitOn "." name
-      (revModules, core) = pull_core_name segments
-  in rewrap revModules $ prefix ++ firstToUpper core
+      (modules, core) = pull_core_name segments
+  in rewrap (reverse modules) $ prefix ++ firstToUpper core
   where
     pull_core_name :: [String] -> ([String], String)
     pull_core_name [xs] = ([], xs)

@@ -14,13 +14,11 @@ import qualified QDHXB.Internal.L1.XML
 -- together, so that all types etc. in the loaded files are known at
 -- the final generation phase.
 
-{-
-qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace" id
-       . withXmlNamespacePrefix "xml"
+qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
+         (defaultModule "QDHXB.Internal.L1.XML")
       ) [
   "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"
   ]
--}
 
 {-
 import QDHXB.Internal.Debugln

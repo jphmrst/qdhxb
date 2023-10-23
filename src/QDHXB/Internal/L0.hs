@@ -1376,50 +1376,51 @@ instance AST DataScheme where
         -> Maybe Int -> Maybe Int -> Maybe Line -> Maybe String
         -> XSDQ ([Definition], Reference)
       -- flattenElementSchemeRef contents ifName ifType ifRef ifLower ifUpper =
+
       flattenElementSchemeRef Nothing Nothing Nothing (Just r) lower upper
                               ln _ifDoc = do
-        dbgLn flattening 1 $ "[fESR.1] all Nothing"
+        dbgLn flattening 1 $ "[fESR.1] ref only, contents/name/type Nothing"
         let result = ElementRef r lower upper ln
         dbgLn flattening 1 $ "Flattening element schema with reference only"
         dbgBLabel flattening 1 "  to " result
         dbgResult flattening 1
           ("Ref to " ++ showQName r ++ " flattened [fESR.2] to")
           ([], result)
+
       flattenElementSchemeRef Nothing (Just n)
                               (Just t@(QName resolvedName _resolvedURI _))
                               Nothing lo up ln ifDoc = do
-        dbgLn flattening 1 $ "[fESR.3] first Nothing"
+        dbgLn flattening 1 $ "[fESR.3] contents/ref Nothing, have name+type"
+        dbgBLabel flattening 3 "- n " n
+        dbgBLabel flattening 3 "- t " t
         isKnown <- isKnownType t
-        dbgLn flattening 1 $
-          "- Checking whether " ++ resolvedName ++ " is known: " ++ show isKnown
-        if isKnown then (do impl <-
-                              freshenStringForBinding Nothing (Just n) $ qName n
-                            let defn = ElementDefn n t impl ln ifDoc
-                                ref = ElementRef n lo up ln
-                            fileNewDefinition defn
-                            dbgLn flattening 1 $ "Flattening schema with type"
-                            -- dbgBLabel flattening 1 "       " e
-                            dbgBLabel flattening 1 "    to " defn
-                            dbgBLabel flattening 1 "       " ref
-                            dbgResult flattening 1
-                              ("Name ref " ++ showQName n
-                                ++ " flattened [fESR.4] to")
-                              ([defn], ref))
-          else (do impl <- freshenStringForBinding Nothing (Just n) $ qName n
-                   let defn1 = SimpleSynonymDefn n t ln ifDoc
-                       defn2 = ElementDefn n n impl ln ifDoc
+        dbgBLabel flattening 3
+          ("- Checking whether " ++ resolvedName ++ " is known: ") isKnown
+        indenting $ if isKnown
+          then (do impl <- freshenStringForBinding Nothing (Just n) $ qName n
+                   let defn = ElementDefn n t impl ln ifDoc
                        ref = ElementRef n lo up ln
-                   addTypeDefn n defn1
-                   fileNewDefinition defn2
-                   dbgLn flattening 1
-                     "  > Flattening element schema with name and type"
+                   fileNewDefinition defn
+                   dbgLn flattening 1 $ "Flattening schema with type"
                    -- dbgBLabel flattening 1 "       " e
-                   dbgBLabel flattening 1 "    to " defn1
-                   dbgBLabel flattening 1 "       " defn2
+                   dbgBLabel flattening 1 "    to " defn
                    dbgBLabel flattening 1 "       " ref
                    dbgResult flattening 1
+                     ("Name ref " ++ showQName n
+                       ++ " flattened [fESR.4] to")
+                     ([defn], ref))
+          else (do impl <- freshenStringForBinding Nothing (Just n) $ qName n
+                   let defn = ElementDefn n t impl ln ifDoc
+                       ref = ElementRef n lo up ln
+                   fileNewDefinition defn
+                   dbgLn flattening 1
+                     "> Flattening element schema with name and type"
+                   dbgBLabel flattening 1 "     " defn
+                   dbgBLabel flattening 1 "     " ref
+                   dbgResult flattening 1
                      ("Ref to " ++ showQName n ++ " flattened [fESR.5] to")
-                       ([defn1, defn2], ref))
+                       ([defn], ref))
+
       flattenElementSchemeRef s@(Just (CTS _ _ Nothing _ _))
                               n@(Just nam) t@Nothing r@Nothing lower upper
                               ln ifDoc = do
@@ -1433,6 +1434,7 @@ instance AST DataScheme where
         dbgBLabel flattening 1 "    to " prev
         dbgBLabel flattening 1 "       " ref
         dbgResult flattening 1 "Flattened [fESR.7] to" (prev, ref)
+
       flattenElementSchemeRef s@(Just (CTS _ _ (Just schemeName) _ _))
                               n@(Just nam) t@Nothing r@Nothing
                               lower upper ln ifDoc = do
@@ -1452,6 +1454,7 @@ instance AST DataScheme where
         let ref = ElementRef nam lower upper ln
         dbgBLabel flattening 1 "- ref " ref
         dbgResult flattening 1 "Flattened [fESR.9] to" (prev, ref)
+
       flattenElementSchemeRef ctnts ifName ifType ifRef lower upper _ _ = do
         boxed $ do
           dbgLn flattening 1 $ "[fESR.10] flattenElementSchemeRef"
