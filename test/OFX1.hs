@@ -7,6 +7,18 @@ import QDHXB
 import qualified QDHXB.Expansions
 
 {-
+import QDHXB.Internal.Debugln
+qdhxb (
+  -- setDebugging input 0 .
+  -- setDebugging names 3 .
+  -- setDebugging unique 3 .
+  setDebugging flattening 1 .
+  -- setDebugging generate 1 .
+  id
+  ) ["ofx/OFX_Common.xsd"] -- Standalone
+-}
+
+{-
 qdhxb' ["ofx/OFX_Common.xsd"] -- Standalone
 qdhxb' ["ofx/OFX_TypeDefinitions.xsd"] -- Uses AbstractTransactionRequest
                                        -- in ofx/OFX_Common.xsd
