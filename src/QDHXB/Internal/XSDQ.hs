@@ -25,7 +25,7 @@ module QDHXB.Internal.XSDQ (
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
   addUsedTypeName, typeNameIsInUse,
   -- ** Name freshening
-  freshenStringForBinding, freshenQNameForBinding,
+  freshenStringForBinding, freshenQNameForBinding, getBindingName,
 
   -- *** XML and XSD primitive types
   installXmlPrimitives, installXsdPrimitives,
@@ -72,7 +72,7 @@ import QDHXB.Utils.TH (
     qnameBasicDecoder, appMaybeType,
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
-    stringListType, qnameType, firstToUpper)
+    stringListType, qnameType, firstToUpper, prefixCoreName)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Debugln
 import QDHXB.Options.TranslationOptionSet
@@ -649,7 +649,7 @@ buildAttrOrGroupHaskellType = fmap (ConT . mkName) . buildAttrOrGroupHaskellName
 -- exist; it's just an operation on the `QName` contents.
 getTypeSafeDecoderAsName :: QName -> XSDQ Name
 getTypeSafeDecoderAsName =
-  return . mkName . ("tryDecodeAs" ++) . firstToUpper . qName
+  return . mkName . prefixCoreName "tryDecodeAs" . firstToUpper . qName
 
 -- | Build the @"decodeAs"@-prefixed name for the XSD type named by
 -- the argument `QName`.  __NOTE__: this function will not necessarily

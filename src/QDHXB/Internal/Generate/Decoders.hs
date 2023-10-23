@@ -789,7 +789,8 @@ getTypeDecoderFn qn = do
         _ -> return $ \src dest -> [
           BindS (VarP dest)
                 (AppE (VarE $ mkName $
-                         "tryDecodeAs" ++ (firstToUpper $ qName qn))
+                         prefixCoreName "tryDecodeAs" $
+                           firstToUpper $ qName qn)
                       (VarE src))]
 
 
@@ -888,8 +889,9 @@ makeChoiceConstructor name (constrSuffix, ref) = do
 
     RawXML _ _ -> do
       dbgLn "- With RawXML"
+      constrString <- getBindingName $ suffixCoreName typeRoot "RawXML"
       return $ (
-        NormalC contentName [(useBang, contentConT)],
+        NormalC (mkName constrString) [(useBang, contentConT)],
         ConE contentName,
         \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ])
 

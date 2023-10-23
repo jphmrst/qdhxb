@@ -220,7 +220,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
       rootName = firstToUpper xmlName
       rootTypeName = mkName $ rootName -- ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
-      safeDecNam = mkName $ "tryDecodeAs" ++ rootName
+      safeDecNam = mkName $ prefixCoreName "tryDecodeAs" rootName
   dbgBLabel "xmlName " xmlName
   dbgBLabel "rootName " rootName
   dbgBLabel "rootTypeName " rootTypeName

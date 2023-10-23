@@ -69,7 +69,7 @@ assembleDecs base tyDec safeDec ifDoc = do
 
   baseNameStr <- getTypeHaskellName base
   let typeName = mkName baseNameStr
-      safeDecAsNam = mkName $ "tryDecodeAs" ++ baseNameStr
+      safeDecAsNam = mkName $ prefixCoreName "tryDecodeAs" baseNameStr
       decAsNam = mkName $ "decodeAs" ++ baseNameStr
       tryDecType = fn1Type contentConT (qHXBExcT decoderType)
       decType = fn1Type contentConT decoderType

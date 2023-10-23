@@ -87,7 +87,7 @@ module QDHXB.Utils.TH (
   applyLoadContent, applyPullAttrFrom,
 
   -- * Functions used in TH expansions
-  simpleTypeDecoderVarE, spaceSepApp, prefixCoreName,
+  simpleTypeDecoderVarE, spaceSepApp, prefixCoreName, suffixCoreName,
 
   -- * Local names
   xName, yName, zName, resName,
@@ -1189,14 +1189,34 @@ applyLoadContent = AppE (VarE loadContentName)
 applyRunExcept :: Exp -> Exp
 applyRunExcept = AppE runExceptVarE
 
--- | Add a `String` to a Haskell name which may be module prefixed,
--- respecting upper-camelCase capitalization.  So for @A.B.C.ddEeeFff@
--- and some @prefix@, would return @A.B.C.prefixDdEeeFff@.
+-- | Add a `String` to the beginning of a Haskell name which may be
+-- module prefixed, respecting upper-camelCase capitalization.  So for
+-- @A.B.C.ddEeeFff@ and some @prefix@, would return
+-- @A.B.C.prefixDdEeeFff@.
 prefixCoreName :: String -> String -> String
 prefixCoreName prefix name =
   let segments = splitOn "." name
       (revModules, core) = pull_core_name segments
   in rewrap revModules $ prefix ++ firstToUpper core
+  where
+    pull_core_name :: [String] -> ([String], String)
+    pull_core_name [xs] = ([], xs)
+    pull_core_name (xs:xss) = let (yss, ys) = pull_core_name xss
+                              in ((xs:yss), ys)
+
+    rewrap :: [String] -> String -> String
+    rewrap [] zs = zs
+    rewrap (ys:yss) zs = rewrap yss $ ys ++ "." ++ zs
+
+-- | Add a `String` to the end of a Haskell name which may be module
+-- suffixed.  So for @A.B.C.Ddeeefff@ and some @Suffix@, would return
+-- @A.B.C.DdEeeFffSuffix@.  This function does not think about
+-- camel-casing.
+suffixCoreName :: String -> String -> String
+suffixCoreName suffix name =
+  let segments = splitOn "." name
+      (revModules, core) = pull_core_name segments
+  in rewrap revModules $ core ++ suffix
   where
     pull_core_name :: [String] -> ([String], String)
     pull_core_name [xs] = ([], xs)
