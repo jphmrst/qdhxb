@@ -177,11 +177,11 @@ data Retrieved =
       QName
   | IsAttributeType -- ^ Stored as a single attribute name, and
                     -- associated with an
-                    -- `QDHXB.Internal.Types.AttributeDefn` record.
+                    -- t`QDHXB.Internal.Types.AttributeDefn` record.
       AttributeDefn
   | IsAttributeGroup -- ^ Stored as an attribute group name, and
                      -- associated with an
-                     -- `QDHXB.Internal.Types.AttributeDefn` record.
+                     -- t`QDHXB.Internal.Types.AttributeDefn` record.
       AttributeDefn
   | IsTypeDefinition -- ^ Stored as the name of a defined type, and
                      -- associated with a `Definition` record.
@@ -846,6 +846,8 @@ getOptions = liftStatetoXSDQ $ do
   st <- get
   return $ stateOptions st
 
+-- |Return the given `NamespaceOptionSet` for a particular namespace
+-- URI.
 getNamespaceOptions :: String -> XSDQ (Maybe NamespaceOptionSet)
 getNamespaceOptions uri = do
   translationOptions <- getOptions
@@ -1149,6 +1151,7 @@ disambigString str = do
   num <- getNextDisambig
   return $ str ++ sep ++ show num
 
+-- |Issue a break if requested after the first file input.
 checkBreakAfterInput :: XSDQ ()
 checkBreakAfterInput = do
   st <- liftStatetoXSDQ get
@@ -1156,20 +1159,23 @@ checkBreakAfterInput = do
     throwError "Breaking after input"
   return ()
 
+-- |Issue a break if requested after uniqueness renaming.
 checkBreakAfterUnique :: XSDQ ()
 checkBreakAfterUnique = do
   st <- liftStatetoXSDQ get
-  when (optBreakAfterInput $ stateOptions st) $
+  when (optBreakAfterUnique $ stateOptions st) $
     throwError "Breaking after uniqueness renaming"
   return ()
 
+-- |Issue a break if requested after flattening.
 checkBreakAfterFlatten :: XSDQ ()
 checkBreakAfterFlatten = do
   st <- liftStatetoXSDQ get
-  when (optBreakAfterInput $ stateOptions st) $
+  when (optBreakAfterFlatten $ stateOptions st) $
     throwError "Breaking after flatten"
   return ()
 
+-- |Issue a break if requested after all file input.
 checkBreakAfterAllInput :: XSDQ ()
 checkBreakAfterAllInput = do
   st <- liftStatetoXSDQ get

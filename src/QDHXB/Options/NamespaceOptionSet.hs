@@ -13,8 +13,7 @@ import QDHXB.Utils.BPP
 
 -- | The assortment of values to which options may be set.
 data NamespaceOptionSet = NamespaceOptionSetRecord {
-  -- ^ Option settings, corresponding to `optUseNewType`,
-  -- `optDebugging`.
+  -- ^ Option settings.
   optDefaultModule :: Maybe String  -- ^ Name of the module where
                                     -- QDHXB should look by default
                                     -- for the translation of XSD
