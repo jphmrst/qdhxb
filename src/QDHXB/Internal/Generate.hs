@@ -247,15 +247,15 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
         ]
 
   pushDeclHaddock ifd safeDecNam $
-    "Attempt to decode the @" ++ xmlName
+    "Attempt to decode the @" ++ showQName nam
     ++ "@ attribute as a `" ++ show rootTypeName
     ++ "`, throwing a `QDHXB.Errs.HXBErr` in the `Control.Monad.Except`"
     ++ " monad if extraction fails"
   pushDeclHaddock ifd decNam $
-    "Decode the @" ++ xmlName ++ "@ attribute as a `"
+    "Decode the @" ++ showQName nam ++ "@ attribute as a `"
     ++ show rootTypeName ++ "`"
   pushDeclHaddock ifd rootTypeName $
-    "Representation of the @" ++ xmlName ++ "@ attribute"
+    "Representation of the @" ++ showQName nam ++ "@ attribute"
 
   decBody <- resultOrThrow $ AppE (VarE safeDecNam) (VarE paramName)
   let typeDef = TySynD rootTypeName [] haskellTyp
