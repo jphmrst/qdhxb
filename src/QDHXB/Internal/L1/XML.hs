@@ -3,7 +3,7 @@
 -- |The notional XML XSD specification.
 module QDHXB.Internal.L1.XML where
 import QDHXB.Internal.L0
-import QDHXB.Options
+-- import QDHXB.Options
 import qualified QDHXB.Expansions
 
 {-

@@ -78,7 +78,7 @@ data QDHXBOptionSet = QDHXBOptionSetRecord {
 instance Blockable QDHXBOptionSet where
   block (QDHXBOptionSetRecord newTypes xmlBuiltins xmlNsPrefixes
                               debuggingSettings debuggingDocOn
-                              logFile resetLogging dftNamespaceOpt
+                              logFile resetLogging _dftNamespaceOpt
                               _ namespaces breakAfterInput
                               breakAfterUnique breakAfterFlatten
                               breakAfterAllInput
@@ -128,7 +128,7 @@ finalizeNamespaceOptions opts =
   where process_pairs ::
           [(String, NamespaceOption)] -> NamespaceOptionSet ->
             QDHXBOptionSet -> QDHXBOptionSet
-        process_pairs [] _ opts = opts
-        process_pairs ((url, fn) : pairs) dft opts =
+        process_pairs [] _ os = os
+        process_pairs ((url, fn) : pairs) dft os =
           process_pairs pairs dft $
-            opts { optNamespaces = (url, fn dft) : optNamespaces opts }
+            os { optNamespaces = (url, fn dft) : optNamespaces os }

@@ -10,7 +10,6 @@ module QDHXB.Options.NamespaceOptionSet (
 where
 
 import QDHXB.Utils.BPP
-import QDHXB.Utils.Debugln (Subject)
 
 -- | The assortment of values to which options may be set.
 data NamespaceOptionSet = NamespaceOptionSetRecord {
