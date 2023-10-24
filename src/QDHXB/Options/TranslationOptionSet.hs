@@ -64,12 +64,15 @@ data QDHXBOptionSet = QDHXBOptionSetRecord {
                                 -- call to fail if set, but will
                                 -- seriously cut the vomit of tracing
                                 -- output.
-  optBreakAfterAllInput :: Bool  -- ^ Debugging option for breaking
+  optBreakAfterAllInput :: Bool, -- ^ Debugging option for breaking
                                  -- after all files are input (and
                                  -- before any generation).  Will
                                  -- cause any call to fail if set, but
                                  -- will seriously cut the vomit of
                                  -- tracing output.
+  optTypeRenames :: [(String,String)]  -- ^ Before/after renaming
+                                       -- options for generated
+                                       -- Haskell types.
   }
 
 instance Blockable QDHXBOptionSet where
@@ -78,7 +81,8 @@ instance Blockable QDHXBOptionSet where
                               logFile resetLogging dftNamespaceOpt
                               _ namespaces breakAfterInput
                               breakAfterUnique breakAfterFlatten
-                              breakAfterAllInput) =
+                              breakAfterAllInput
+                              typeRenames) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
     `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
@@ -96,6 +100,7 @@ instance Blockable QDHXBOptionSet where
                 "- break after flatten pass " ++ show breakAfterFlatten)
     `stack2` (stringToBlock $
                 "- break after all input pass " ++ show breakAfterAllInput)
+    `stack2` (stringToBlock $ "- type renamings " ++ show typeRenames)
 
 
 -- | The default set of options settings.
@@ -103,6 +108,7 @@ defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSetRecord True False [] [] False Nothing True
                                         defaultNamespaceOptionSet [] []
                                         False False False False
+                                        []
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.

@@ -5,6 +5,10 @@ module QDHXB.Options.TranslationOptions (
   --
   -- | These options to the top-level function are re-exported from
   -- the @QDHXB.Options@ module.
+  -- ** Cleaning up translated names.
+  -- | It is often necessary to clean up the automatically created
+  -- and disambiguated names assigned in generated Haskell code.
+  renameGeneratedType,
   -- ** Structure of renamed types
   useNewType, noUseNewType,
   setDebugging, useDebuggingDoc,
@@ -78,3 +82,9 @@ breakAfterFlatten opts = opts { optBreakAfterFlatten = True }
 -- | Set the option of breaking execution after the input pass.
 breakAfterAllInput :: QDHXBOption
 breakAfterAllInput opts = opts { optBreakAfterAllInput = True }
+
+-- | Specify a before/after renaming of generated Haskell types.
+renameGeneratedType :: String -> String -> QDHXBOption
+renameGeneratedType before after opts = opts {
+  optTypeRenames = (before, after) : optTypeRenames opts
+  }

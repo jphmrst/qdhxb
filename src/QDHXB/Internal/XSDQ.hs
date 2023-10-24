@@ -24,6 +24,10 @@ module QDHXB.Internal.XSDQ (
   isComplexType, getTypeHaskellName, getTypeHaskellType,
   getTypeDecoderAsName, getTypeSafeDecoderAsName,
   addUsedTypeName, typeNameIsInUse,
+
+  -- ** Generated code
+  getTypeRenames, applyTypeRenames,
+
   -- ** Name freshening
   freshenStringForBinding, freshenQNameForBinding, getBindingName,
 
@@ -580,7 +584,12 @@ getTypeHaskellName qn = do
     case ifDefn of
       Just defn -> do
         dbgBLabel names 2 "- by defn " defn
-        return $ defn_to_haskell_name defn qn
+        indenting $ do
+          let byDefn = defn_to_haskell_name defn qn
+          dbgBLabel names 3 "- before renaming " byDefn
+          afterRenames <- applyTypeRenames byDefn
+          dbgBLabel names 3 "- after renaming " afterRenames
+          return afterRenames
 
       -- If we do not have a local definition of the type, let's see if
       -- we have an external definition for it.
@@ -1164,3 +1173,22 @@ checkBreakAfterAllInput = do
   when (optBreakAfterAllInput $ stateOptions st) $
     throwError "Breaking before generation"
   return ()
+
+-- | Return the before/after pairs given as options for renaming
+-- generated Haskell types.
+getTypeRenames :: XSDQ [(String, String)]
+getTypeRenames = fmap (optTypeRenames . stateOptions) $ liftStatetoXSDQ get
+
+-- | Return the before/after pairs given as options for renaming
+-- generated Haskell types.
+applyTypeRenames :: String -> XSDQ String
+applyTypeRenames orig = do
+  renames <- getTypeRenames
+  return $ subst_or_return renames
+
+  where subst_or_return :: [(String, String)] -> String
+        subst_or_return [] = orig
+        subst_or_return ((b,a):_) | orig == b = a
+        subst_or_return (_:rs) = subst_or_return rs
+
+
