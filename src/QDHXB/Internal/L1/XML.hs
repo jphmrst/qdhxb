@@ -8,12 +8,22 @@ import qualified QDHXB.Expansions
 
 {-
 import QDHXB.Internal.Debugln
-qdhxb (setDebugging input 1
-       . setDebugging unique 1
-       . setDebugging flattening 1
-       . setDebugging generate 1)
-  ["src/QDHXB/xml.xsd"]
+qdhxb (
+  renameGeneratedType "BaseX6" "BaseImpl"
+  -- . setDebugging input 1
+  -- . setDebugging unique 1
+  -- . setDebugging names 4
+  -- . setDebugging flattening 1
+  -- . setDebugging generate 1
+  ) ["src/QDHXB/xml.xsd"]
 -}
+
+{-
+qdhxb (
+  renameGeneratedType "BaseX6" "BaseImpl"
+  ) ["src/QDHXB/xml.xsd"]
+-}
+
 qdhxb' ["src/QDHXB/xml.xsd"]
 
 {-

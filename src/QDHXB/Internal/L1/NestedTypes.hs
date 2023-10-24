@@ -2,7 +2,7 @@
 
 -- |The full XSD specification, bootstrapped here for the full
 -- exported implementation.
-module QDHXB.Internal.L1.NestedTypes(victory) where
+module QDHXB.Internal.L1.NestedTypes where
 import QDHXB.Internal.L0
 import QDHXB.Options
 import qualified QDHXB.Expansions
@@ -44,8 +44,3 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . setDebugging generate 3)
   ["src/QDHXB/xsd.xsd", "src/QDHXB/datatypes.xsd"]
 -}
-
--- |Placeholder, until the full XSD specification can actually be
--- generated.
-victory :: String
-victory = "hooray"
