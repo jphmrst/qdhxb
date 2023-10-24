@@ -7,7 +7,7 @@ import Control.Monad.Except
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax (addModFinalizer)
 import Text.XML.Light.Output (showQName)
-import Text.XML.Light.Types (QName, Content, qName, Line)
+import Text.XML.Light.Types (QName, Content)
 import QDHXB.Utils.BPP
 import QDHXB.Utils.TH
 import QDHXB.Internal.XSDQ
@@ -19,12 +19,13 @@ import QDHXB.Internal.Debugln hiding (
   dbgLn, dbgPt, dbgBLabel, dbgBLabelFn1, dbgBLabelFn2,
   dbgResult, dbgResultFn2, dbgResultM)
 import qualified QDHXB.Internal.Debugln as DBG
+dbgBLabel :: (MonadDebugln m n, Blockable c) => String -> c -> m ()
+dbgBLabel = DBG.dbgBLabel generate 0
+{-
 dbgLn :: (MonadDebugln m n) => String -> m ()
 dbgLn = DBG.dbgLn generate 0
 dbgPt :: (MonadDebugln m n) => String -> m ()
 dbgPt = DBG.dbgPt generate 0
-dbgBLabel :: (MonadDebugln m n, Blockable c) => String -> c -> m ()
-dbgBLabel = DBG.dbgBLabel generate 0
 dbgBLabelFn1 ::
   (MonadDebugln m n, Blockable r) => String -> a -> (a -> r) -> m ()
 dbgBLabelFn1 = DBG.dbgBLabelFn1 generate 0
@@ -47,6 +48,7 @@ dbgResultSrcDest ::
   Blockable c => String -> (Name -> Name -> c) -> XSDQ (Name -> Name -> c)
 {-# INLINE dbgResultSrcDest #-}
 dbgResultSrcDest msg = dbgResultFn2 msg srcName destName
+-}
 
 
 -- | Given various components of the Haskell translation of a single,
