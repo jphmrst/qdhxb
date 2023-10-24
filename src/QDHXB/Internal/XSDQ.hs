@@ -668,8 +668,9 @@ buildAttrOrGroupHaskellType = fmap (ConT . mkName) . buildAttrOrGroupHaskellName
 -- the argument `QName`.  __NOTE__: this function will not necessarily
 -- exist; it's just an operation on the `QName` contents.
 getTypeSafeDecoderAsName :: QName -> XSDQ Name
-getTypeSafeDecoderAsName =
-  return . mkName . prefixCoreName "tryDecodeAs" . firstToUpper . qName
+getTypeSafeDecoderAsName qn = do
+  baseNameStr <- getTypeHaskellName qn
+  return $ mkName $ prefixCoreName "tryDecodeAs" $ firstToUpper baseNameStr
 
 -- | Build the @"decodeAs"@-prefixed name for the XSD type named by
 -- the argument `QName`.  __NOTE__: this function will not necessarily

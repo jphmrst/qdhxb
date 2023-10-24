@@ -70,8 +70,8 @@ assembleDecs base tyDec safeDec ifDoc = do
   dbgBLabel "- decoderType " decoderType
 
   baseNameStr <- getTypeHaskellName base
+  safeDecAsNam <- getTypeSafeDecoderAsName base
   let typeName = mkName baseNameStr
-      safeDecAsNam = mkName $ prefixCoreName "tryDecodeAs" baseNameStr
       decAsNam = mkName $ "decodeAs" ++ baseNameStr
       tryDecType = fn1Type contentConT (qHXBExcT decoderType)
       decType = fn1Type contentConT decoderType

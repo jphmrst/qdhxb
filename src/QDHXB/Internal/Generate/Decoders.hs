@@ -39,8 +39,8 @@ dbgBLabelFn1 = DBG.dbgBLabelFn1 generate 0
 dbgBLabelFn2 ::
   (MonadDebugln m n, Blockable r) => String -> a -> b -> (a -> b -> r) -> m ()
 dbgBLabelFn2 = DBG.dbgBLabelFn2 generate 0
-dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
-dbgResult = DBG.dbgResult generate 0
+-- dbgResult :: (MonadDebugln m n, Blockable a) => String -> a -> m a
+-- dbgResult = DBG.dbgResult generate 0
 -- dbgResultM :: (MonadDebugln m n, Blockable a) => String -> m a -> m a
 -- dbgResultM = DBG.dbgResultM generate 0
 dbgResultFn2 ::
@@ -583,7 +583,7 @@ safeDecodingBlockMakerByName ref = do
     -- type, and actually extract the attribute.  But the fix has been
     -- to catch incorrect uses higher in the AST of the XSD file than
     -- where we call this function.
-    safeDec <- fmap VarE $ get_safe_decoder_fn_by_name ref
+    safeDec <- fmap VarE $ getTypeSafeDecoderAsName ref
     dbgBLabel "  - safeDec " safeDec
     let result = \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
     dbgBLabelSrcDest "- result " result
@@ -602,17 +602,6 @@ single_attribute_decoder name typ usage = do
     finalDecoder <- indenting $ make_usage_binder attrDecoder usage
     dbgBLabelSrcDest "finalDecoder " finalDecoder
     return finalDecoder
-
--- | Returns a safe-decoder function `Name`, considering only the text
--- of the given qualified name.  It is entirely the duty of the
--- calling function to make sure that the function is generated.
-get_safe_decoder_fn_by_name :: QName -> XSDQ Name
-get_safe_decoder_fn_by_name qn = do
-  dbgPt $ "get_safe_decoder_fn_by_name for " ++ showQName qn
-  indenting $ do
-    typeHName <- indenting $ getTypeHaskellName qn
-    dbgBLabel "- typeHName " typeHName
-    dbgResult "Built name " $ mkName $ prefixCoreName "tryDecodeAs" typeHName
 
 
 -- | Convert a `Reference` into a `BlockMaker` calculating its value.
@@ -793,12 +782,11 @@ getTypeDecoderFn qn = do
             BindS (VarP dest) $ efn $ VarE str
             ]
           -- fmap (qLambdaWithArg (mkName "w")) $ forSimpleType ty
-        _ -> return $ \src dest -> [
-          BindS (VarP dest)
-                (AppE (VarE $ mkName $
-                         prefixCoreName "tryDecodeAs" $
-                           firstToUpper $ qName qn)
-                      (VarE src))]
+        _ -> do
+          safeDecodeName <- getTypeSafeDecoderAsName qn
+          return $ \src dest -> [
+            BindS (VarP dest)
+                  (AppE (VarE safeDecodeName) (VarE src))]
 
 
 -- | First in result triple: the `Con` spec for a `DataD` declaration.
