@@ -707,12 +707,12 @@ ref_block_maker_for_bounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
   pull <- newName "pullForMaybe"
   pullMaybe <- newName "maybeOne"
   tmp <- newName "subres"
-  -- a <- newName "eachPulled" -- unused
   finalCase <- caseNothingJust (VarE pullMaybe)
     (applyReturn nothingConE)
     (\nam -> DoE Nothing $
       indivF nam tmp ++ [
         NoBindS $ applyReturn $ applyJust $ VarE tmp])
+  dbgBLabel "- finalCase " finalCase
   let result = \src dest ->
         LetS [SigD pull (AppT zomConT contentConT),
               ValD (VarP pull) (NormalB $ puller $ VarE src) []]

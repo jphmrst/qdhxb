@@ -119,10 +119,9 @@ listToMaybe src dest =
   [ LetS [
       ValD (VarP dest)
         (NormalB $
-           zomCase (VarE src) nothingConE
+           zomCaseNoneSingle' (VarE src) nothingConE
              vName (AppE justConE (VarE vName))
-             vName (throwsError
-                 "Zero or single element required, multiple found"))
+             (throwsError "Zero or single element required, multiple found"))
         []]]
   where vName = mkName "v"
 

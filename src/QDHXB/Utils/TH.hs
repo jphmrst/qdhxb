@@ -80,7 +80,8 @@ module QDHXB.Utils.TH (
   -- * `QDHXB.Utils.ZeroOneMany`
   zomConT, zeroPat, onePat, manyPat, zomToListVarE,
   applyZomToSingle, applyZomToMaybe, applyZomToList,
-  zomCase, zomCaseSingle, zomCaseSingle', applyZommapM,
+  zomCase, zomCaseSingle, zomCaseSingle',
+  zomCaseNoneSingle', applyZommapM,
 
   -- * @XMLLight@
   contentName, contentConT, applyPullContentFrom, applyPullCRefContent,
@@ -568,6 +569,18 @@ zomCaseSingle e oneN oneExp otherN otherExp =
 zomCaseSingle' :: Exp -> Name -> Exp -> Exp -> Exp
 zomCaseSingle' e oneN oneExp otherExp =
   CaseE e [
+    Match (onePat $ VarP oneN) (NormalB oneExp) [],
+    Match (WildP) (NormalB otherExp) []
+    ]
+
+-- | Build a TH @case@ expression over a
+-- `QDHXB.Utils.ZeroOneMany.zomToMaybe`-valued expression
+-- which distinguishes the single case, and a wildcard catch-all for
+-- other cases.
+zomCaseNoneSingle' :: Exp -> Exp -> Name -> Exp -> Exp -> Exp
+zomCaseNoneSingle' e zeroExp oneN oneExp otherExp =
+  CaseE e [
+    Match zeroPat (NormalB zeroExp) [],
     Match (onePat $ VarP oneN) (NormalB oneExp) [],
     Match (WildP) (NormalB otherExp) []
     ]

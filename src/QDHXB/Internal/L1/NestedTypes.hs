@@ -24,12 +24,13 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
 import QDHXB.Internal.Debugln
 qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
            (defaultModule "QDHXB.Internal.L1.XML")
-        . setDebugging input 0
-        . setDebugging names 3
-        . setDebugging unique 4
+        -- . setDebugging input 0
+        -- . setDebugging names 3
+        -- . setDebugging unique 4
         -- . setDebugging flattening 1
-        -- . setDebugging generate 1
-        . breakAfterAllInput)
+        . setDebugging generate 3
+        -- . breakAfterAllInput
+      )
   ["src/QDHXB/xsd.xsd", "src/QDHXB/datatypes.xsd"]
 -}
 
