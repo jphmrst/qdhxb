@@ -13,7 +13,7 @@ import qualified QDHXB.Expansions
 --   ["test/Initials/initials.xsd"]
 qdhxb (
   renameGeneratedType "Initials" "InitialsRep"
-  . setDebugging generate 3
+  -- . setDebugging generate 3
   ) ["test/Initials/initials.xsd"]
 
 testInitialsR :: TLT IO ()
