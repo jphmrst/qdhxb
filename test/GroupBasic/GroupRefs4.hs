@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-} -- Turn this back on when more stable
 
 module GroupBasic.GroupRefs4 where
 import Control.Monad.Trans.Class

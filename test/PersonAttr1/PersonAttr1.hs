@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unused-top-binds #-} -- Turn this back on when more stable
 
 module PersonAttr1.PersonAttr1 (testPersonAttr1) where
 import Control.Monad.Trans.Class

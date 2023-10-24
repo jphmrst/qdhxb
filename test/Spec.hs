@@ -86,6 +86,7 @@ main = do
     testGB0
     testGB1
     testGB3
+    testGB4
     testCB0
     testCB1
     testCB2
@@ -98,4 +99,5 @@ main = do
     testElementType
     testElementSimples
     testElementTypeAttr
+    testElementTypeAttr2
     testAssertion01

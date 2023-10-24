@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-} -- Turn this back on when more stable
 
 -- | Replicating an error in compiling group assertions in the XSD
 -- spec.

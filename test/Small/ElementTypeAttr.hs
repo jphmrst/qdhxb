@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-} -- Turn this back on when more stable
 
 module Small.ElementTypeAttr where
 import Control.Monad.Trans.Class
