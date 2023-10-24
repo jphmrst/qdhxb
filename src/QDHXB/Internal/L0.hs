@@ -912,7 +912,12 @@ instance AST DataScheme where
           -- dbgBLabel flattening 1 "- defnss " defnss
         let fromMemberList = map pullRefLabel ns
         dbgBLabel flattening 1 "- fromMemberList " fromMemberList
-        let uDef = UnionDefn nam (laNames ++ fromMemberList) ln d
+        let rawPairs = laNames ++ fromMemberList
+        renamedPairs <- mapM (\(x,y) -> do
+                                 x' <- applyConstructorRenames $ qName x
+                                 return (inSameNamspace x' x,y))
+                             rawPairs
+        let uDef = UnionDefn nam renamedPairs ln d
         dbgBLabel flattening 1 "- uDef " uDef
         fileNewDefinition uDef
         dbgResult flattening 1 "Flattened [fSI'] to" $ defns ++ [uDef]

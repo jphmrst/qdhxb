@@ -8,7 +8,7 @@ module QDHXB.Options.TranslationOptions (
   -- ** Cleaning up translated names.
   -- | It is often necessary to clean up the automatically created
   -- and disambiguated names assigned in generated Haskell code.
-  renameGeneratedType,
+  renameGeneratedType, renameConstructor,
   -- ** Structure of renamed types
   useNewType, noUseNewType,
   setDebugging, useDebuggingDoc,
@@ -87,4 +87,10 @@ breakAfterAllInput opts = opts { optBreakAfterAllInput = True }
 renameGeneratedType :: String -> String -> QDHXBOption
 renameGeneratedType before after opts = opts {
   optTypeRenames = (before, after) : optTypeRenames opts
+  }
+
+-- | Specify a before/after renaming of generated Haskell types.
+renameConstructor :: String -> String -> QDHXBOption
+renameConstructor before after opts = opts {
+  optConstructorRenames = (before, after) : optConstructorRenames opts
   }

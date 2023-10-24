@@ -905,8 +905,8 @@ unionDefnComponents ::
   -- And the result is a computation returning a `BlockMaker`
   -> XSDQ (Exp, [Name], [Name -> [Dec]])
 unionDefnComponents blockMakerBuilder name pairs ln = do
-  let baseName = firstToUpper $ qName name
-      baseType = ConT $ mkName baseName
+  typeName <- getTypeHaskellName name
+  let baseType = ConT $ mkName typeName
 
   -- Prepare where-block bindings for calls to the alternative
   -- decoders, each of which tags their result with the appropriate
@@ -933,6 +933,6 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
   let safeCore :: Exp
       safeCore =
         foldr (\n e -> applyCatchErrorExp (VarE n) (LamE [WildP] e))
-              (qthNoValidContentInUnion baseName ln) names
+              (qthNoValidContentInUnion typeName ln) names
 
   return (safeCore, names, decs)

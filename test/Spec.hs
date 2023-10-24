@@ -47,6 +47,7 @@ import Small.ElementTypeAttr (testElementTypeAttr)
 import Small.ElementTypeAttr2 (testElementTypeAttr2)
 import Assertions.Assertion01 (testAssertion01)
 import Rename.Initials (testInitialsR)
+import qualified Rename.Min1
 
 import OFX1 (testOFX1)
 import XSD1 (testXSD1)
@@ -103,3 +104,4 @@ main = do
     testElementTypeAttr2
     testAssertion01
     testInitialsR
+    Rename.Min1.test

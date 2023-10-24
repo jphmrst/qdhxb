@@ -26,7 +26,7 @@ module QDHXB.Internal.XSDQ (
   addUsedTypeName, typeNameIsInUse,
 
   -- ** Generated code
-  getTypeRenames, applyTypeRenames,
+  getTypeRenames, applyTypeRenames, applyConstructorRenames,
 
   -- ** Name freshening
   freshenStringForBinding, freshenQNameForBinding, getBindingName,
@@ -1190,16 +1190,29 @@ getTypeRenames :: XSDQ [(String, String)]
 getTypeRenames = fmap (optTypeRenames . stateOptions) $ liftStatetoXSDQ get
 
 -- | Return the before/after pairs given as options for renaming
+-- generated Haskell constructors.
+getConstructorRenames :: XSDQ [(String, String)]
+getConstructorRenames =
+  fmap (optConstructorRenames . stateOptions) $ liftStatetoXSDQ get
+
+-- | Return the before/after pairs given as options for renaming
 -- generated Haskell types.
 applyTypeRenames :: String -> XSDQ String
 applyTypeRenames orig = do
   renames <- getTypeRenames
-  return $ subst_or_return renames
+  return $ subst_or_return renames orig
 
-  where subst_or_return :: [(String, String)] -> String
-        subst_or_return [] = orig
-        subst_or_return ((b,a):_) | orig == b = a
-        subst_or_return (_:rs) = subst_or_return rs
+-- | Return the before/after pairs given as options for renaming
+-- generated Haskell constructors.
+applyConstructorRenames :: String -> XSDQ String
+applyConstructorRenames orig = do
+  renames <- getConstructorRenames
+  return $ subst_or_return renames orig
+
+subst_or_return :: [(String, String)] -> String -> String
+subst_or_return [] orig = orig
+subst_or_return ((b,a):_) orig | orig == b = a
+subst_or_return (_:rs) orig = subst_or_return rs orig
 
 -- | Decode a `String` as a `QName` in the current environment of
 -- `Namespaces`.

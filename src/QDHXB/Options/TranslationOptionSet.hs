@@ -70,9 +70,13 @@ data QDHXBOptionSet = QDHXBOptionSetRecord {
                                  -- cause any call to fail if set, but
                                  -- will seriously cut the vomit of
                                  -- tracing output.
-  optTypeRenames :: [(String,String)]  -- ^ Before/after renaming
+  optTypeRenames :: [(String,String)], -- ^ Before/after renaming
                                        -- options for generated
                                        -- Haskell types.
+  optConstructorRenames :: [(String,String)]  -- ^ Before/after
+                                              -- renaming options for
+                                              -- generated Haskell
+                                              -- constructor names.
   }
 
 instance Blockable QDHXBOptionSet where
@@ -82,7 +86,7 @@ instance Blockable QDHXBOptionSet where
                               _ namespaces breakAfterInput
                               breakAfterUnique breakAfterFlatten
                               breakAfterAllInput
-                              typeRenames) =
+                              typeRenames constrRenames) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
     `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
@@ -101,6 +105,7 @@ instance Blockable QDHXBOptionSet where
     `stack2` (stringToBlock $
                 "- break after all input pass " ++ show breakAfterAllInput)
     `stack2` (stringToBlock $ "- type renamings " ++ show typeRenames)
+    `stack2` (stringToBlock $ "- constructor renamings " ++ show constrRenames)
 
 
 -- | The default set of options settings.
@@ -108,7 +113,7 @@ defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSetRecord True False [] [] False Nothing True
                                         defaultNamespaceOptionSet [] []
                                         False False False False
-                                        []
+                                        [] []
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.
