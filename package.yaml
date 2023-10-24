@@ -43,7 +43,6 @@ ghc-options:
 - -Wincomplete-uni-patterns
 - -Wpartial-fields
 - -Wredundant-constraints
-- -Wno-orphans
 
 # - -ddump-splices
 

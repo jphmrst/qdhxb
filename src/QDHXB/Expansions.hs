@@ -1,4 +1,6 @@
 
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 -- | Re-exports of values used in generated TH code.
 module QDHXB.Expansions (
   readMaybe, mapM,
