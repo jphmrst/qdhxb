@@ -41,6 +41,9 @@ module QDHXB.Internal.XSDQ (
   getNamespaces, getDefaultNamespace, inDefaultNamespace, useNameOrWrap,
   decodePrefixedName, decodePrefixedNameList, getURIprefix, getNextCapName,
 
+  -- ** `QName`s in context
+  getStringQName,
+
   -- * Logging
   resetLog, localLoggingStart, localLoggingEnd,
   whenResetLog, whenLogging, whenLocalLogging, putLog,
@@ -68,7 +71,7 @@ import QDHXB.Utils.BPP (
   Blockable, block, stringToBlock, labelBlock, stack2, bpp, bprintLn, follow)
 import QDHXB.Utils.Namespaces
 import QDHXB.Utils.Misc
-import QDHXB.Utils.XMLLight (inSameNamspace)
+import QDHXB.Utils.XMLLight (inSameNamspace, stringToQName)
 import QDHXB.Utils.TH (
   timeOfDayBasicDecoder, stringListBasicDecoder, stringBasicDecoder,
     intBasicDecoder, dayBasicDecoder, diffTimeBasicDecoder, floatBasicDecoder,
@@ -77,6 +80,7 @@ import QDHXB.Utils.TH (
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType, firstToUpper, prefixCoreName)
+import qualified QDHXB.Utils.TH
 import QDHXB.Internal.Types
 import QDHXB.Internal.Debugln
 import QDHXB.Options.TranslationOptionSet
@@ -1191,4 +1195,16 @@ applyTypeRenames orig = do
         subst_or_return ((b,a):_) | orig == b = a
         subst_or_return (_:rs) = subst_or_return rs
 
+-- | Decode a `String` as a `QName` in the current environment of
+-- `Namespaces`.
+getStringQName :: String -> XSDQ QName
+getStringQName s = do
+  ns <- getCurrentNamespaces
+  return $ stringToQName (maybe [] id ns) s
 
+-- | Decode a `String` as a `QName` in the current environment of
+-- `Namespaces`.
+getStringQNameTH :: Exp -> XSDQ Exp
+getStringQNameTH s = do
+  ns <- getCurrentNamespaces
+  return $ QDHXB.Utils.TH.throwsError "TODO-getStringQNameTH"

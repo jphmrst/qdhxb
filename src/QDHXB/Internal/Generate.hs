@@ -221,6 +221,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
       rootTypeName = mkName $ rootName -- ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ prefixCoreName "tryDecodeAs" rootName
+  dbgBLabel "typ " typ
   dbgBLabel "xmlName " xmlName
   dbgBLabel "rootName " rootName
   dbgBLabel "rootTypeName " rootTypeName
@@ -234,7 +235,9 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
   -- let (haskellTyp, basicDecoder) = xsdNameToTypeTranslation $ qName typ
   -- let coreDecoder = basicDecoder $ VarE xName
   haskellTyp <- getTypeHaskellType typ
+  dbgBLabel "haskellTyp " haskellTyp
   coreDecoder <- getSafeStringDecoder typ
+  dbgBLabelSrcDest "coreDecoder " coreDecoder
   let decoder = DoE Nothing [
         LetS [SigD attrName (AppT maybeConT stringConT),
               ValD (VarP attrName) (NormalB puller) []],

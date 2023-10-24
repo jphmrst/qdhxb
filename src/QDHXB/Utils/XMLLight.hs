@@ -20,14 +20,19 @@ module QDHXB.Utils.XMLLight (
   isFocusElem, isTagged,
   -- * Manipulating `QName`s
   withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper,
-  inSameNamspace)
+  inSameNamspace,
+  -- * Decoding a `QName`
+  stringToQName)
 where
+import Data.List (find)
+import Data.List.Split (splitOn)
 import Language.Haskell.TH (mkName, Name)
 import System.IO
 import Control.Monad.Except
 import Text.XML.Light.Input
 import Text.XML.Light.Types
 import QDHXB.Utils.Misc
+import QDHXB.Utils.Namespaces
 import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.ZeroOneMany
 
@@ -238,3 +243,12 @@ getCoreContent cs = case partitionXMLForms cs of
 -- | Build a new `QName` in the same namespace as an existing `QName`.
 inSameNamspace :: String -> QName -> QName
 inSameNamspace str (QName _ url pfx) = QName str url pfx
+
+-- | Convert a `String` to a `QName` given the current `Namespaces`.
+stringToQName :: Namespaces -> String -> QName
+stringToQName ns s = case splitOn ":" s of
+  [] -> error "Cannot make a QName from an empty string"
+  [_] -> QName s Nothing Nothing
+  [pfx, core] -> QName core (fmap snd $ find ((==pfx) . fst) ns) $ Just pfx
+  _ -> error $ "Too many colons in string for QName: \"" ++ s ++ "\""
+
