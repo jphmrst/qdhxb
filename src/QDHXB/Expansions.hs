@@ -10,7 +10,7 @@ module QDHXB.Expansions (
   Day, TimeOfDay, DiffTime, ZonedTime,
   __loadElement, __loadContent, pullContentFrom, pullCRefContent,
   HXBErr(..), HXBExcept,
-  bpp, QName
+  bpp, QName, contextfreeStringToQName
   )
 where
 
@@ -25,7 +25,7 @@ import QDHXB.Errs
 import QDHXB.Utils.ZeroOneMany
 import QDHXB.Utils.XMLLight (
   __loadElement, __loadContent,
-  pullContentFrom, pullAttrFrom, pullCRefContent)
+  pullContentFrom, pullAttrFrom, pullCRefContent, contextfreeStringToQName)
 import QDHXB.Utils.Misc (spaceSep, ZonedTime)
 import QDHXB.Utils.BPP (bpp)
 import QDHXB.Internal.Generate (simpleTypeDecoder)

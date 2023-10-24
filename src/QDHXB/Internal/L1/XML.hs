@@ -1,7 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 -- |The notional XML XSD specification.
-module QDHXB.Internal.L1.XML where
+module QDHXB.Internal.L1.XML(
+  module QDHXB.Internal.L1.XML
+  ) where
+
 import QDHXB.Internal.L0
 -- import QDHXB.Options
 import qualified QDHXB.Expansions

@@ -80,7 +80,6 @@ import QDHXB.Utils.TH (
     stringType, boolType, floatType, doubleType, intType,
     diffTimeType, dayType, zonedTimeConT, timeOfDayType,
     stringListType, qnameType, firstToUpper, prefixCoreName)
-import qualified QDHXB.Utils.TH
 import QDHXB.Internal.Types
 import QDHXB.Internal.Debugln
 import QDHXB.Options.TranslationOptionSet
@@ -1202,9 +1201,11 @@ getStringQName s = do
   ns <- getCurrentNamespaces
   return $ stringToQName (maybe [] id ns) s
 
+{-
 -- | Decode a `String` as a `QName` in the current environment of
 -- `Namespaces`.
 getStringQNameTH :: Exp -> XSDQ Exp
 getStringQNameTH s = do
   ns <- getCurrentNamespaces
   return $ QDHXB.Utils.TH.throwsError "TODO-getStringQNameTH"
+-}

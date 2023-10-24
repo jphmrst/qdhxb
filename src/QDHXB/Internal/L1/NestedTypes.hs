@@ -2,7 +2,10 @@
 
 -- |The full XSD specification, bootstrapped here for the full
 -- exported implementation.
-module QDHXB.Internal.L1.NestedTypes where
+module QDHXB.Internal.L1.NestedTypes(
+  module QDHXB.Internal.L1.NestedTypes
+  ) where
+
 import QDHXB.Internal.L0
 import QDHXB.Options
 import qualified QDHXB.Expansions

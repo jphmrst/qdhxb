@@ -359,7 +359,10 @@ qnameType = ConT qnameName
 
 -- | TH `Text.XML.Light.Types.QName` converter from `String`.
 qnameBasicDecoder :: Exp -> Exp
-qnameBasicDecoder _ = throwsError "TODO"
+qnameBasicDecoder argExp =
+  AppE (returnExp)
+       (AppE (VarE (mkName "QDHXB.Expansions.contextfreeStringToQName"))
+             argExp)
 
 -- | Capitalize the first character of a `String`.
 firstToUpper :: String -> String

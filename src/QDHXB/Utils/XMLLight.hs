@@ -22,7 +22,7 @@ module QDHXB.Utils.XMLLight (
   withPrefix, withSuffix, withNamePrefix, withNameSuffix, qnFirstToUpper,
   inSameNamspace,
   -- * Decoding a `QName`
-  stringToQName)
+  stringToQName, contextfreeStringToQName)
 where
 import Data.List (find)
 import Data.List.Split (splitOn)
@@ -252,3 +252,11 @@ stringToQName ns s = case splitOn ":" s of
   [pfx, core] -> QName core (fmap snd $ find ((==pfx) . fst) ns) $ Just pfx
   _ -> error $ "Too many colons in string for QName: \"" ++ s ++ "\""
 
+-- | Convert a `String` to a `QName` with reference to no `Namespaces`
+-- lookup.
+contextfreeStringToQName :: String -> QName
+contextfreeStringToQName s = case splitOn ":" s of
+  [] -> error "Cannot make a QName from an empty string"
+  [_] -> QName s Nothing Nothing
+  [pfx, core] -> QName core Nothing $ Just pfx
+  _ -> error $ "Too many colons in string for QName: \"" ++ s ++ "\""
