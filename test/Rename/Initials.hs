@@ -9,9 +9,6 @@ import QDHXB.Options
 import QDHXB.Internal.Debugln
 import qualified QDHXB.Expansions
 
--- import QDHXB.Internal.Debugln
--- qdhxb (setDebugging unique 3 . setDebugging flattening 3)
---   ["test/Initials/initials.xsd"]
 qdhxb (
   renameGeneratedType "Initials" "InitialsRep"
   -- . setDebugging generate 3
