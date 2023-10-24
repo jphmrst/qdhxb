@@ -161,7 +161,7 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
   subextractor <- do
     let extractSubElemsNam = mkName $ "extractSubElements" ++ baseName
     cparamName <- newName "content"
-    pushDeclHaddock ifDoc extractElemNam
+    pushDeclHaddock ifDoc extractSubElemsNam
       ("Decode @\\<" ++ origName
        ++ ">@ subelements of a given piece of @Content@.")
     return [
