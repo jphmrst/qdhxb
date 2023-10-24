@@ -906,13 +906,13 @@ instance AST DataScheme where
 
         labelledAlts <- mapM pullNestedLabel alts
         -- dbgBLabel flattening 1 "- labelledAlts " labelledAlts
-        let (names, defnss) = unzip labelledAlts
+        let (laNames, defnss) = unzip labelledAlts
             defns = concat defnss
-        dbgBLabel flattening 1 "- names " names
+        dbgBLabel flattening 1 "- laNames " laNames
           -- dbgBLabel flattening 1 "- defnss " defnss
         let fromMemberList = map pullRefLabel ns
         dbgBLabel flattening 1 "- fromMemberList " fromMemberList
-        let uDef = UnionDefn nam (names ++ fromMemberList) ln d
+        let uDef = UnionDefn nam (laNames ++ fromMemberList) ln d
         dbgBLabel flattening 1 "- uDef " uDef
         fileNewDefinition uDef
         dbgResult flattening 1 "Flattened [fSI'] to" $ defns ++ [uDef]
@@ -996,10 +996,10 @@ instance AST DataScheme where
           error "TODO flattenAttributeGroupItem unmatched"
         where flattenWithName n = do
                 dbgLn flattening 1 $ "[fAGI] Flattening attribute group item" ++ ifAtLine l
-                let names = map grabNameAndUsage cs
+                let csNames = map grabNameAndUsage cs
                 defs <- indenting $ flattenAttributes cs
                 let attrDefn = AttributeDefn
-                                 n (AttributeGroupDefn names $ qName n) l d
+                                 n (AttributeGroupDefn csNames $ qName n) l d
                 fileNewDefinition attrDefn
                 let res = defs ++ [attrDefn]
                 return res
@@ -1538,8 +1538,8 @@ instance AST DataScheme where
       flattenAttribute ag@(AttributeGroup (WithName n) schemes d) = do
         dbgBLabel flattening 1 "[fA] Attribute group with name reference " ag
         indenting $ do
-          let names = map grabNameAndUsage schemes
-              defn = AttributeDefn n (AttributeGroupDefn names (qName n))
+          let schemesNames = map grabNameAndUsage schemes
+              defn = AttributeDefn n (AttributeGroupDefn schemesNames (qName n))
                        Nothing d
           fileNewDefinition defn
           sub <- fmap concat $ mapM flattenAttribute schemes

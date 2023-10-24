@@ -1197,16 +1197,7 @@ prefixCoreName :: String -> String -> String
 prefixCoreName prefix name =
   let segments = splitOn "." name
       (modules, core) = pull_core_name segments
-  in rewrap (reverse modules) $ prefix ++ firstToUpper core
-  where
-    pull_core_name :: [String] -> ([String], String)
-    pull_core_name [xs] = ([], xs)
-    pull_core_name (xs:xss) = let (yss, ys) = pull_core_name xss
-                              in ((xs:yss), ys)
-
-    rewrap :: [String] -> String -> String
-    rewrap [] zs = zs
-    rewrap (ys:yss) zs = rewrap yss $ ys ++ "." ++ zs
+  in rewrap_core_name (reverse modules) $ prefix ++ firstToUpper core
 
 -- | Add a `String` to the end of a Haskell name which may be module
 -- suffixed.  So for @A.B.C.Ddeeefff@ and some @Suffix@, would return
@@ -1216,13 +1207,14 @@ suffixCoreName :: String -> String -> String
 suffixCoreName suffix name =
   let segments = splitOn "." name
       (revModules, core) = pull_core_name segments
-  in rewrap revModules $ core ++ suffix
-  where
-    pull_core_name :: [String] -> ([String], String)
-    pull_core_name [xs] = ([], xs)
-    pull_core_name (xs:xss) = let (yss, ys) = pull_core_name xss
-                              in ((xs:yss), ys)
+  in rewrap_core_name revModules $ core ++ suffix
 
-    rewrap :: [String] -> String -> String
-    rewrap [] zs = zs
-    rewrap (ys:yss) zs = rewrap yss $ ys ++ "." ++ zs
+pull_core_name :: [String] -> ([String], String)
+pull_core_name [] = error "Internal error --- unexpected arg []"
+pull_core_name [xs] = ([], xs)
+pull_core_name (xs:xss) = let (yss, ys) = pull_core_name xss
+                          in ((xs:yss), ys)
+
+rewrap_core_name :: [String] -> String -> String
+rewrap_core_name [] zs = zs
+rewrap_core_name (ys:yss) zs = rewrap_core_name yss $ ys ++ "." ++ zs

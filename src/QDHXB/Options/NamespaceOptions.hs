@@ -5,7 +5,6 @@ module QDHXB.Options.NamespaceOptions (
   )
 where
 
-import QDHXB.Utils.Debugln (Subject)
 import QDHXB.Options.NamespaceOptionSet
 
 -- | Generate opaque types (@newtype@) when one type is simply a

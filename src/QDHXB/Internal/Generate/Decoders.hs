@@ -194,6 +194,8 @@ getSafeDecoderBody qn = do
       IsElementType et -> liftExcepttoXSDQ $ throwError $
         "getSafeDecoderBody received unexpected Element type " ++ bpp et
          ++ " for " ++ bpp qn
+      NotDefinedInXSDQ -> liftExcepttoXSDQ $ throwError $
+        "getSafeDecoderBody name not defined: " ++ bpp qn
 
   where
 
