@@ -21,12 +21,6 @@ import qualified QDHXB.Internal.L1.XML
 import QDHXB.Internal.Debugln
 qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
          (defaultModule "QDHXB.Internal.L1.XML")
-        . renameGeneratedType "Top6AttrAttrSimpleRestrNCName" "SpaceImpl"
-        . renameGeneratedType "Top4AttrAttrUnion1SimpleRestrstring" "LangImpl"
-        . renameGeneratedType "BaseX6" "Base"
-        . renameGeneratedType "IdX9" "Id"
-        . renameGeneratedType "Top4AttrAttrUnionSource" "LangForms"
-        . renameGeneratedType "SpecialAttrsX5" "SpecialAttrs"
         -- . setDebugging input 0
         -- . setDebugging names 3
         -- . setDebugging unique 4

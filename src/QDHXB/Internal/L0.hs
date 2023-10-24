@@ -913,6 +913,7 @@ instance AST DataScheme where
         let fromMemberList = map pullRefLabel ns
         dbgBLabel flattening 1 "- fromMemberList " fromMemberList
         let rawPairs = laNames ++ fromMemberList
+        -- Rename constructors
         renamedPairs <- mapM (\(x,y) -> do
                                  x' <- applyConstructorRenames $ qName x
                                  return (inSameNamspace x' x,y))
