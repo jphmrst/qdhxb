@@ -108,8 +108,8 @@ instance Blockable AttributeDefn where
   block (SingleAttributeDefn t m hn) = stringToBlock $
     "Single " ++ showQName t ++ " (" ++ show m ++ ", Haskell name " ++ hn ++ ")"
   block (AttributeGroupDefn ds hn) =
-    labelBlock ("AttributeGroup (Haskell name " ++ hn ++ ")") $
-      stackBlocks $ map usagePairBlock ds
+    stringToBlock ("AttributeGroup (Haskell name " ++ hn ++ ") ")
+      `stack2` (labelBlock "  " $ stackBlocks $ map usagePairBlock ds)
     where usagePairBlock :: (QName, AttributeUsage) -> Block
           usagePairBlock (qn, u) =
             labelBlock (showQName qn ++ " used ") $ block u
@@ -221,7 +221,8 @@ instance Blockable Definition where
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
   block (AttributeDefn n sp _ _) =
-    labelBlock ("Attribute " ++ showQName n ++ " ") $ block sp
+    stringToBlock ("Attribute " ++ showQName n ++ " ")
+      `stack2` (labelBlock "  " $ block sp)
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $

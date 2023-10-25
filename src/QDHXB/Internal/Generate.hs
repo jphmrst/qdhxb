@@ -199,12 +199,14 @@ xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
-  dbgBLabel ("Generating from (f" ++ ifAtLine ln ++ ") ") d
+  dbgLn $ "Generating from (f" ++ ifAtLine ln ++ ") "
+  dbgBLabel "  " d
   decoder <- getSafeDecoderBody nam
   dbgBLabelSrcDest "- decoder " decoder
-  dbgLn "- getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
+  dbgLn "getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
   hrefOut <- indenting $ mapM (getAttributeOrGroupTypeForUsage ln) ads
-  dbgResultM "Generated" $
+  dbgBLabel "- hrefOut " hrefOut
+  dbgResultM "Generated" $ indenting $
     assembleDecs nam (Just $ \tn ->
                         DataD [] tn [] Nothing [
                           NormalC tn $ map (\x -> (useBang, x)) hrefOut
@@ -250,6 +252,7 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
                      NoBindS $ applyReturn $ applyJust (VarE resName)
                      ])
         ]
+  dbgBLabel "decoder " decoder
 
   pushDeclHaddock ifd safeDecNam $
     "Attempt to decode the @" ++ showQName nam
@@ -263,7 +266,9 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
     "Representation of the @" ++ showQName nam ++ "@ attribute"
 
   decBody <- resultOrThrow $ AppE (VarE safeDecNam) (VarE paramName)
+  dbgBLabel "decBody " decBody
   let typeDef = TySynD rootTypeName [] haskellTyp
+  dbgBLabel "typeDef " typeDef
   dbgResult "Generated" $ (
         typeDef
 

@@ -209,9 +209,13 @@ getSafeDecoderBody qn = do
           ++ qName qn
 
     decoder_body_for_attribute_group_defn agd = case agd of
-      AttributeGroupDefn subqns _ -> do
+      AttributeGroupDefn subqns _ -> indenting $ do
           dbgLn "- AttributeGroupDefn (2aa) found"
-          typeAndConstrName <- fmap mkName $ buildAttrOrGroupHaskellName qn
+          origName <- buildAttrOrGroupHaskellName qn
+          dbgBLabel "- origName " origName
+          substName <- applyTypeRenames origName
+          dbgBLabel "- substName " substName
+          let typeAndConstrName = mkName substName
           dbgBLabel "- typeAndConstrName " typeAndConstrName
           haskellType <- buildAttrOrGroupHaskellType qn
           dbgBLabel "- haskellType " haskellType
@@ -240,7 +244,7 @@ getSafeDecoderBody qn = do
           dbgBLabelSrcDest "- result " res
           return res
 
-      SingleAttributeDefn typ _usage _hn -> do
+      SingleAttributeDefn typ _usage _hn -> indenting $ do
           throwError $
             "Found (2bb) SingleAttributeDefn in attribute group table for "
             ++ qName typ

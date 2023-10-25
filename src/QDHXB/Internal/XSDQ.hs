@@ -656,7 +656,9 @@ getTypeHaskellType qn = do
 -- translator, then return the `String` name of the corresponding
 -- Haskell type (and throw on error in the `XSDQ` monad otherwise).
 buildAttrOrGroupHaskellName :: QName -> XSDQ String
-buildAttrOrGroupHaskellName qn = return $ firstToUpper $ qName qn
+buildAttrOrGroupHaskellName qn = do
+  let core = firstToUpper $ qName qn
+  applyTypeRenames core
 
 -- | If the argument names an XSD attribute group known to the
 -- translator, then return the the corresponding TH `Type` (and throw

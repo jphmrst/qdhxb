@@ -5,8 +5,10 @@
 module QDHXB.Internal.API (apiFunctions, API) where
 
 import Language.Haskell.TH (Q, Dec)
+import Language.Haskell.TH.Syntax (addDependentFile)
 import System.IO
 import System.Console.ANSI
+import Control.Monad (forM_)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State.Lazy
 import Data.List (intercalate)
@@ -34,6 +36,7 @@ apiFunctions = (qdhxbFn, qdhxbFn')
         qdhxbFn :: QDHXBOption -> [String] -> Q [Dec]
         qdhxbFn opts xsds = do
           -- liftIO (getCurrentDirectory >>= putStrLn . show)
+          forM_ xsds $ \file -> addDependentFile file
           runXSDQ opts $ do
             whenLogging $ \file -> do
               whenResetLog $ resetLog file
