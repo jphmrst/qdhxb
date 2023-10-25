@@ -1,5 +1,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-} -- Turn this back on when more stable
+{-# OPTIONS_GHC -Wno-unused-matches #-} -- This will be trickier --- need
+                                        -- to use a wildcard argument
+                                        -- for tryDecode in an
+                                        -- attribute group with no
+                                        -- members.
 
 module Rename.AttrGroup where
 import Control.Monad.Trans.Class
