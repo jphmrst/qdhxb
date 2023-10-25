@@ -17,7 +17,7 @@ qdhxb (
   . renameGeneratedType "Top4AttrAttrUnion1SimpleRestrstring" "LangImpl"
   . renameGeneratedType "IdX9" "Id"
   . renameGeneratedType "Top4AttrAttrUnion" "LangForms"
-  -- . renameGeneratedType "SpecialAttrsX5" "SpecialAttrs"
+  . renameGeneratedType "SpecialAttrsX5" "SpecialAttrs"
   . renameConstructor "SpecialAttrsX5" "SpecialAttrs"
   . renameConstructor "Top4AttrAttrUnionTop4AttrAttrUnion1SimpleRestrstring" "LangAsString"
   . renameConstructor "Top4AttrAttrUnionLanguage" "LangAsLanguage"
