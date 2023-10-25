@@ -12,12 +12,12 @@ import qualified QDHXB.Expansions
 
 import QDHXB.Internal.Debugln
 qdhxb (
-  renameGeneratedType "BaseX6" "Base"
-  . renameGeneratedType "Top6AttrAttrSimpleRestrNCName" "SpaceImpl"
-  . renameGeneratedType "Top4AttrAttrUnion1SimpleRestrstring" "LangImpl"
-  . renameGeneratedType "IdX9" "Id"
-  . renameGeneratedType "Top4AttrAttrUnion" "LangForms"
-  . renameGeneratedType "SpecialAttrsX5" "SpecialAttrs"
+  renameType "BaseX6" "Base"
+  . renameType "Top6AttrAttrSimpleRestrNCName" "SpaceImpl"
+  . renameType "Top4AttrAttrUnion1SimpleRestrstring" "LangImpl"
+  . renameType "IdX9" "Id"
+  . renameType "Top4AttrAttrUnion" "LangForms"
+  . renameType "SpecialAttrsX5" "SpecialAttrs"
   . renameConstructor "SpecialAttrsX5" "SpecialAttrs"
   . renameConstructor "Top4AttrAttrUnionTop4AttrAttrUnion1SimpleRestrstring" "LangAsString"
   . renameConstructor "Top4AttrAttrUnionLanguage" "LangAsLanguage"

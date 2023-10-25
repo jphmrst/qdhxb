@@ -10,7 +10,7 @@ import QDHXB.Internal.Debugln
 import qualified QDHXB.Expansions
 
 qdhxb (
-  renameGeneratedType "Initials" "InitialsRep"
+  renameType "Initials" "InitialsRep"
   -- . setDebugging generate 3
   ) ["test/Initials/initials.xsd"]
 

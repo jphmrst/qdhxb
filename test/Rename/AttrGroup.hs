@@ -15,7 +15,7 @@ import QDHXB.Internal.Debugln
 import qualified QDHXB.Expansions
 
 qdhxb (
-  renameGeneratedType "SpecialAttrsX5" "SpecialAttrs"
+  renameType "SpecialAttrsX5" "SpecialAttrs"
   -- . setDebugging generate 0
   -- . setDebugging names 4
   ) ["test/Rename/attrgroup.xsd"]

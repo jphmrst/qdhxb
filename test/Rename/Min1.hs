@@ -9,8 +9,8 @@ import QDHXB.Options
 import qualified QDHXB.Expansions
 
 qdhxb (
-  renameGeneratedType "Alt1" "Alt1Impl"
-  . renameGeneratedType "SizeType" "SizeForms"
+  renameType "Alt1" "Alt1Impl"
+  . renameType "SizeType" "SizeForms"
   . renameConstructor "SizeTypeAlt1" "SizeForm1"
   -- . setDebugging generate 0
   -- . setDebugging names 4

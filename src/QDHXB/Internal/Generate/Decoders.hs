@@ -306,14 +306,17 @@ getSafeDecoderBody qn = do
               make_decoder_labeling $ base:refs
             dbgBLabelFn1 "- bindingsF " srcName bindingsF
             dbgBLabel "- boundNames " boundNames
+            let origConstrName = firstToUpper $ qName edqn
+            dbgBLabel "- origConstrName " origConstrName
+            constrName <- applyConstructorRenames origConstrName
+            dbgBLabel "- constrName " constrName
             let result :: BlockMaker Content dt
                 result src dest =
                   bindingsF src
                   ++ [LetS [ValD (VarP dest)
                                  (NormalB $
                                   foldl (AppE)
-                                        (ConE $ mkName $ firstToUpper $
-                                          qName edqn)
+                                        (ConE $ mkName constrName)
                                         (map VarE boundNames)) []]]
             dbgResultSrcDest "- result " result
 
@@ -887,8 +890,9 @@ makeChoiceConstructor name (constrSuffix, ref) = do
       error "Not expected: makeChoiceConstructor for AttributeRef"
 
     RawXML _ _ -> do
-      dbgLn "- With RawXML"
-      constrString <- getBindingName $ suffixCoreName typeRoot "RawXML"
+      dbgBLabel "- With RawXML, typeRoot " typeRoot
+      constrString <- getBindingName $ suffixCoreName "RawXML" typeRoot
+      dbgBLabel "- constrString " constrString
       let constrName = mkName constrString
       return $ (
         NormalC constrName [(useBang, contentConT)],
