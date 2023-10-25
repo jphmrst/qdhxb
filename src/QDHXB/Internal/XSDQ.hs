@@ -1200,7 +1200,8 @@ getConstructorRenames =
 applyTypeRenames :: String -> XSDQ String
 applyTypeRenames orig = do
   renames <- getTypeRenames
-  return $ subst_or_return renames orig
+  let result = subst_or_return renames orig
+  return result
 
 -- | Return the before/after pairs given as options for renaming
 -- generated Haskell constructors.

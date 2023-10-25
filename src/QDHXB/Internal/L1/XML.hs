@@ -25,7 +25,7 @@ qdhxb (
   -- . setDebugging unique 1
   -- . setDebugging names 4
   -- . setDebugging flattening 1
-  -- . setDebugging generate 1
+  . setDebugging generate 3
   ) ["src/QDHXB/xml.xsd"]
 
 {-

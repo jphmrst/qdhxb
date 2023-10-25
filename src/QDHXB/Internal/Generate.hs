@@ -216,13 +216,15 @@ xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
                                   ln ifd) = do
   dbgBLabel ("Generating from (g" ++ ifAtLine ln ++ ") ") d
+  dbgBLabel "typ " typ
   let xmlName = hnam -- qName nam
-      rootName = firstToUpper xmlName
-      rootTypeName = mkName $ rootName -- ++ "AttrType"
+      origRoot = firstToUpper xmlName
+  dbgBLabel "xmlName " xmlName
+  rootName <- applyTypeRenames origRoot
+  dbgBLabel "rootName " rootName
+  let rootTypeName = mkName $ rootName -- ++ "AttrType"
       decNam = mkName $ "decode" ++ rootName
       safeDecNam = mkName $ prefixCoreName "tryDecodeAs" rootName
-  dbgBLabel "typ " typ
-  dbgBLabel "xmlName " xmlName
   dbgBLabel "rootName " rootName
   dbgBLabel "rootTypeName " rootTypeName
 
