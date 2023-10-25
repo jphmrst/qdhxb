@@ -90,6 +90,30 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . renameType "Top62Elem2ComplexRestrictedfacet"
                      "ExplicitTimezoneFacet"
 
+        . renameType "MinOccursX15" "MinOccurs"
+        . renameType "MaxOccursX16" "MaxOccurs"
+        . renameType "OccursX3" "Occurs"
+        . renameType "NameX17" "Name"
+        . renameType "RefX18" "Ref"
+        . renameType "DefRefX4" "DefRef"
+        . renameType "AllX8" "All"
+        . renameConstructor "NestedParticleElementX7" "NestedParticleElement"
+        . renameConstructor "NestedParticleGroupX9X19" "NestedParticleGroupRef"
+        . renameConstructor "ParticleElementX7X20" "ParticleElement"
+        . renameConstructor "ParticleGroupX9X21" "ParticleGroup"
+        . renameConstructor "ParticleAllX8" "ParticleAll"
+
+        {- Ambiguity --- more than one Group?
+        . renameTypeAndConstructor "GroupX9" "Group"
+        -}
+        . renameTypeAndConstructor "ElementX7" "Element"
+        . renameTypeAndConstructor "AttributeX11" "Attribute"
+
+        . renameTypeAndConstructor "Top30Elem2ComplexExt" "SchemaImpl"
+        {- ERROR
+        . renameTypeAndConstructor "Top30Elem2ComplexExtBSeq" "SchemaImplRecord"
+        -}
+
         {-
         . renameType "" ""
         . renameConstructor "" ""
