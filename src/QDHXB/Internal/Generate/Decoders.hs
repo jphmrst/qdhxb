@@ -261,13 +261,13 @@ getSafeDecoderBody qn = do
         SequenceDefn nam refs ln _doc -> do
           dbgPt $ "Sequence case (bb)" ++ ifAtLine ln
           (bindingsF, boundNames) <- indenting $ make_subexpr_labeling refs
+          constrName <- applyConstructorRenames $ firstToUpper $ qName nam
           let result :: BlockMaker Content dt
               result src dest =
                 bindingsF src
                 ++ [LetS [ValD (VarP dest)
                                (NormalB $ foldl (AppE)
-                                      (ConE $ mkName $
-                                       firstToUpper $ qName nam)
+                                      (ConE $ mkName constrName)
                                       (map VarE boundNames)) []]]
           dbgResultSrcDest "- result " result
 
@@ -924,14 +924,14 @@ unionDefnComponents blockMakerBuilder name pairs ln = do
         let binderName :: Name
             binderName = mkName $ "binder" ++ qName constr
         decoder <- blockMakerBuilder typ
+        useName <- applyConstructorRenames $ firstToUpper $ qName constr
         return (
           binderName,
           \src -> [
             SigD binderName (qHXBExcT baseType),
             ValD (VarP binderName)
                  (NormalB $
-                    blockMakerCloseWith (AppE (ConE $ mkName $ firstToUpper $
-                                                 qName constr))
+                    blockMakerCloseWith (AppE (ConE $ mkName useName))
                                         decoder src) []
             ])
 

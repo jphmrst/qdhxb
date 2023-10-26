@@ -315,7 +315,6 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   dbgBLabel ("Generating from (c" ++ ifAtLine ln ++ ") UnionDefn ") decl
-
   (safeCore, _, whereDecs) <- do
     dbgLn "- Calling unionDefnComponents"
     indenting $ unionDefnComponents getSafeDecoderCall name pairs ln
@@ -326,9 +325,10 @@ xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
 
   let makeConstr :: (QName, QName) -> XSDQ Con
       makeConstr (constructorName, tn) = do
+        useName <- applyConstructorRenames $
+          firstToUpper $ qName constructorName
         tyName <- getTypeHaskellType tn
-        return $ NormalC (mkName $ firstToUpper $ qName constructorName)
-                         [(useBang, tyName)]
+        return $ NormalC (mkName useName) [(useBang, tyName)]
 
   constrDefs <- mapM makeConstr pairs
   let typDef tn = DataD [] tn [] Nothing constrDefs

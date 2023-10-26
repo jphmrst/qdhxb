@@ -7,7 +7,7 @@ module QDHXB.Internal.L1.NestedTypes(
   module QDHXB.Internal.L1.NestedTypes
   ) where
 
-import QDHXB.Internal.L0
+import QDHXB.Internal.L0 (qdhxb)
 import QDHXB.Options
 import qualified QDHXB.Expansions
 import qualified QDHXB.Internal.L1.XML
@@ -54,12 +54,10 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . renameTypeAndConstructor "Top24Elem1ComplexExt" "ListContent"
         . renameTypeAndConstructor "Top26Elem1ComplexExt" "UnionContent"
 
-        {- ERRORS
         . renameTypeAndConstructor "Top24Elem1ComplexExtBSeq"
                                    "ListContentRecord"
         . renameTypeAndConstructor "Top26Elem1ComplexExtBSeq"
                                    "UnionContentRecord"
-          -}
 
         . renameTypeAndConstructor "FacetX2" "Facet"
 
@@ -68,17 +66,16 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . renameConstructor "Top20GroupSeq4ChoiceRawXML"
                             "RestrictionByRawXML"
 
-        -- IGNORED
         . renameConstructor "SimpleDerivationSetTop8Union1SimpleRestrtoken"
                             "SimpleDerivationSetByToken"
-        -- IGNORED
         . renameConstructor
           "SimpleDerivationSetTop8Union2ListSimpleRestrderivationControlElement"
           "SimpleDerivationSetControl"
 
-        -- IGNORED
         . renameType "Top8Union2ListSimpleRestrderivationControlElement"
                      "SDSDerivationControlList"
+        . renameType "Top8Union2ListSimpleRestrderivationControl"
+                     "SDSDerivationControl"
 
         . renameType "Top44Elem2ComplexRestrictednumFacet"
                      "TotalDigitsContentBase"
@@ -103,17 +100,65 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . renameConstructor "ParticleGroupX9X21" "ParticleGroup"
         . renameConstructor "ParticleAllX8" "ParticleAll"
 
-        {- Ambiguity --- more than one Group?
         . renameTypeAndConstructor "GroupX9" "Group"
-        -}
         . renameTypeAndConstructor "ElementX7" "Element"
         . renameTypeAndConstructor "AttributeX11" "Attribute"
 
         . renameTypeAndConstructor "Top30Elem2ComplexExt" "SchemaImpl"
-        {- ERROR
         . renameTypeAndConstructor "Top30Elem2ComplexExtBSeq" "SchemaImplRecord"
-        -}
 
+        . renameConstructor "Top20GroupSeq4ChoiceFacetX2" "SRMFacet"
+        . renameConstructor "Top20GroupSeq4ChoiceRawXML" "SRMAny"
+
+        . renameType "Top8Union1SimpleRestrtoken" "SimpleDerivationSetTokenImpl"
+        . renameTypeAndConstructor "Top12ComplexExtBSeq" "AnnotatedExtRecord"
+        . renameConstructor "SchemaTopElementX7" "SchemaTopElement"
+        . renameConstructor "SchemaTopAttributeX11" "SchemaTopAttribute"
+        . renameConstructor "RedefinableSimpleTypeX1" "RedefinableSimpleType"
+        . renameConstructor "RedefinableComplexTypeX6" "RedefinableComplexType"
+        . renameConstructor "RedefinableGroupX9" "RedefinableGroup"
+        . renameConstructor "RedefinableAttributeGroupX12"
+                            "RedefinableAttributeGroup"
+        . renameConstructor "DerivationSetTop24Union1SimpleRestrtoken"
+                            "DerivationSetByToken"
+        . renameConstructor "DerivationSetList_reducedDerivationControl"
+                            "DerivationSetControlList"
+        . renameType "List_typeDerivationControl" "TypeDerivationControlList"
+
+        . renameConstructor "FullDerivationSetTop24Union1SimpleRestrtoken"
+                            "FullDerivationSetByToken"
+        . renameConstructor "FullDerivationSetList_reducedDerivationControl"
+                            "FullDerivationSetControlList"
+        . renameConstructor "AllNNITop32Union1SimpleRestrNMTOKEN"
+                            "AllNNIUnbounded"
+        . renameConstructor "AllNNINonNegativeInteger" "AllNNIPosInt"
+        . renameConstructor "TypeDefParticleGroupX9" "TypeDefParticleGroup"
+        . renameConstructor "TypeDefParticleAllX8" "TypeDefParticleAll"
+        . renameConstructor "NestedParticleElementX7" "NestedParticleElement"
+        . renameConstructor "NestedParticleGroupX9X19" "NestedParticleGroup"
+        . renameConstructor "ParticleElementX7X20" "ParticleElement"
+        . renameConstructor "ParticleGroupX9X21" "ParticleGroup"
+        . renameConstructor "ParticleAllX8" "ParticleAll"
+        . renameTypeAndConstructor "ComplexTypeX6" "ComplexType"
+        . renameConstructor "BlockSetTop84Union1SimpleRestrtoken" "BlockSetAll"
+        . renameConstructor
+          "BlockSetTop84Union2ListSimpleRestrderivationControlElement"
+          "BlockSetKeywordList"
+        . renameConstructor "NamespaceX34" "NamespaceAttr"
+        . renameType "NotNamespaceX35" "NotNamespace"
+        . renameType "ProcessContentsX36" "ProcessContents"
+        . renameTypeAndConstructor "AnyAttrGroupX10" "AnyAttrGroup"
+        . renameConstructor "XpathDefaultNamespaceTop140Union1SimpleRestrtoken"
+                            "XpathDefaultNamespaceToken"
+        . renameConstructor "XpathDefaultNamespaceAnyURI"
+                            "XpathDefaultNamespaceURI"
+        . renameTypeAndConstructor "AttributeGroupX12" "AttributeGroup"
+        . renameType "Top24Union1SimpleRestrtoken" "DerivationSetByTokenRecord"
+
+        . renameConstructor "FullDerivationSetTop28Union1SimpleRestrtoken"
+                            "FullDerivationSetAll"
+        . renameConstructor "FullDerivationSetList_typeDerivationControl"
+                            "FullDerivationSetControlList"
         {-
         . renameType "" ""
         . renameConstructor "" ""
