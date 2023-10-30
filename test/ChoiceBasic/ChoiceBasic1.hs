@@ -16,11 +16,11 @@ testCB1 = do
       p <- lift $ loadCh "test/ChoiceBasic/cb1a.xml"
       -- lift $ putStrLn $ show p
       "Correctly decode <age> in cb1a.xml" ~:
-        ChoiceType (Top2ComplexSeq2ChoiceNuma 4) "NameStr"
+        ChoiceType (Choicebasic2ComplexSeq2ChoiceNuma 4) "NameStr"
           @==- p
     inGroup "Age 2" $ do
       p <- lift $ loadCh "test/ChoiceBasic/cb1b.xml"
       "Correctly decode <age> in cb1b.xml" ~:
-        ChoiceType (Top2ComplexSeq2ChoiceNumz "zzz") "NameStr" @==- p
+        ChoiceType (Choicebasic2ComplexSeq2ChoiceNumz "zzz") "NameStr" @==- p
   return ()
 

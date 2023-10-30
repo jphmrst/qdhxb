@@ -8,6 +8,7 @@ import Language.Haskell.TH (Q, Dec)
 import Language.Haskell.TH.Syntax (addDependentFile)
 import System.IO
 import System.Console.ANSI
+import Text.Regex
 import Control.Monad (forM_)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.State.Lazy
@@ -16,6 +17,7 @@ import Text.XML.Light.Types (Content(Elem), Element(Element), QName(QName))
 import Text.XML.Light.Input (parseXML)
 import QDHXB.Options
 import QDHXB.Utils.BPP
+import QDHXB.Utils.TH (firstToUpper)
 import QDHXB.Utils.XMLLight (getCoreContent, isElem)
 import QDHXB.Internal.AST
 import QDHXB.Internal.Generate
@@ -68,7 +70,20 @@ load_content xsdFile = do
       xml = parseXML xsd
   let res = filter isElem xml
   localLoggingEnd
-  return $ FileContents "Top" res
+
+  let regex = mkRegex "^([-a-zA-Z_]+/)*([-a-zA-Z_]+)"
+
+      match = matchRegex regex xsdFile
+
+  -- liftIO $ putStrLn $ show match
+
+  let tag :: String
+      tag = case match of
+              Just (_:singleMatch:[]) ->
+                firstToUpper $ filter (/= '-') $ filter (/= '_') singleMatch
+              _ -> "Top"
+
+  return $ FileContents tag res
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
 translate_parsed_xsd :: forall ast . AST ast => [FileContents] -> XSDQ [Dec]
@@ -76,7 +91,7 @@ translate_parsed_xsd xsds = do
   let cores :: [FileMainContent]
       cores = map (apply_contents getCoreContent) xsds
   nesteds <- mapM (
-    \(FileMainContent _ core) ->
+    \(FileMainContent tag core) ->
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
           pushNamespaces attrs
@@ -89,7 +104,7 @@ translate_parsed_xsd xsds = do
           putLog $ "------------------------------ SOURCE\n" ++ bpp core
             ++ "\n------------------------------ "
 
-          schemaReps <- (decodeXML "Top" forms :: XSDQ [ast])
+          schemaReps <- (decodeXML tag forms :: XSDQ [ast])
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
           whenDebugging input 0 $ liftIO $ do

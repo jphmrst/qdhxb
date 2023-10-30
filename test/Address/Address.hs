@@ -18,7 +18,7 @@ testAddress = inGroup "XSD address" $ do
     -- lift $ putStrLn $ ">>> " ++ show p
     "Correctly decode <address> in address1.xml" ~:
       USAddress (Address "Kingspointe Circle" "Lafayette")
-                (Top4ComplexExtBSeq "Louisiana")
+                (Address4ComplexExtBSeq "Louisiana")
       @==- p
   return ()
 

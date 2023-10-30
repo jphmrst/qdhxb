@@ -15,9 +15,9 @@ testSizesAndList = inGroup "XSD sizesAndList" $ do
     p <- lift $ loadSizes "test/SizesAndList/sizesAndList1.xml"
     -- lift $ putStrLn $ show p
     "Correctly decode sizesAndList1.xml" ~:
-      [SizeTypeTop2Union1SimpleRestrinteger 12,
-       SizeTypeTop2Union2SimpleRestrtoken "medium",
-       SizeTypeTop2Union2SimpleRestrtoken "large",
-       SizeTypeTop2Union1SimpleRestrinteger 9,
-       SizeTypeTop2Union1SimpleRestrinteger 10] @==- p
+      [SizeTypeSizesAndList2Union1SimpleRestrinteger 12,
+       SizeTypeSizesAndList2Union2SimpleRestrtoken "medium",
+       SizeTypeSizesAndList2Union2SimpleRestrtoken "large",
+       SizeTypeSizesAndList2Union1SimpleRestrinteger 9,
+       SizeTypeSizesAndList2Union1SimpleRestrinteger 10] @==- p
   return ()
