@@ -83,7 +83,7 @@ class (Blockable ast, Blockable [ast]) => AST ast where
 
   -- | Rewrite otherwise-unstructured parsed XML content as a sequence
   -- of ASTs.
-  decodeXML :: [Content] -> XSDQ [ast]
+  decodeXML :: String -> [Content] -> XSDQ [ast]
 
   -- | Pipeline step renaming multiply-used names in different nested
   -- scopes.  Since Haskell does not have nested scoping of types and

@@ -53,7 +53,13 @@ apiFunctions = (qdhxbFn, qdhxbFn')
         qdhxbFn' :: [String] -> Q [Dec]
         qdhxbFn' = qdhxbFn id
 
-load_content :: String -> XSDQ [Content]
+data FileContents = FileContents String [Content]
+data FileMainContent = FileMainContent String Content
+
+apply_contents :: ([Content] -> Content) -> FileContents -> FileMainContent
+apply_contents f (FileContents tag ctnts) = FileMainContent tag $ f ctnts
+
+load_content :: String -> XSDQ FileContents
 load_content xsdFile = do
   localLoggingStart
   putLog $ "============================== " ++ xsdFile ++ "\n"
@@ -62,14 +68,15 @@ load_content xsdFile = do
       xml = parseXML xsd
   let res = filter isElem xml
   localLoggingEnd
-  return res
+  return $ FileContents "Top" res
 
 -- | Convert several parsed XSD files to a list of Haskell definitions
-translate_parsed_xsd :: forall ast . AST ast => [[Content]] -> XSDQ [Dec]
+translate_parsed_xsd :: forall ast . AST ast => [FileContents] -> XSDQ [Dec]
 translate_parsed_xsd xsds = do
-  let cores = map getCoreContent xsds
+  let cores :: [FileMainContent]
+      cores = map (apply_contents getCoreContent) xsds
   nesteds <- mapM (
-    \core ->
+    \(FileMainContent _ core) ->
       case core of
         Elem (Element (QName "schema" _ _) attrs forms _) -> do
           pushNamespaces attrs
@@ -82,7 +89,7 @@ translate_parsed_xsd xsds = do
           putLog $ "------------------------------ SOURCE\n" ++ bpp core
             ++ "\n------------------------------ "
 
-          schemaReps <- (decodeXML forms :: XSDQ [ast])
+          schemaReps <- (decodeXML "Top" forms :: XSDQ [ast])
           putLog $ " NESTED INPUT\n" ++ bpp schemaReps
             ++ "\n------------------------------ "
           whenDebugging input 0 $ liftIO $ do

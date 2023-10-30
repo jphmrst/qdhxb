@@ -1557,7 +1557,7 @@ instance AST DataScheme where
         error "TODO flattenAttribute missing case"
 
   -- | Converting XML `Content` to `DataScheme`s.
-  decodeXML = inputSchemaItems "Top"
+  decodeXML = inputSchemaItems
     where
 
       -- | Rewrite otherwise-unstructured parsed XML content structures as a
