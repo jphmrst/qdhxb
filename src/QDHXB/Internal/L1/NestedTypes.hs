@@ -1,5 +1,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-} -- Turn this back on when more stable
+{-# OPTIONS_GHC -Wno-unused-top-binds #-} -- Turn this back on when
+                                          -- there's more control over
+                                          -- generated functions
 
 -- |The full XSD specification, bootstrapped here for the full
 -- exported implementation.
@@ -413,12 +416,12 @@ qdhxb (forNamespace "http://www.w3.org/XML/1998/namespace"
         . renameTypeAndConstructor "" ""
         -}
 
-        -- . setDebugging input 0
+        -- . setDebugging input 3
         -- . setDebugging names 3
         -- . setDebugging unique 4
-        -- . setDebugging flattening 1
+        . setDebugging flattening 3
         -- . setDebugging generate 3
         -- . breakAfterAllInput
       ) [
-  "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"
+  "src/QDHXB/datatypes.xsd" -- , "src/QDHXB/xsd.xsd"
   ]

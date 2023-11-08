@@ -27,6 +27,7 @@ module QDHXB.Internal.L0 (
 
 import Language.Haskell.TH (newName, nameBase, Q, Dec)
 import Data.List (intercalate)
+import Control.Monad.IO.Class
 import Text.Read (readMaybe)
 import Text.XML.Light.Types
 import Text.XML.Light.Output
@@ -648,8 +649,16 @@ instance Blockable DataScheme where
 instance Blockable [DataScheme] where block = verticalBlockListFn
 
 
-newtype PrimaryBundle = PB (Content, String, Maybe String, Maybe String, QName,
-                            [Attr], [Content], Maybe Line)
+newtype PrimaryBundle = PB (
+  Content,       -- ^ Corresponding XML fragment
+  String,        -- ^ Tag
+  Maybe String,  -- ^ URI
+  Maybe String,  -- ^ Prefix
+  QName,         -- ^ `QName` name
+  [Attr],        -- ^ Attributes as a list of `Attr`s
+  [Content],     -- ^ Subcontents
+  Maybe Line
+  )
 
 instance Blockable PrimaryBundle where
   block (PB (_,_,_,_,q,a,c,_)) = stackBlocks [
@@ -1030,18 +1039,26 @@ instance AST DataScheme where
         dbgResult flattening 1 "Flattened [fCTS] to" $ defs ++ [ tyDefn ]
 
       flattenComplexTypeScheme c@(ComplexRestriction base) _ (Just nam) l d = do
-        dbgBLabel flattening 1 ("[fCTS] Complex restriction" ++ ifAtLine l ++ " ") c
+        dbgBLabel flattening 1
+          ("[fCTS] Complex restriction" ++ ifAtLine l ++ " ") c
         let defn = ComplexSynonymDefn nam base l d
         fileNewDefinition defn
         dbgResult flattening 1 "Flattened [fCTS] to" $ [defn]
 
-      flattenComplexTypeScheme e@(Extension base ds) _ats (Just nam) l d = do
-        dbgBLabel flattening 1 ("[fCTS] Complex extension" ++ ifAtLine l ++ " ") e
+      flattenComplexTypeScheme e@(Extension base ds) ats (Just nam) l d = do
+        dbgBLabel flattening 1
+          ("[fCTS] Complex extension" ++ ifAtLine l ++ " ") e
         (defs, refs) <- indenting $ flattenSchemaRefs ds
+        dbgBLabel flattening 3 "- defs from flattenSchemaRefs" defs
+        dbgBLabel flattening 3 "- refs from flattenSchemaRefs" refs
+        (defs', refs') <- indenting $ flattenSchemaAttributeRefs ats
+        dbgBLabel flattening 3 "- defs' from flattenSchemaAttributeRefs" defs'
+        dbgBLabel flattening 3 "- refs' from flattenSchemaAttributeRefs" refs'
         let defn =
-              ExtensionDefn nam (TypeRef base (Just 1) (Just 1) l d) refs l d
+              ExtensionDefn nam (TypeRef base (Just 1) (Just 1) l d)
+                                (refs ++ refs') l d
         fileNewDefinition defn
-        dbgResult flattening 1 "Flattened [fCTS] to" $ defs ++ [defn]
+        dbgResult flattening 1 "Flattened [fCTS] to" $ defs ++ defs' ++ [defn]
 
       flattenComplexTypeScheme c@(Choice ifName contents) _ ifOuter ln doc = do
         dbgBLabel flattening 1 ("[fCTS] Choice" ++ ifAtLine ln ++ " ") c
@@ -1360,20 +1377,62 @@ instance AST DataScheme where
         fileNewDefinition defn
         dbgResult flattening 1
           (showQName nam ++ " [fSAR] flattened to") ([defn], ref)
-      flattenSingleAttributeRef (WithName nam) _ (Nested t) m _ _ = do
+      flattenSingleAttributeRef (WithName nam) (Just hn) (Nested t) m l d = do
+        dbgLn flattening 2 $ "[fSAR] Nested with given hn"
+        (nDefns, nRef) <- flattenSchemaRef t
+        dbgBLabel flattening 3 "NREF :: Reference = " nRef
+        dbgBLabel flattening 3 "NDEFNS :: [Definition] = " nDefns
+        typeQName <- case nRef of
+          TypeRef tqn _ _ _ _ -> return tqn
+          els -> do
+            boxed $ do
+              dbgLn flattening 1
+                "[fSAR] Nested NON-TYPE, given Haskell name (hn)"
+              dbgBLabel flattening 1 "NAM :: QName = " nam
+              dbgBLabel flattening 1 "HN :: String = " hn
+              dbgBLabel flattening 1 "T :: DataScheme = " t
+              dbgBLabel flattening 1 "NREF :: Reference = " nRef
+              dbgBLabel flattening 1 "NDEFNS :: [Definition] = " nDefns
+              dbgLn flattening 1 $ "MODE " ++ m
+            error $ "Expected TypeRef for nRef but found " ++ bpp els
+        let defn = AttributeDefn nam
+                     (SingleAttributeDefn typeQName (stringToAttributeUsage m)
+                                          hn)
+                     l d
+            ref = AttributeRef nam (stringToAttributeUsage m)
+        dbgBLabel flattening 3 "DEFN :: Definition = " defn
+        dbgBLabel flattening 3 "REF :: Reference = " ref
+        dbgResult flattening 2
+          (showQName nam ++ " [fSAR] flattened to") (nDefns ++ [defn], ref)
+      flattenSingleAttributeRef (WithName nam) hn Neither mode l _ = liftIO $ do
+        -- This can legitimately arise, for example, in an <extension>
+        -- where the USE of an existing attribute is set, but the type
+        -- is left alone.
+        putStrLn "+--------------------"
+        putStrLn $ "| [fSAR] With name, but type neither nested nor named"
+        putStrLn $ outBlock $ labelBlock "| NAM " $ block nam
+        putStrLn $ outBlock $ labelBlock "| IFHNAME " $ block hn
+        putStrLn "| IFTYPE (neither nested nor named)"
+        putStrLn $ "| MODE " ++ mode
+        putStrLn $ "| LN " ++ show l
+        putStrLn "+--------------------"
+        error "TODO flattenSingleAttributeRef > unmatched case"
+      flattenSingleAttributeRef (WithName nam) Nothing (Nested t) m _ _ = do
         boxed $ do
-          dbgLn flattening 1 $ "[fSAR] new nested case"
+          dbgLn flattening 1 $ "[fSAR] Nested with no hn"
           dbgBLabel flattening 1 "NAM " nam
           dbgBLabel flattening 1 "T " t
           dbgLn flattening 1 $ "MODE " ++ m
-        error "TODO new Nested case"
-      flattenSingleAttributeRef nameRef ifHName maybeType mode _ _ = do
-        boxed $ do
-          dbgLn flattening 1 $ "[fSAR] flattenSingleAttributeRef"
-          dbgBLabel flattening 1 "NAMEREF " nameRef
-          dbgBLabel flattening 1 "IFHNAME " ifHName
-          dbgBLabel flattening 1 "IFTYPE " maybeType
-          dbgLn flattening 1 $ "MODE " ++ mode
+        error "TODO Nested with no hn"
+      flattenSingleAttributeRef nameRef ifHName maybeType mode l _ = liftIO $ do
+        putStrLn "+--------------------"
+        putStrLn $ "| [fSAR] flattenSingleAttributeRef"
+        putStrLn $ outBlock $ labelBlock "| NAMEREF " $ block nameRef
+        putStrLn $ outBlock $ labelBlock "| IFHNAME " $ block ifHName
+        putStrLn $ outBlock $ labelBlock "| IFTYPE " $ block maybeType
+        putStrLn $ "| MODE " ++ mode
+        putStrLn $ "| LN " ++ show l
+        putStrLn "+--------------------"
         error "TODO flattenSingleAttributeRef > unmatched case"
 
 
@@ -1916,16 +1975,24 @@ instance AST DataScheme where
         dbgPt input 3 $ "outer name " ++ outer
         dbgBLabel input 3 "- base " base
         dbgBLabel input 3 "- ext " ext
-        dbgBLabel input 3 "- newAttrs " newAttrs
-        dbgBLabel input 3 "- newAttrGroups " newAttrGroups
+        dbgBLabel input 3 "- newAttrs " newAttrs           -- :: [Content]
+        dbgBLabel input 3 "- newAttrGroups " newAttrGroups -- :: [Content]
+        newAttrSchemes <- mapM (encodeAttributeScheme $
+                                  outer ++ "ExtAnn" ++ qName base) newAttrs
+        dbgBLabel input 3 "- newAttrSchemes " newAttrSchemes
+        newAttrGroupSchemes <- mapM (encodeAttributeScheme $
+                                       outer ++ "ExtGrp" ++ qName base)
+                                    newAttrGroups
+        dbgBLabel input 3 "- newAttrGroupSchemes " newAttrGroupSchemes
+        let attrSchemes = newAttrSchemes ++ newAttrGroupSchemes
         res <- case ext of
           Nothing -> do
             return $
-              CTS (Extension base []) [] (Just name) ifLn ifDoc
+              CTS (Extension base []) attrSchemes (Just name) ifLn ifDoc
           Just (PB (e,_,_,_,_,_,_,_)) -> do
             e' <- indenting $ inputSchemaItem (outer ++ "ExtB") e
             return $
-              CTS (Extension base [e']) [] (Just name) ifLn ifDoc
+              CTS (Extension base [e']) attrSchemes (Just name) ifLn ifDoc
         dbgBLabel input 2 "  Extension result " res
         return res
 
@@ -2054,9 +2121,10 @@ instance AST DataScheme where
 
 
       encodeAttributeScheme :: String -> Content -> XSDQ AttributeScheme
-      encodeAttributeScheme outer (Elem (Element q a c l)) = indenting $ do
-        dbgBLabel input 2 "- Encoding attribute scheme " q
-        ifDoc <- getAnnotationDocFrom c
+      encodeAttributeScheme outer (Elem e@(Element q a allC l)) = indenting $ do
+        dbgBLabel input 2 "- Encoding attribute scheme " e
+        ifDoc <- getAnnotationDocFrom allC
+        let c = filter isFocusElem allC
         res <- indenting $
           encodeAttribute (outer ++ "Elem") q a
                           (filter isNonKeyNonNotationElem c) l ifDoc
