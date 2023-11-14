@@ -1,18 +1,19 @@
 
--- |Configuration options for XSD import calls.
+-- |Configuration options for XSD import calls.  Naming these very
+-- long expressions takes them mercifully out of error messages; but
+-- since we use them in a template call, they need to be in their own
+-- module.
 
 module QDHXB.Internal.L1.Configs (nestedTypesConfig) where
 
 import QDHXB.Options
 import QDHXB.Options.TranslationOptionSet
-import QDHXB.Internal.Debugln
 
 -- import QDHXB.Internal.Debugln
 nestedTypesConfig :: QDHXBOptionSet -> QDHXBOptionSet
-nestedTypesConfig = (
+nestedTypesConfig =
   forNamespace "http://www.w3.org/XML/1998/namespace"
     (defaultModule "QDHXB.Internal.L1.XML")
-  -- . setDebugging generate 2
 
   {- Renaming from debugging.xsd -}
 
@@ -201,10 +202,3 @@ nestedTypesConfig = (
   . attributeTypeHint (Just "http://www.w3.org/2001/XMLSchema") "value"
                       "String"
 
-  -- . setDebugging input 3
-  -- . setDebugging names 3
-  -- . setDebugging unique 4
-  . setDebugging flattening 3
-  -- . setDebugging generate 3
-  -- . breakAfterAllInput
-  )

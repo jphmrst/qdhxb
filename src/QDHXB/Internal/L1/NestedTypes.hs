@@ -220,6 +220,8 @@ import QDHXB.Internal.L0 (qdhxb)
 import QDHXB.Internal.L1.Configs (nestedTypesConfig)
 import qualified QDHXB.Expansions
 import qualified QDHXB.Internal.L1.XML
+import QDHXB.Options
+import QDHXB.Internal.Debugln
 
 -- Note that datatypes.xsd and xsd.xsd are mutually dependent, so both
 -- must be loaded at the same call to `qdhxb`.  Recall (see ) that all
@@ -227,7 +229,14 @@ import qualified QDHXB.Internal.L1.XML
 -- together, so that all types etc. in the loaded files are known at
 -- the final generation phase.
 
-import QDHXB.Internal.Debugln
-qdhxb nestedTypesConfig [
-  "src/QDHXB/datatypes.xsd" -- , "src/QDHXB/xsd.xsd"
+qdhxb (
+  nestedTypesConfig
+  -- . setDebugging input 3
+  -- . setDebugging names 3
+  -- . setDebugging unique 4
+  . setDebugging flattening 1
+  . setDebugging generate 1
+  -- . breakAfterAllInput
+  ) [
+  "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"
   ]
