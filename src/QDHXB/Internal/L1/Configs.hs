@@ -4,9 +4,11 @@
 module QDHXB.Internal.L1.Configs (nestedTypesConfig) where
 
 import QDHXB.Options
+import QDHXB.Options.TranslationOptionSet
 import QDHXB.Internal.Debugln
 
 -- import QDHXB.Internal.Debugln
+nestedTypesConfig :: QDHXBOptionSet -> QDHXBOptionSet
 nestedTypesConfig = (
   forNamespace "http://www.w3.org/XML/1998/namespace"
     (defaultModule "QDHXB.Internal.L1.XML")
@@ -195,6 +197,9 @@ nestedTypesConfig = (
   . renameConstructor "" ""
   . renameTypeAndConstructor "" ""
   -}
+
+  . attributeTypeHint (Just "http://www.w3.org/2001/XMLSchema") "value"
+                      "String"
 
   -- . setDebugging input 3
   -- . setDebugging names 3

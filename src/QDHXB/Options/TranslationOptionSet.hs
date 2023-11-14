@@ -73,10 +73,12 @@ data QDHXBOptionSet = QDHXBOptionSetRecord {
   optTypeRenames :: [(String,String)], -- ^ Before/after renaming
                                        -- options for generated
                                        -- Haskell types.
-  optConstructorRenames :: [(String,String)]  -- ^ Before/after
-                                              -- renaming options for
-                                              -- generated Haskell
-                                              -- constructor names.
+  optConstructorRenames :: [(String,String)],
+    -- ^ Before/after renaming options for generated Haskell
+    -- constructor names.
+  optAttributeTypeHints :: [(Maybe String, String, String)]
+    -- ^ Hints to the Haskell type of attribute values not easily
+    -- accessible locally at compile-time.
   }
 
 instance Blockable QDHXBOptionSet where
@@ -86,7 +88,7 @@ instance Blockable QDHXBOptionSet where
                               _ namespaces breakAfterInput
                               breakAfterUnique breakAfterFlatten
                               breakAfterAllInput
-                              typeRenames constrRenames) =
+                              typeRenames constrRenames attrTypeHints) =
     stringToBlock "Options: "
     `stack2` (stringToBlock $ "- useNewType " ++ show newTypes)
     `stack2` (stringToBlock $ "- xmlBuiltins " ++ show xmlBuiltins)
@@ -106,6 +108,7 @@ instance Blockable QDHXBOptionSet where
                 "- break after all input pass " ++ show breakAfterAllInput)
     `stack2` (stringToBlock $ "- type renamings " ++ show typeRenames)
     `stack2` (stringToBlock $ "- constructor renamings " ++ show constrRenames)
+    `stack2` (stringToBlock $ "- attribute type hints " ++ show attrTypeHints)
 
 
 -- | The default set of options settings.
@@ -113,7 +116,7 @@ defaultOptionSet :: QDHXBOptionSet
 defaultOptionSet = QDHXBOptionSetRecord True False [] [] False Nothing True
                                         defaultNamespaceOptionSet [] []
                                         False False False False
-                                        [] []
+                                        [] [] []
 
 -- | Type of one configuration step for options to the @qdhxb@
 -- function.  Combine them with function composition.

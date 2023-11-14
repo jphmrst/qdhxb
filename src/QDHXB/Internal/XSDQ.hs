@@ -15,6 +15,7 @@ module QDHXB.Internal.XSDQ (
   -- ** Attributes
   addAttributeType, getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
   getAttributeOrGroup, adjustTypeForUsage, getAttributeOrGroupTypeForUsage,
+  getAttributeTypeHint, AttributeTypeHint(..),
   -- ** Attribute groups
   getAttributeGroup, buildAttrOrGroupHaskellName, buildAttrOrGroupHaskellType,
   -- ** Groups
@@ -110,7 +111,8 @@ data QdhxbState = QdhxbState {
   stateLocalLog :: (Maybe String),
   stateNextDisambig :: Int,
   stateDisambigString :: String,
-  stateUsedTypeNames :: [String]
+  stateUsedTypeNames :: [String],
+  stateAttributeTypeHints :: [AttributeTypeHint]
   }
 
 instance Blockable QdhxbState where
@@ -251,7 +253,9 @@ initialQdhxbState optsF =
     stateLocalLog = optLogToFile opts,
     stateNextDisambig = 1,
     stateDisambigString = "X",
-    stateUsedTypeNames = []
+    stateUsedTypeNames = [],
+    stateAttributeTypeHints =
+      map (\(x,y,z) -> AttributeTypeHint x y z) (optAttributeTypeHints opts)
     }
 
 -- | Monadic type for loading and interpreting XSD files, making
@@ -774,6 +778,29 @@ getAttributeType name = do
       " but group definition found"
     Nothing -> throwError $ "No attribute information for " ++ qName name
 
+-- | Hint for an attribute's previously-defined Haskell type.
+data AttributeTypeHint = AttributeTypeHint {
+  prefix :: Maybe String,
+  xmlName :: String,
+  hName :: String
+  }
+  deriving Show
+
+-- | Return a hint for the attribute's previously-defined Haskell type.
+getAttributeTypeHint :: QName -> XSDQ (Maybe AttributeTypeHint)
+getAttributeTypeHint qn = do
+  st <- liftStatetoXSDQ $ get
+  let hints = stateAttributeTypeHints st
+      targetName :: String
+      targetName = qName qn
+      targetPfx :: Maybe String
+      targetPfx = qURI qn
+      matchingHints = filter (\(AttributeTypeHint p x _) ->
+                                p == targetPfx && x == targetName) hints
+  case matchingHints of
+    [] -> return Nothing
+    x:_ -> return $ Just x
+
 -- | Return the `Definition` of an XSD attribute group from the tracking tables
 -- in the `XSDQ` state.
 getAttributeGroup :: QName -> XSDQ (Maybe AttributeDefn)
@@ -939,12 +966,12 @@ inDefaultNamespace :: String -> XSDQ QName
 inDefaultNamespace s = do
   uri <- getDefaultNamespace
   ns <- getCurrentNamespaces
-  let prefix = case uri of
-                 Nothing -> Nothing
-                 Just us -> case ns of
-                   Nothing -> Nothing
-                   Just n -> lookupPrefixForURI us n
-  return $ QName s uri prefix
+  let thisPrefix = case uri of
+                     Nothing -> Nothing
+                     Just us -> case ns of
+                       Nothing -> Nothing
+                       Just n -> lookupPrefixForURI us n
+  return $ QName s uri thisPrefix
 
 -- |If the first argument does carry a `QName` then return it, else
 -- build a new fully contextually-qualified name.

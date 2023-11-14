@@ -14,6 +14,8 @@ module QDHXB.Options.TranslationOptions (
   setDebugging, useDebuggingDoc,
   withXmlNamespacePrefix, logToFile,
   forNamespace,
+  -- ** Translation hints
+  attributeTypeHint,
   -- ** Built-in types
   useXmlBindings,
   -- ** Debugging
@@ -101,3 +103,8 @@ renameTypeAndConstructor :: String -> String -> QDHXBOption
 renameTypeAndConstructor before after =
   renameType before after
   . renameConstructor before after
+
+attributeTypeHint :: Maybe String -> String -> String -> QDHXBOption
+attributeTypeHint pfx name htyp opts = opts {
+  optAttributeTypeHints  = (pfx, name, htyp) : optAttributeTypeHints opts }
+

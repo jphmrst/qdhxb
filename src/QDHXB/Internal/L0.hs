@@ -1404,19 +1404,52 @@ instance AST DataScheme where
         dbgBLabel flattening 3 "REF :: Reference = " ref
         dbgResult flattening 2
           (showQName nam ++ " [fSAR] flattened to") (nDefns ++ [defn], ref)
-      flattenSingleAttributeRef (WithName nam) hn Neither mode l _ = liftIO $ do
+      flattenSingleAttributeRef (WithName nam) _hn Neither mode _l _d = do
         -- This can legitimately arise, for example, in an <extension>
         -- where the USE of an existing attribute is set, but the type
         -- is left alone.
-        putStrLn "+--------------------"
-        putStrLn $ "| [fSAR] With name, but type neither nested nor named"
-        putStrLn $ outBlock $ labelBlock "| NAM " $ block nam
-        putStrLn $ outBlock $ labelBlock "| IFHNAME " $ block hn
-        putStrLn "| IFTYPE (neither nested nor named)"
-        putStrLn $ "| MODE " ++ mode
-        putStrLn $ "| LN " ++ show l
-        putStrLn "+--------------------"
-        error "TODO flattenSingleAttributeRef > unmatched case"
+        --
+        -- Translation assumes the name is defined elsewhere, and we
+        -- have only a reference here.
+        return ([], AttributeRef nam (stringToAttributeUsage mode))
+        {-
+        -- Old translation idea:
+        --
+        -- The type can be known from this call to QDHXB, or from a
+        -- hint.
+        ifDefn <- getAttributeDefn nam
+        case ifDefn of
+          Just defn -> liftIO $ do
+            putStrLn "+--------------------"
+            putStrLn $ "| [fSAR] With name, type neither nested nor named"
+            putStrLn $ outBlock $ labelBlock "| NAM " $ block nam
+            putStrLn $ outBlock $ labelBlock "| IFHNAME " $ block hn
+            putStrLn "| IFTYPE (neither nested nor named)"
+            putStrLn $ "| MODE " ++ mode
+            putStrLn $ "| LN " ++ show l
+            putStrLn $ "| nam -> DEFN " ++ bpp defn
+            putStrLn "+--------------------"
+            error "TODO flattenSingleAttributeRef > unmatched case"
+          Nothing -> do
+            ifHint <- getAttributeTypeHint nam
+            case ifHint of
+              Just (AttributeTypeHint _ _ hType) ->
+                return ([], AttributeRef nam (stringToAttributeUsage mode))
+              Nothing -> liftIO $ do
+                putStrLn "+--------------------"
+                putStrLn $
+                  "| [fSAR] Name has no type defn, type neither nested nor named"
+                putStrLn $ outBlock $ labelBlock "| NAM " $ block nam
+                putStrLn $ "|   URI " ++ show (qURI nam)
+                putStrLn $ "|   core name " ++ qName nam
+                putStrLn $ outBlock $ labelBlock "| IFHNAME " $ block hn
+                putStrLn "| IFTYPE (neither nested nor named)"
+                putStrLn $ "| MODE " ++ mode
+                putStrLn $ "| LN " ++ show l
+                putStrLn $ "| IFHINT " ++ show ifHint
+                putStrLn "+--------------------"
+                error "TODO flattenSingleAttributeRef > unmatched case"
+        -}
       flattenSingleAttributeRef (WithName nam) Nothing (Nested t) m _ _ = do
         boxed $ do
           dbgLn flattening 1 $ "[fSAR] Nested with no hn"
