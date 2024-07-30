@@ -1,6 +1,7 @@
+#+STARTUP:
 * Links
   :PROPERTIES:
-  :VISIBILITY: content
+  :VISIBILITY: children
   :END:
 ** Hackage
    - [[https://hackage.haskell.org/package/template-haskell-2.19.0.0/docs/Language-Haskell-TH.html][Language.Haskell.TH]]
@@ -23,54 +24,68 @@
    - [[file:./shiporder1.xsd][shiporder1.xsd]] - local
    - [[file:./shiporder2.xsd][shiporder2.xsd]] - local
 ** Cabal/Stack notes
-- In `stack.yaml`, tried setting
-  `resolver: lts-12.20`
-* Deactivated examples
-** TODO Books example
+   - In `stack.yaml`, tried setting `resolver: lts-12.20`
+* Keystrokes
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+  -
+* Tasks
+  :PROPERTIES:
+  :VISIBILITY: content
+  :END:
+** Deactivated examples
+*** TODO Books example
+    - It's the order in the unmodified XSD that's a problem
+    - Need to do away with relying on the accumulation of type
+      definitions --- it's got to be just the existence and alignment of
+      names.
+
+*** TODO Address
+    - Type error, expecting a list just getting a singleton
+
+*** TODO Customer orders
+    - Duplicate name
+
+*** TODO Shiporder 1
+    - Bad translation of built-in types
+
+** TODO Use non-default minOccurs/maxOccurs attributes of <group>
+
+** TODO Add small tests with <extension>
+
+** TODO Bootstrap the whole xsd.xsd
    :PROPERTIES:
    :VISIBILITY: content
    :END:
-   - It's the order in the unmodified XSD that's a problem
-   - Need to do away with relying on the accumulation of type
-     definitions --- it's got to be just the existence and alignment of
-     names.
-** TODO Address
-   - Type error, expecting a list just getting a singleton
-** TODO Customer orders
-   - Duplicate name
-** TODO Shiporder 1
-   - Bad translation of built-in types
-* TODO Use non-default minOccurs/maxOccurs attributes of <group>
-* TODO Add small tests with <extension>
-* TODO Bootstrap the whole xsd.xsd
-  :PROPERTIES:
-  :VISIBILITY: content
-  :END:
-  - Next is <list>
-* TODO OFX test 1
-  :PROPERTIES:
-  :VISIBILITY: content
-  :END:
-  - Need xsd:choice occurring for encodeSchemaItem
-* TODO Customers/orders example --- key/keyref elements
-  - For now at least, dropping the key/keyref elements
-  - Re-uses names in nested declarations.  Need to disambiguate new
-    type and element names when flattening.
-* TODO Picklers
-  - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
-  - Probably, two more functions for most named elements:
-    - encodeELEM :: To a piece of parsed XML content (`Content`).
-    - writeELEM :: To a file, possibly inline fns using encodeELEM and
-      some standardized glue.
-  - But revisit type vs. element signatures
+   - Next is <list>
 
-* TODO Use class/instance for abstract complex types?
-* TODO Unions
-* TODO Other complex, simple type forms
+** TODO OFX test 1
+   :PROPERTIES:
+   :VISIBILITY: content
+   :END:
+   - Need xsd:choice occurring for encodeSchemaItem
+
+** WAIT Customers/orders example --- key/keyref elements
+   - For now at least, dropping the key/keyref elements
+   - Re-uses names in nested declarations.  Need to disambiguate new
+     type and element names when flattening.
+
+** TODO Picklers
+   - This is in `hdecl`, in [[./src/QDHXB/Internal.hs][Internal.hs]]
+   - Probably, two more functions for most named elements:
+     - encodeELEM :: To a piece of parsed XML content (`Content`).
+     - writeELEM :: To a file, possibly inline fns using encodeELEM and
+       some standardized glue.
+   - But revisit type vs. element signatures
+
+** TODO Use class/instance for abstract complex types?
+** TODO Unions
+** TODO Other complex, simple type forms
   - And examples
-* TODO Go back to key and keyref elements
+** TODO Go back to key and keyref elements
   - See customersorders.xsd example
-* TODO Revisit anyAttribute
+** TODO Revisit anyAttribute
   Just dropping it for now.
-* DONE Recognize namespaces
-* TODO Check XSD namespaces in [[file:./src/QDHXB/Internal/Input.hs][Input.hs]]'s =encodeSchemaItem= patterns, etc.
+** DONE Recognize namespaces
+** TODO Check XSD namespaces in [[file:./src/QDHXB/Internal/Input.hs][Input.hs]]'s =encodeSchemaItem= patterns, etc.

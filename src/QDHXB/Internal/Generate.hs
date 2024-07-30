@@ -219,9 +219,9 @@ xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
                                   ln ifd) = do
   dbgBLabel ("Generating from (g" ++ ifAtLine ln ++ ") ") d
   dbgBLabel "typ " typ
-  let xmlName = hnam -- qName nam
-      origRoot = firstToUpper xmlName
-  dbgBLabel "xmlName " xmlName
+  let thisXmlName = hnam -- qName nam
+      origRoot = firstToUpper thisXmlName
+  dbgBLabel "thisXmlName " thisXmlName
   rootName <- applyTypeRenames origRoot
   dbgBLabel "rootName " rootName
   let rootTypeName = mkName $ rootName -- ++ "AttrType"

@@ -234,7 +234,7 @@ qdhxb (
   -- . setDebugging input 3
   -- . setDebugging names 3
   -- . setDebugging unique 4
-  . setDebugging flattening 1
+  -- . setDebugging flattening 1
   . setDebugging generate 1
   -- . breakAfterAllInput
   ) [
