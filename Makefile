@@ -2,6 +2,9 @@
 %.ps: src/QDHXB/Internal/%.hs
 	a2ps --line-numbers=5 -2r -o $@ $<
 
+xsd-xsd.ps: src/QDHXB/xsd.xsd
+	a2ps --line-numbers=5 --chars-per-line=120 -R --columns=1 -o $@ $<
+
 %-xsd.ps: src/QDHXB/%.xsd
 	a2ps --line-numbers=5 -2r -o $@ $<
 
