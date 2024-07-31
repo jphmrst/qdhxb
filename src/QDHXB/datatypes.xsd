@@ -59,7 +59,7 @@
       <xs:enumeration value="union"/>
     </xs:restriction>
   </xs:simpleType>
-
+
   <xs:group name="simpleDerivation">
     <xs:choice>
       <xs:element ref="xs:restriction"/>
@@ -132,7 +132,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="localSimpleType">
     <xs:complexContent>
       <xs:restriction base="xs:simpleType">
@@ -198,7 +198,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
-
+
   <xs:element name="list" id="list">
     <xs:complexType>
       <xs:annotation>
@@ -266,7 +266,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:element name="minExclusive" type="xs:facet"  
     id="minExclusive"
     substitutionGroup="xs:facet">
@@ -327,7 +327,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:element name="totalDigits" id="totalDigits"
     substitutionGroup="xs:facet">
     <xs:annotation>
@@ -390,7 +390,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-enumeration"/>
     </xs:annotation>
   </xs:element>
-
+
   <xs:element name="whiteSpace" id="whiteSpace"
     substitutionGroup="xs:facet">
     <xs:annotation>
@@ -447,7 +447,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-assertion"/>
     </xs:annotation>
   </xs:element>
-
+
   <xs:element name="explicitTimezone" id="explicitTimezone"
     substitutionGroup="xs:facet">
     <xs:annotation>

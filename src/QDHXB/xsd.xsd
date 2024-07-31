@@ -84,7 +84,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="annotated">
     <xs:annotation>
       <xs:documentation>
@@ -164,7 +164,7 @@
       <xs:enumeration value="restriction"/>
     </xs:restriction>
   </xs:simpleType>
-
+
   <xs:simpleType name="derivationSet">
     <xs:annotation>
       <xs:documentation>
@@ -217,7 +217,7 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
-
+
   <xs:element name="schema" id="schema">
     <xs:annotation>
       <xs:documentation
@@ -383,7 +383,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="topLevelAttribute">
     <xs:complexContent>
       <xs:restriction base="xs:attribute">
@@ -402,6 +402,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+  
   <xs:group name="attrDecls">
     <xs:sequence>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
@@ -411,6 +412,7 @@
       <xs:element ref="xs:anyAttribute" minOccurs="0"/>
     </xs:sequence>
   </xs:group>
+  
   <xs:element name="anyAttribute"  id="anyAttribute">
     <xs:annotation>
       <xs:documentation
@@ -425,12 +427,14 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+  
   <xs:group name="assertions">
     <xs:sequence>
       <xs:element name="assert" type="xs:assertion"
                   minOccurs="0" maxOccurs="unbounded"/>
     </xs:sequence>
   </xs:group>
+  
   <xs:complexType name="assertion">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -440,6 +444,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+  
   <xs:group name="complexTypeModel">
     <xs:choice>
       <xs:element ref="xs:simpleContent"/>
@@ -461,6 +466,7 @@
       </xs:sequence>
     </xs:choice>
   </xs:group>
+
   <xs:complexType name="complexType" abstract="true">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -537,7 +543,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="complexRestrictionType">
     <xs:complexContent>
       <xs:restriction base="xs:restrictionType">
@@ -626,7 +632,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
-
+
   <xs:element name="defaultOpenContent" id="defaultOpenContent">
     <xs:annotation>
       <xs:documentation
@@ -714,7 +720,7 @@
            source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-complexType"/>
     </xs:annotation>
   </xs:element>
-
+
   <xs:simpleType name="blockSet">
     <xs:annotation>
       <xs:documentation>
@@ -786,7 +792,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="topLevelElement">
     <xs:complexContent>
       <xs:restriction base="xs:element">
@@ -875,7 +881,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="realGroup">
     <xs:complexContent>
       <xs:restriction base="xs:group">
@@ -955,7 +961,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
-
+
   <xs:complexType name="simpleExplicitGroup">
     <xs:complexContent>
       <xs:restriction base="xs:explicitGroup">
@@ -1043,7 +1049,7 @@
         source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-choice"/>
     </xs:annotation>
   </xs:element>
-
+
   <xs:element name="sequence" type="xs:explicitGroup" id="sequence">
     <xs:annotation>
       <xs:documentation
@@ -1129,7 +1135,7 @@
         schema or an absent targetNamespace respectively
     </xs:documentation>
   </xs:annotation>
-  
+  
   <xs:simpleType name="namespaceList">
     <xs:annotation>
       <xs:documentation>A utility type, not for public use</xs:documentation>
@@ -1216,7 +1222,7 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
-
+
   <xs:element name="attribute" type="xs:topLevelAttribute" id="attribute">
     <xs:annotation>
       <xs:documentation
@@ -1300,7 +1306,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
-
+
   <xs:element name="override" id="override">
     <xs:annotation>
       <xs:documentation
@@ -1391,7 +1397,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
-
+
   <xs:complexType name="keybase">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -1470,7 +1476,7 @@
     </xs:annotation>
     <xs:restriction base="xs:token"/>
   </xs:simpleType>
-
+
   <xs:element name="appinfo" id="appinfo">
     <xs:annotation>
       <xs:documentation
@@ -1541,7 +1547,7 @@
     </xs:sequence>
     <xs:anyAttribute processContents="lax"/>
   </xs:complexType>
-
+
   <xs:annotation>
     <xs:documentation>
       In keeping with the XML Schema WG's standard versioning policy, 
