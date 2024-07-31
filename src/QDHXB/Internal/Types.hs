@@ -177,16 +177,13 @@ data Definition =
         -- union.
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
-  | ExtensionDefn
-    -- ^ Define a type the extension of one type with additional
-    -- contents/attributes
-        QName
-        -- ^ Name of the extension
-        Reference
-        -- ^ Base type
-        [Reference]
-        -- ^ Additional content
-        (Maybe Line) -- ^ ifLine
+  | ExtensionDefn  -- ^ Define a type the extension of one type with
+                   -- additional contents/attributes
+        QName          -- ^ Name of the extension
+        Reference      -- ^ Base type
+        [Reference]    -- ^ Additional content added as part of the
+                       -- extension.
+        (Maybe Line)   -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
   | GroupDefn
     -- ^ Define a type for extending another type with additional
@@ -221,7 +218,7 @@ instance Blockable Definition where
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
   block (AttributeDefn n sp _ _) =
-    stringToBlock ("Attribute " ++ showQName n ++ " ")
+    stringToBlock ("AttributeDefn " ++ showQName n ++ " ")
       `stack2` (labelBlock "  " $ block sp)
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t

@@ -234,8 +234,8 @@ qdhxb (
   -- . setDebugging input 3
   -- . setDebugging names 3
   -- . setDebugging unique 4
-  . setDebugging flattening 1
-  . setDebugging generate 1
+  . setDebugging flattening 2
+  . setDebugging generate 2
   -- . breakAfterAllInput
   ) [
   "src/QDHXB/datatypes.xsd", "src/QDHXB/xsd.xsd"

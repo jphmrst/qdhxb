@@ -83,7 +83,7 @@ import QDHXB.Utils.Misc (ifAtLine)
 import QDHXB.Internal.Types
 import QDHXB.Internal.Block
 import QDHXB.Internal.XSDQ
-import QDHXB.Internal.Generate.Assembly
+import QDHXB.Internal.Generate.Assembly (assembleDecs, pushDeclHaddock)
 import QDHXB.Internal.Generate.Decoders
 import QDHXB.Internal.Generate.Types
 
@@ -138,81 +138,83 @@ xsdDeclsToHaskell defns = do
 xsdDeclToHaskell :: Definition -> XSDQ [Dec]
 xsdDeclToHaskell decl@(ElementDefn nam typ implName ln ifDoc) = do
   dbgBLabel ("Generating from (e" ++ ifAtLine ln ++ ") ") decl
-  dbgBLabel "- typ " typ
-  let origName = qName nam
-      baseName = firstToUpper $ implName
-      extractElemNam = mkName $ "extractElement" ++ baseName
-      -- tryLoadNam = mkName $ "tryLoad" ++ baseName
-  decodedType <- getTypeHaskellType typ
-  decoderFn <- getTypeDecoderFn typ
+  indenting $ do
+    dbgBLabel "typ " typ
+    let origName = qName nam
+        baseName = firstToUpper $ implName
+        extractElemNam = mkName $ "extractElement" ++ baseName
+        -- tryLoadNam = mkName $ "tryLoad" ++ baseName
+    decodedType <- getTypeHaskellType typ
+    decoderFn <- getTypeDecoderFn typ
 
-  extractor <- do
-    cparamName <- newName "content"
-    pushDeclHaddock ifDoc extractElemNam
-      ("Decode the given piece of @Content@ as a @\\<"
-       ++ origName ++ ">@ element")
-    return [
-      SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
-      FunD extractElemNam [Clause [VarP cparamName]
-                             (NormalB $ blockMakerClose decoderFn cparamName)
-                             []]
-      ]
-
-  subextractor <- do
-    let extractSubElemsNam = mkName $ "extractSubElements" ++ baseName
-    cparamName <- newName "content"
-    pushDeclHaddock ifDoc extractSubElemsNam
-      ("Decode @\\<" ++ origName
-       ++ ">@ subelements of a given piece of @Content@.")
-    return [
-      SigD extractSubElemsNam (fn1Type contentConT
-                               (qHXBExcT $ AppT zomConT decodedType)),
-      FunD extractSubElemsNam [
-          Clause [VarP cparamName]
-            (NormalB $
-              (applyZommapM (VarE extractElemNam)
-                (applyPullContentFrom origName $ VarE cparamName))) []]
-      ]
-
-  loader <- do
-    let loadNam = mkName $ "load" ++ baseName
-    exceptProc <- newName "exc"
-    loadBodySrc <- resultOrThrow $ VarE exceptProc
-    tmp1 <- newName "t"
-    paramName <- newName "file"
-    pushDeclHaddock ifDoc loadNam
-      ("Load a @\\<" ++ origName ++ ">@ element from the given file")
-    return [
-        SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
-        FunD loadNam [Clause [VarP paramName]
-                      (NormalB $ DoE Nothing $
-                         [BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
-                          LetS [ValD (VarP exceptProc)
-                                     (NormalB $ AppE (VarE extractElemNam)
-                                                     (VarE tmp1))
-                                     []],
-                          NoBindS $ applyReturn loadBodySrc]
-                      ) []]
+    extractor <- do
+      cparamName <- newName "content"
+      pushDeclHaddock ifDoc extractElemNam
+        ("Decode the given piece of @Content@ as a @\\<"
+         ++ origName ++ ">@ element")
+      return [
+        SigD extractElemNam (fn1Type contentConT (qHXBExcT decodedType)),
+        FunD extractElemNam [Clause [VarP cparamName]
+                               (NormalB $ blockMakerClose decoderFn cparamName)
+                               []]
         ]
 
-  dbgResult "Generated" $ extractor ++ subextractor ++ loader
+    subextractor <- do
+      let extractSubElemsNam = mkName $ "extractSubElements" ++ baseName
+      cparamName <- newName "content"
+      pushDeclHaddock ifDoc extractSubElemsNam
+        ("Decode @\\<" ++ origName
+         ++ ">@ subelements of a given piece of @Content@.")
+      return [
+        SigD extractSubElemsNam (fn1Type contentConT
+                                 (qHXBExcT $ AppT zomConT decodedType)),
+        FunD extractSubElemsNam [
+            Clause [VarP cparamName]
+              (NormalB $
+                (applyZommapM (VarE extractElemNam)
+                  (applyPullContentFrom origName $ VarE cparamName))) []]
+        ]
+
+    loader <- do
+      let loadNam = mkName $ "load" ++ baseName
+      exceptProc <- newName "exc"
+      loadBodySrc <- resultOrThrow $ VarE exceptProc
+      tmp1 <- newName "t"
+      paramName <- newName "file"
+      pushDeclHaddock ifDoc loadNam
+        ("Load a @\\<" ++ origName ++ ">@ element from the given file")
+      return [
+          SigD loadNam (fn1Type stringConT (AppT ioConT decodedType)),
+          FunD loadNam [Clause [VarP paramName]
+                        (NormalB $ DoE Nothing $
+                           [BindS (VarP tmp1) (applyLoadContent $ VarE paramName),
+                            LetS [ValD (VarP exceptProc)
+                                       (NormalB $ AppE (VarE extractElemNam)
+                                                       (VarE tmp1))
+                                       []],
+                            NoBindS $ applyReturn loadBodySrc]
+                        ) []]
+          ]
+
+    dbgResult "Generated" $ extractor ++ subextractor ++ loader
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (AttributeGroupDefn ads _hn) ln doc) = do
   dbgLn $ "Generating from (f" ++ ifAtLine ln ++ ") "
-  dbgBLabel "  " d
-  decoder <- getSafeDecoderBody nam
-  dbgBLabelSrcDest "- decoder " decoder
-  dbgLn "getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
-  hrefOut <- indenting $ mapM (getAttributeOrGroupTypeForUsage ln) ads
-  dbgBLabel "- hrefOut " hrefOut
-  dbgResultM "Generated" $ indenting $
-    assembleDecs nam (Just $ \tn ->
-                        DataD [] tn [] Nothing [
-                          NormalC tn $ map (\x -> (useBang, x)) hrefOut
-                          ]
-                          [DerivClause Nothing [eqConT, showConT]])
-                    decoder doc
+  indenting $ do
+    dbgBLabel "  " d
+    decoder <- getSafeDecoderBody nam
+    dbgBLabelSrcDest "decoder " decoder
+    dbgLn "getAttributeOrGroupTypeForUsage on each AttributeGroupDefn item:"
+    hrefOut <- indenting $ mapM (getAttributeOrGroupTypeForUsage ln) ads
+    dbgBLabel "hrefOut " hrefOut
+    dbgResultM "Generated" $ indenting $
+      assembleDecs nam (Just $ \tn ->
+                          DataD [] tn [] Nothing [
+                            NormalC tn $ map (\x -> (useBang, x)) hrefOut
+                            ]
+                            [DerivClause Nothing [eqConT, showConT]])
+                      decoder doc
 
 
 xsdDeclToHaskell d@(AttributeDefn nam (SingleAttributeDefn typ _ hnam)
@@ -315,33 +317,34 @@ xsdDeclToHaskell decl@(ComplexSynonymDefn nam typ ln ifDoc) = do
 
 xsdDeclToHaskell decl@(UnionDefn name pairs ln ifDoc) = do
   dbgBLabel ("Generating from (c" ++ ifAtLine ln ++ ") UnionDefn ") decl
-  (safeCore, _, whereDecs) <- do
-    dbgLn "- Calling unionDefnComponents"
-    indenting $ unionDefnComponents getSafeDecoderCall name pairs ln
-  whenDebugging generate 3 $ do
-    dbgLn "- whereDecs "
-    indenting $ forM_ whereDecs $ dbgBLabelFn1 "- " srcName
-    dbgBLabel "- safeCore " safeCore
+  indenting $ do
+    (safeCore, _, whereDecs) <- do
+      dbgLn "Calling unionDefnComponents"
+      indenting $ unionDefnComponents getSafeDecoderCall name pairs ln
+    whenDebugging generate 3 $ do
+      dbgLn "whereDecs "
+      indenting $ forM_ whereDecs $ dbgBLabelFn1 "" srcName
+      dbgBLabel "safeCore " safeCore
 
-  let makeConstr :: (QName, QName) -> XSDQ Con
-      makeConstr (constructorName, tn) = do
-        useName <- applyConstructorRenames $
-          firstToUpper $ qName constructorName
-        tyName <- getTypeHaskellType tn
-        return $ NormalC (mkName useName) [(useBang, tyName)]
+    let makeConstr :: (QName, QName) -> XSDQ Con
+        makeConstr (constructorName, tn) = do
+          useName <- applyConstructorRenames $
+            firstToUpper $ qName constructorName
+          tyName <- getTypeHaskellType tn
+          return $ NormalC (mkName useName) [(useBang, tyName)]
 
-  constrDefs <- mapM makeConstr pairs
-  let typDef tn = DataD [] tn [] Nothing constrDefs
-                    [DerivClause Nothing [eqConT, showConT]]
-  dbgBLabelFn1 "- typDef " (mkName "NAME") typDef
+    constrDefs <- mapM makeConstr pairs
+    let typDef tn = DataD [] tn [] Nothing constrDefs
+                      [DerivClause Nothing [eqConT, showConT]]
+    dbgBLabelFn1 "typDef " (mkName "NAME") typDef
 
-  dbgResultM "Generated" $
-    assembleDecs name (Just typDef)
-                (\src dest -> [
-                    BindS (VarP dest) $
-                      LetE (concat $ map (\f -> f src) whereDecs) safeCore
-                    ])
-                ifDoc
+    dbgResultM "Generated" $
+      assembleDecs name (Just typDef)
+                  (\src dest -> [
+                      BindS (VarP dest) $
+                        LetE (concat $ map (\f -> f src) whereDecs) safeCore
+                      ])
+                  ifDoc
 
 
 xsdDeclToHaskell decl@(ListDefn name elemTypeQName ln ifDoc) = do
@@ -377,25 +380,28 @@ xsdDeclToHaskell decl@(ListDefn name elemTypeQName ln ifDoc) = do
 
 xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
   dbgBLabel ("Generating from (h" ++ ifAtLine ln ++ ") ") decl
-  decoder <- getSafeDecoderBody nam
-  dbgBLabelSrcDest "- decoder " decoder
-  hrefOut <- indenting $ mapM xsdRefToBangTypeQ refs
-  dbgBLabel "- field types " hrefOut
-  dbgResultM "Generated" $
-    assembleDecs nam (Just $ \tn ->
-                        DataD [] tn [] Nothing [NormalC tn $ hrefOut]
-                              [DerivClause Nothing [eqConT, showConT]])
-                    decoder ifDoc
+  indenting $ do
+    decoder <- getSafeDecoderBody nam
+    dbgBLabelSrcDest "decoder " decoder
+    hrefOut <- indenting $ mapM xsdRefToBangTypeQ refs
+    dbgBLabel "hrefOut " hrefOut
+    dbgResultM "Generated" $
+      assembleDecs nam (Just $ \tn ->
+                          DataD [] tn [] Nothing [NormalC tn $ hrefOut]
+                                [DerivClause Nothing [eqConT, showConT]])
+                      decoder ifDoc
 
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs ln doc) = do
   dbgBLabel ("Generating from (i" ++ ifAtLine ln ++ ") ") decl
-  decoder <- getSafeDecoderBody qn
-  hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
-  let typDef tn = DataD [] tn [] Nothing [NormalC tn $ hrefOut]
-                    [DerivClause Nothing [eqConT, showConT]]
-  dbgResultM "Generated" $
-    assembleDecs qn (Just typDef) decoder doc
+  indenting $ do
+    decoder <- getSafeDecoderBody qn
+    hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
+    dbgBLabel "hrefOut " hrefOut
+    let typDef tn = DataD [] tn [] Nothing [NormalC tn $ hrefOut]
+                      [DerivClause Nothing [eqConT, showConT]]
+    dbgResultM "Generated" $
+      assembleDecs qn (Just typDef) decoder doc
 
 xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) ln _ifDoc) = do
   dbgBLabel ("Generating from (j" ++ ifAtLine ln ++ ") ") decl
@@ -416,19 +422,20 @@ xsdDeclToHaskell decl@(GroupDefn _qn (TypeRef _tqn _ _ _ _) ln _ifDoc) = do
 
 xsdDeclToHaskell (ChoiceDefn name fields ln ifDoc) = do
   dbgLn $ "Generating from (k" ++ ifAtLine ln ++ ")"
-      ++ ifAtLine ln ++ " on ChoiceDefn " ++ showQName name
-  dbgBLabel
-      ("- Calling mapM (makeChoiceConstructor " ++ showQName name ++ ") on ")
-      fields
-  (constrDefs, _, _) <- indenting $
-    fmap unzip3 $ mapM (makeChoiceConstructor name) fields
-  dbgBLabel "- constrDefs " constrDefs
-  let dataDef tn = DataD [] tn [] Nothing constrDefs
-                     [DerivClause Nothing [eqConT, showConT]]
-  dbgBLabelFn1 "- dataDef " (mkName "NAME") dataDef
-  decoder <- getSafeDecoderBody name
-  dbgBLabelSrcDest "- decoder " decoder
-  dbgResultM "Generated" $ assembleDecs name (Just dataDef) decoder ifDoc
+      ++ " on ChoiceDefn " ++ showQName name
+  indenting $ do
+    dbgBLabel
+        ("Calling mapM (makeChoiceConstructor " ++ showQName name ++ ") on ")
+        fields
+    (constrDefs, _, _) <- indenting $
+      fmap unzip3 $ mapM (makeChoiceConstructor name) fields
+    dbgBLabel "constrDefs " constrDefs
+    let dataDef tn = DataD [] tn [] Nothing constrDefs
+                       [DerivClause Nothing [eqConT, showConT]]
+    dbgBLabelFn1 "dataDef " (mkName "NAME") dataDef
+    decoder <- getSafeDecoderBody name
+    dbgBLabelSrcDest "decoder " decoder
+    dbgResultM "Generated" $ assembleDecs name (Just dataDef) decoder ifDoc
 
 xsdDeclToHaskell decl = do
   boxed $ do

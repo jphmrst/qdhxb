@@ -103,10 +103,11 @@ getSafeStringDecoder qn = do
 -- an XSD simple type.
 decoderForSimpleType :: QName -> XSDQ (BlockMaker Content dt)
 decoderForSimpleType qn = do
-  dbgLn "- decoderForSimpleType"
-  dbgBLabel "  - qn " qn
-  strDec <- getSafeStringDecoder qn
-  retrievingCRefFor qn strDec
+  dbgLn "decoderForSimpleType"
+  indenting $ do
+    dbgBLabel "qn " qn
+    strDec <- getSafeStringDecoder qn
+    retrievingCRefFor qn strDec
 
 
 -- | Return an invocation of a safe decoder expected to be defined
@@ -116,7 +117,7 @@ getSafeDecoderCall qn = do
   dbgPt $ "getSafeDecoderCall for " ++ showQName qn
   indenting $ do
     decl <- retrieveDeclaration qn
-    dbgBLabel "- retr " decl
+    dbgBLabel "retr " decl
     indenting $ case decl of
       IsElementType qn' -> getSafeDecoderCall qn'
       IsAttributeType (SingleAttributeDefn typeQN usage _base) -> do
@@ -184,7 +185,7 @@ getSafeDecoderBody qn = do
   dbgPt $ "getSafeDecoderBody for " ++ showQName qn
   indenting $ do
     retr <- retrieveDeclaration qn
-    dbgBLabel "- retr " retr
+    dbgBLabel "retr " retr
     case retr of
       IsTypeDefinition d -> decoder_body_for_type_defn d
       IsAttributeGroup ad -> decoder_body_for_attribute_group_defn ad
@@ -210,23 +211,23 @@ getSafeDecoderBody qn = do
 
     decoder_body_for_attribute_group_defn agd = case agd of
       AttributeGroupDefn subqns _ -> indenting $ do
-          dbgLn "- AttributeGroupDefn (2aa) found"
+          dbgLn "AttributeGroupDefn (2aa) found"
           origName <- buildAttrOrGroupHaskellName qn
-          dbgBLabel "- origName " origName
+          dbgBLabel "origName " origName
           substName <- applyTypeRenames origName
-          dbgBLabel "- substName " substName
+          dbgBLabel "substName " substName
           let typeAndConstrName = mkName substName
-          dbgBLabel "- typeAndConstrName " typeAndConstrName
+          dbgBLabel "typeAndConstrName " typeAndConstrName
           haskellType <- buildAttrOrGroupHaskellType qn
-          dbgBLabel "- haskellType " haskellType
+          dbgBLabel "haskellType " haskellType
           dbgPt "Mapping get_safe_decoder_usage_call onto group items"
           subdecoders <- indenting $ mapM get_safe_decoder_usage_call subqns
-          dbgLn "- subdecoders"
+          dbgLn "subdecoders"
           whenDebugging generate 3 $ indenting $ forM_ subdecoders $ \sd ->
-              dbgBLabel "- " $ sd (mkName "SRC") (mkName "DEST")
+              dbgBLabel "" $ sd (mkName "SRC") (mkName "DEST")
           (subBinder, subNames) <- label_block_makers subdecoders
-          dbgBLabelFn1 "- subBinder " (mkName "SRC") $ subBinder
-          dbgBLabel "- subNames " $ show subNames
+          dbgBLabelFn1 "subBinder " (mkName "SRC") $ subBinder
+          dbgBLabel "subNames " $ show subNames
           let res :: BlockMaker Content dt
               res src dest = subBinder src ++ [
                 LetS [
@@ -241,7 +242,7 @@ getSafeDecoderBody qn = do
                         foldl AppE (ConE typeAndConstrName) $
                           map VarE subNames)
                       []]]
-          dbgBLabelSrcDest "- result " res
+          dbgBLabelSrcDest "result " res
           return res
 
       SingleAttributeDefn typ _usage _hn -> indenting $ do
@@ -251,10 +252,10 @@ getSafeDecoderBody qn = do
 
 
     decoder_body_for_type_defn defn = do
-      dbgBLabel "- Found type " defn
+      dbgBLabel "Found type " defn
       case defn of
         BuiltinDefn ty _ _ _ -> do
-          dbgBLabel "- Basic type (aa) " ty
+          dbgBLabel "Basic type (aa) " ty
           dbgPt "Relay to decoderForSimpleType"
           decoderForSimpleType qn
 
@@ -269,15 +270,15 @@ getSafeDecoderBody qn = do
                                (NormalB $ foldl (AppE)
                                       (ConE $ mkName constrName)
                                       (map VarE boundNames)) []]]
-          dbgResultSrcDest "- result " result
+          dbgResultSrcDest "result " result
 
         ChoiceDefn name fields _ _ -> do
           dbgPt "Choice case (cc)"
           (_, constrs, stmtsMaker) <-
             indenting $
               fmap unzip3 $ mapM (makeChoiceConstructor name) fields
-          dbgBLabel "- constrs " constrs
-          dbgBLabel "- stmtsMaker " $
+          dbgBLabel "constrs " constrs
+          dbgBLabel "stmtsMaker " $
             map (\x -> x (mkName "SRC") (mkName "DEST")) stmtsMaker
           localDest <- newName "dest"
           let finishStmts :: Name -> (Exp, BlockMaker Content dt) -> Exp
@@ -293,23 +294,23 @@ getSafeDecoderBody qn = do
           return decoder
 
         ExtensionDefn edqn base refs ln _doc -> do
-          dbgBLabel "- Using getSafeDecoderBody (dd) with Extension for " edqn
+          dbgBLabel "Using getSafeDecoderBody (dd) with Extension for " edqn
           indenting $ do
-            dbgBLabel "- base " base
-            dbgBLabel "- refs " refs
-            dbgLn $ "- ln " ++ show ln
+            dbgBLabel "base " base
+            dbgBLabel "refs " refs
+            dbgLn $ "ln " ++ show ln
             hrefOut <- mapM xsdRefToBangTypeQ $ base : refs
-            dbgBLabel "- hrefOut " hrefOut
+            dbgBLabel "hrefOut " hrefOut
 
-            dbgLn "- Calling make_subexpr_labeling"
+            dbgLn "Calling make_subexpr_labeling"
             (bindingsF, boundNames) <- indenting $
               make_decoder_labeling $ base:refs
-            dbgBLabelFn1 "- bindingsF " srcName bindingsF
-            dbgBLabel "- boundNames " boundNames
+            dbgBLabelFn1 "bindingsF " srcName bindingsF
+            dbgBLabel "boundNames " boundNames
             let origConstrName = firstToUpper $ qName edqn
-            dbgBLabel "- origConstrName " origConstrName
+            dbgBLabel "origConstrName " origConstrName
             constrName <- applyConstructorRenames origConstrName
-            dbgBLabel "- constrName " constrName
+            dbgBLabel "constrName " constrName
             let result :: BlockMaker Content dt
                 result src dest =
                   bindingsF src
@@ -318,14 +319,14 @@ getSafeDecoderBody qn = do
                                   foldl (AppE)
                                         (ConE $ mkName constrName)
                                         (map VarE boundNames)) []]]
-            dbgResultSrcDest "- result " result
+            dbgResultSrcDest "result " result
 
 
 
 
 
         GroupDefn _name (TypeRef nam _lo _up _ln _doc) _ifLn _ifDoc -> do
-          dbgBLabel "- Using getSafeDecoderBody (ee) with Required for " nam
+          dbgBLabel "Using getSafeDecoderBody (ee) with Required for " nam
           get_safe_decoder_usage_call (nam, Required)
         GroupDefn _name (ElementRef _ _ _ _) _ifLn _ifDoc -> do
           error "ElementRef not allowed in GroupDefn (ff)"
@@ -356,7 +357,7 @@ getSafeDecoderBody qn = do
     -- bound values, and (2) the `Name`s of the bound values.
     make_decoder_labeling :: [Reference] -> XSDQ (Name -> [Stmt], [Name])
     make_decoder_labeling refs = do
-      dbgBLabel "- make_decoder_labeling for " refs
+      dbgBLabel "make_decoder_labeling for " refs
       indenting $ do
         decoders <- mapM get_ref_safe_decoder refs
         make_labeling decoders [] []
@@ -370,7 +371,7 @@ getSafeDecoderBody qn = do
             make_labeling (b:bs) srcFns destNames = do
               thisDest <- newName "sub"
               let thisFn = (\src -> b src thisDest)
-              dbgBLabelFn1 "- make_labeling ==> " srcName thisFn
+              dbgBLabelFn1 "make_labeling ==> " srcName thisFn
               make_labeling bs (thisFn:srcFns) (thisDest:destNames)
 
     -- | Return an invocation of a safe decoder expected to be defined
@@ -400,10 +401,10 @@ getSafeDecoderBody qn = do
 -- (2) the `Name`s of the bound values.
 make_subexpr_labeling :: [Reference] -> XSDQ (Name -> [Stmt], [Name])
 make_subexpr_labeling refs = do
-  dbgBLabel "- make_subexpr_labeling for " refs
+  dbgBLabel "make_subexpr_labeling for " refs
   indenting $ do
     blockMakers <- mapM reference_to_block_maker refs
-    dbgLn "- blockMakers "
+    dbgLn "blockMakers "
     whenDebugging generate 3 $
       forM_ blockMakers $ \b -> dbgBLabelSrcDest "  . " b
     label_block_makers blockMakers
@@ -439,14 +440,14 @@ label_block_makers blockMakers = do
       [BlockMaker st dt] -> [String] -> [Name] -> [Name -> [Stmt]]
       -> XSDQ (Name -> [Stmt], [Name])
     label_block_makers' [] _ accNames accFns = do
-      dbgLn "- End of label_block_makers'"
+      dbgLn "End of label_block_makers'"
       return
         ((\src -> concat $ reverse $ map (\x -> x src) accFns),
          reverse accNames)
 
     label_block_makers' (bmk:bmks) (n:ns) accN accF = do
       fresh <- newName n
-      dbgBLabel "- label_block_makers': " $ bmk (mkName "SRC") fresh
+      dbgBLabel "label_block_makers': " $ bmk (mkName "SRC") fresh
       label_block_makers' bmks ns (fresh : accN) $
         (\src -> bmk src fresh) : accF
 
@@ -507,7 +508,7 @@ labelBlockMakers' (r@(TypeRef tqn lo hi _ _):rs) (n:ns) accNs accFns = do
 get_ref_safe_decoder :: Reference -> XSDQ (BlockMaker Content dt)
 
 get_ref_safe_decoder (ElementRef nam _lower _upper _) = do
-  dbgLn "- get_ref_safe_decoder ElementRef case"
+  dbgLn "get_ref_safe_decoder ElementRef case"
   indenting $ do
     ifTypeOf <- getElementType nam
     case ifTypeOf of
@@ -516,14 +517,13 @@ get_ref_safe_decoder (ElementRef nam _lower _upper _) = do
       Just typeOf -> getSafeDecoderCall typeOf
 
 get_ref_safe_decoder (AttributeRef ref usage) = do
-  dbgLn $
-    "- get_ref_safe_decoder AttributeRef case: "
-    ++ showQName ref ++ " " ++ show usage
+  dbgLn $ "get_ref_safe_decoder AttributeRef case: "
+          ++ showQName ref ++ " " ++ show usage
   indenting $ do
     coreFn  <- indenting $ safeDecodingBlockMakerByName ref
-    dbgBLabelSrcDest "  - coreFn " coreFn
+    dbgBLabelSrcDest "coreFn " coreFn
     usageFn <- indenting $ unpack_attr_decoder_for_usage usage ref
-    dbgBLabelSrcDest "  - usageFn " usageFn
+    dbgBLabelSrcDest "usageFn " usageFn
     tmp <- newName "attr"
     return $ \src dest -> coreFn src tmp ++ usageFn tmp dest
 
@@ -560,14 +560,14 @@ get_ref_safe_decoder (AttributeRef ref usage) = do
 
 
 get_ref_safe_decoder (TypeRef nam lower upper _ _) = do
-  dbgLn "- get_ref_safe_decoder TypeRef case"
+  dbgLn "get_ref_safe_decoder TypeRef case"
   indenting $ do
     singleBlockMaker <- getSafeDecoderCall nam
     scaleBlockMakerToBounds singleBlockMaker lower upper
 
 get_ref_safe_decoder (GroupRef nam lower upper _ _) = do
   dbgLn $
-    "- get_ref_safe_decoder GroupRef case for " ++ showQName nam
+    "get_ref_safe_decoder GroupRef case for " ++ showQName nam
   indenting $ do
     defn <- getGroupDefn nam
     case defn of
@@ -591,9 +591,9 @@ safeDecodingBlockMakerByName ref = do
     -- to catch incorrect uses higher in the AST of the XSD file than
     -- where we call this function.
     safeDec <- fmap VarE $ getTypeSafeDecoderAsName ref
-    dbgBLabel "  - safeDec " safeDec
+    dbgBLabel "safeDec " safeDec
     let result = \src dest -> [ BindS (VarP dest) $ AppE safeDec (VarE src) ]
-    dbgBLabelSrcDest "- result " result
+    dbgBLabelSrcDest "result " result
     return result
 
 single_attribute_decoder ::
@@ -603,9 +603,9 @@ single_attribute_decoder name typ usage = do
     "single_attribute_decoder for " ++ showQName name ++ " :: " ++ showQName typ
   indenting $ do
     coreDecoder <- getSafeStringDecoder typ
-    dbgBLabelSrcDest "- coreDecoder " coreDecoder
+    dbgBLabelSrcDest "coreDecoder " coreDecoder
     attrDecoder <- stringBlockToAttributeBlock coreDecoder name
-    dbgBLabelSrcDest "- attrDecoder " attrDecoder
+    dbgBLabelSrcDest "attrDecoder " attrDecoder
     finalDecoder <- indenting $ make_usage_binder attrDecoder usage
     dbgBLabelSrcDest "finalDecoder " finalDecoder
     return finalDecoder
@@ -632,11 +632,12 @@ reference_to_block_maker r@(ElementRef eqn lo hi _) = do
 
 reference_to_block_maker r@(AttributeRef _ usage) = do
   dbgBLabel "reference_to_block_maker for" r
-  safeDec <- indenting $ get_ref_safe_decoder r
-  dbgBLabelSrcDest "  - safeDec " safeDec
-  f' <- indenting $ make_usage_binder safeDec usage
-  dbgBLabelSrcDest "  - f' " f'
-  return f'
+  indenting $ do
+    safeDec <- indenting $ get_ref_safe_decoder r
+    dbgBLabelSrcDest "safeDec " safeDec
+    f' <- indenting $ make_usage_binder safeDec usage
+    dbgBLabelSrcDest "f' " f'
+    return f'
 
 reference_to_block_maker r@(TypeRef tqn lo hi _ _) = do
   dbgBLabel "reference_to_block_maker for" r
@@ -698,42 +699,44 @@ ref_block_maker_for_bounds' tqn _ puller indivF (Just 1) (Just 1) = do -- Single
 
 ref_block_maker_for_bounds' _ _ puller indivF _ (Just 1) = do        -- Maybe
   dbgLn "ref_block_maker_for_bounds' maybe case"
-  dbgBLabel "- given puller " $ puller $ VarE $ mkName "SRC"
-  dbgBLabelSrcDest "- given indivF " indivF
-  pull <- newName "pullForMaybe"
-  pullMaybe <- newName "maybeOne"
-  tmp <- newName "subres"
-  finalCase <- caseNothingJust (VarE pullMaybe)
-    (applyReturn nothingConE)
-    (\nam -> DoE Nothing $
-      indivF nam tmp ++ [
-        NoBindS $ applyReturn $ applyJust $ VarE tmp])
-  dbgBLabel "- finalCase " finalCase
-  let result = \src dest ->
-        LetS [SigD pull (AppT zomConT contentConT),
-              ValD (VarP pull) (NormalB $ puller $ VarE src) []]
-        : listToMaybe pull pullMaybe
-        ++ [BindS (VarP dest) finalCase]
-  dbgBLabelSrcDest "- result " result
-  return result
+  indenting $ do
+    dbgBLabel "given puller " $ puller $ VarE $ mkName "SRC"
+    dbgBLabelSrcDest "given indivF " indivF
+    pull <- newName "pullForMaybe"
+    pullMaybe <- newName "maybeOne"
+    tmp <- newName "subres"
+    finalCase <- caseNothingJust (VarE pullMaybe)
+      (applyReturn nothingConE)
+      (\nam -> DoE Nothing $
+        indivF nam tmp ++ [
+          NoBindS $ applyReturn $ applyJust $ VarE tmp])
+    dbgBLabel "finalCase " finalCase
+    let result = \src dest ->
+          LetS [SigD pull (AppT zomConT contentConT),
+                ValD (VarP pull) (NormalB $ puller $ VarE src) []]
+          : listToMaybe pull pullMaybe
+          ++ [BindS (VarP dest) finalCase]
+    dbgBLabelSrcDest "result " result
+    return result
 
 ref_block_maker_for_bounds' _tqn hsType puller indivF _ _ = do             -- List
   dbgLn "ref_block_maker_for_bounds' list case"
-  pull <- newName "pullForList"
-  asList <- newName "asList"
-  tmp <- newName "postpull"
-  a <- newName "a"
-  dbgBLabel "- hsType" hsType
-  return $ \src dest -> [
-    LetS [SigD pull (AppT zomConT contentConT),
-          ValD (VarP pull) (NormalB $ puller $ VarE src) []],
-    BindS (VarP asList) $ applyZomToList $ VarE pull,
-    BindS (VarP dest) $
-      applyMapM (LamE [VarP a] $ DoE Nothing $
-                   indivF a tmp ++ [
-                     NoBindS $ applyReturn $ SigE (VarE tmp) hsType]) $
-        SigE (VarE asList) (AppT ListT contentConT)
-    ]
+  indenting $ do
+    pull <- newName "pullForList"
+    asList <- newName "asList"
+    tmp <- newName "postpull"
+    a <- newName "a"
+    dbgBLabel "hsType" hsType
+    return $ \src dest -> [
+      LetS [SigD pull (AppT zomConT contentConT),
+            ValD (VarP pull) (NormalB $ puller $ VarE src) []],
+      BindS (VarP asList) $ applyZomToList $ VarE pull,
+      BindS (VarP dest) $
+        applyMapM (LamE [VarP a] $ DoE Nothing $
+                     indivF a tmp ++ [
+                       NoBindS $ applyReturn $ SigE (VarE tmp) hsType]) $
+          SigE (VarE asList) (AppT ListT contentConT)
+      ]
 
 
 make_usage_binder ::
@@ -804,51 +807,55 @@ makeChoiceConstructor ::
 makeChoiceConstructor name (constrSuffix, ref) = do
   dbgLn $ "Called makeChoiceConstructor "
     ++ showQName name ++ " (" ++ showQName constrSuffix ++ ", ...)"
-  let typeRoot = firstToUpper $ qName name
-  case ref of
+  indenting $ do
+    let typeRoot = firstToUpper $ qName name
+    case ref of
 
-    ElementRef elName ifMin ifMax _ -> do
-      dbgLn $ "- With ElementRef " ++ showQName elName
-      let constrName = mkName $ typeRoot ++ firstToUpper (qName elName)
-      dbgBLabel "- constr " constrName
-      dbgLn $ "- Calling getElementTypeOrFail " ++ showQName elName
-      decQName <- getElementTypeOrFail elName
-      dbgBLabel "- decQName " decQName
-      decType <- getTypeHaskellType decQName
-      dbgBLabel "- decType " decType
-      useType <- containForBounds ifMin ifMax $ return decType
-      dbgBLabel "- useType " useType
-      decoderFn <- getTypeDecoderFn decQName
-      return (
-        NormalC constrName [(useBang, useType)],
-        ConE constrName,
-        decoderFn)
+      ElementRef elName ifMin ifMax _ -> do
+        dbgLn $ "With ElementRef " ++ showQName elName
+        indenting $ do
+          let constrName = mkName $ typeRoot ++ firstToUpper (qName elName)
+          dbgBLabel "constr " constrName
+          dbgLn $ "Calling getElementTypeOrFail " ++ showQName elName
+          decQName <- getElementTypeOrFail elName
+          dbgBLabel "decQName " decQName
+          decType <- getTypeHaskellType decQName
+          dbgBLabel "decType " decType
+          useType <- containForBounds ifMin ifMax $ return decType
+          dbgBLabel "useType " useType
+          decoderFn <- getTypeDecoderFn decQName
+          return (
+            NormalC constrName [(useBang, useType)],
+            ConE constrName,
+            decoderFn)
 
-    GroupRef grName ifMin ifMax _ _ -> do
-      dbgLn $ "- With GroupRef " ++ showQName grName
-      let constrName = mkName $ typeRoot ++ firstToUpper (qName grName)
-      dbgBLabel "- constr " constrName
-      groupDefn <- getGroupDefnOrFail grName
-      dbgBLabel "- groupDefn " groupDefn
-      case groupDefn of
-        GroupDefn _ storedRef _ _ -> do
-          dbgBLabel "- storedRef " storedRef
-          case storedRef of
-            TypeRef tyName _tyIfMin _tyIfMax _ _ -> do
-              decType <- getTypeHaskellType tyName
-              dbgBLabel "- decType " decType
-              useType <- containForBounds ifMin ifMax $ return decType
-              dbgBLabel "- useType " useType
-              decoderFn <- getTypeDecoderFn tyName
-              return (
-                NormalC constrName [(useBang, useType)],
-                ConE constrName,
-                decoderFn)
-            _ -> error $ "TODO makeChoiceConstructor (b/2) --- "
-                   ++ "GroupDefn alias to non-type"
-        _ -> do
-          error $ "Ref/stored defn mismatch: expected GroupDefn but got\n"
-            ++ bpp groupDefn
+      GroupRef grName ifMin ifMax _ _ -> do
+        dbgLn $ "With GroupRef " ++ showQName grName
+        indenting $ do
+          let constrName = mkName $ typeRoot ++ firstToUpper (qName grName)
+          dbgBLabel "constr " constrName
+          groupDefn <- getGroupDefnOrFail grName
+          dbgBLabel "groupDefn " groupDefn
+          case groupDefn of
+            GroupDefn _ storedRef _ _ -> do
+              dbgBLabel "storedRef " storedRef
+              indenting $
+                case storedRef of
+                  TypeRef tyName _tyIfMin _tyIfMax _ _ -> do
+                    decType <- getTypeHaskellType tyName
+                    dbgBLabel "decType " decType
+                    useType <- containForBounds ifMin ifMax $ return decType
+                    dbgBLabel "useType " useType
+                    decoderFn <- getTypeDecoderFn tyName
+                    return (
+                      NormalC constrName [(useBang, useType)],
+                      ConE constrName,
+                      decoderFn)
+                  _ -> error $ "TODO makeChoiceConstructor (b/2) --- "
+                         ++ "GroupDefn alias to non-type"
+            _ -> do
+              error $ "Ref/stored defn mismatch: expected GroupDefn but got\n"
+                ++ bpp groupDefn
 
 
 
@@ -862,42 +869,44 @@ makeChoiceConstructor name (constrSuffix, ref) = do
 
 
 
-    TypeRef tyName ifMin ifMax _ _ -> do
-      dbgLn $ "- With TypeRef " ++ showQName tyName
-      let constrName = mkName $ typeRoot ++ firstToUpper (qName tyName)
-      dbgBLabel "- constr " constrName
-      typeDefn <- getTypeDefn tyName
-      dbgBLabel "- typeDefn " constrName
-      decType <- getTypeHaskellType tyName
-      dbgBLabel "- decType " decType
-      useType <- containForBounds ifMin ifMax $ return decType
-      dbgBLabel "- useType " useType
-      decoderFn <- getTypeDecoderFn tyName
-      dbgLn "TODO makeChoiceConstructor - TypeRef case"
-      dbgBLabel "NAME " name
-      dbgBLabel "CONSTRSUFFIX " constrSuffix
-      dbgBLabel "REF " ref
-      dbgLn "--"
-      dbgBLabel "CONSTRNAME " constrName
-      dbgBLabel "TYPEDEFN " typeDefn
-      return (
-        NormalC constrName [(useBang, useType)],
-        ConE constrName,
-        decoderFn)
+      TypeRef tyName ifMin ifMax _ _ -> do
+        dbgLn $ "With TypeRef " ++ showQName tyName
+        indenting $ do
+          let constrName = mkName $ typeRoot ++ firstToUpper (qName tyName)
+          dbgBLabel "constr " constrName
+          typeDefn <- getTypeDefn tyName
+          dbgBLabel "typeDefn " constrName
+          decType <- getTypeHaskellType tyName
+          dbgBLabel "decType " decType
+          useType <- containForBounds ifMin ifMax $ return decType
+          dbgBLabel "useType " useType
+          decoderFn <- getTypeDecoderFn tyName
+          dbgLn "TODO makeChoiceConstructor - TypeRef case"
+          dbgBLabel "NAME " name
+          dbgBLabel "CONSTRSUFFIX " constrSuffix
+          dbgBLabel "REF " ref
+          dbgLn "--"
+          dbgBLabel "CONSTRNAME " constrName
+          dbgBLabel "TYPEDEFN " typeDefn
+          return (
+            NormalC constrName [(useBang, useType)],
+            ConE constrName,
+            decoderFn)
 
-    AttributeRef _ _ -> do
-      dbgLn $ "- With AttributeRef"
-      error "Not expected: makeChoiceConstructor for AttributeRef"
+      AttributeRef _ _ -> do
+        dbgLn $ "With AttributeRef"
+        error "Not expected: makeChoiceConstructor for AttributeRef"
 
-    RawXML _ _ -> do
-      dbgBLabel "- With RawXML, typeRoot " typeRoot
-      constrString <- getBindingName $ suffixCoreName "RawXML" typeRoot
-      dbgBLabel "- constrString " constrString
-      let constrName = mkName constrString
-      return $ (
-        NormalC constrName [(useBang, contentConT)],
-        ConE constrName,
-        \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ])
+      RawXML _ _ -> do
+        dbgBLabel "With RawXML, typeRoot " typeRoot
+        indenting $ do
+          constrString <- getBindingName $ suffixCoreName "RawXML" typeRoot
+          dbgBLabel "constrString " constrString
+          let constrName = mkName constrString
+          return $ (
+            NormalC constrName [(useBang, contentConT)],
+            ConE constrName,
+            \src dest -> [ LetS [ValD (VarP dest) (NormalB $ VarE src) [] ] ])
 
 
 -- | The processors which produce a `BlockMaker` from a `UnionDefn`
