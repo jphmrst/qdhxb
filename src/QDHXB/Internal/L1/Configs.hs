@@ -10,6 +10,8 @@ import QDHXB.Options
 import QDHXB.Options.TranslationOptionSet
 
 -- import QDHXB.Internal.Debugln
+
+-- ^ Configuration for the NestedTypes module.
 nestedTypesConfig :: QDHXBOptionSet -> QDHXBOptionSet
 nestedTypesConfig =
   forNamespace "http://www.w3.org/XML/1998/namespace"
