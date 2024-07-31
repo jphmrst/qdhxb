@@ -1,7 +1,6 @@
-#+STARTUP:
 * Links
   :PROPERTIES:
-  :VISIBILITY: children
+  :VISIBILITY: folded
   :END:
 ** Hackage
    - [[https://hackage.haskell.org/package/template-haskell-2.19.0.0/docs/Language-Haskell-TH.html][Language.Haskell.TH]]
@@ -27,9 +26,9 @@
    - In `stack.yaml`, tried setting `resolver: lts-12.20`
 * Keystrokes
   :PROPERTIES:
-  :VISIBILITY: content
+  :VISIBILITY: folded
   :END:
-  -
+  s-f6, s-f7, s-f8
 * Tasks
   :PROPERTIES:
   :VISIBILITY: content
