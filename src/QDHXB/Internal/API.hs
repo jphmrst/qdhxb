@@ -151,10 +151,12 @@ translate_parsed_xsd xsds = do
     liftIO $ putStrLn
       "======================================== RENAMED NESTED INPUT"
     debugXSDQ
+    liftIO $ putStrLn "---------------------------------------- Call to ensureUniqueNames"
   renamedSchemaReps <- ensureUniqueNames nested
   putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
     ++ "\n------------------------------ "
   whenDebugging unique 0 $ do
+    liftIO $ putStr "---------------------------------------- "
     debugXSDQ
     liftIO $ do
       putStrLn "Final ----------------------------------------"
@@ -171,20 +173,25 @@ translate_parsed_xsd xsds = do
     putStrLn $ bpp flattened
   checkBreakAfterFlatten
 
+  {-
+
+   ---- This looks compeletely useless, just extra printing.
+
   putLog $ " FULL FLATTENED\n" ++ bpp flattened
     ++ "\n==============================\n"
   whenDebugging flattening 0 $ do
+    liftIO $
+      putStrLn "======================================== FULL FLATTENED"
     debugXSDQ
     liftIO $ do
-      putStrLn "======================================== FULL FLATTENED"
       putStrLn $ bpp flattened
       putStrLn "----------------------------------------"
     debugXSDQ
 
-  whenDebugging generate 0 $
+  -}
+
+  whenDebugging generate 0 $ do
     liftIO $ putStrLn "======================================== GENERATE"
-  whenDebugging names 0 $ debugXSDQ
-  whenDebugging generate 2 $ do
     debugXSDQ
     liftIO $ putStrLn "----------------------------------------"
   decls <- xsdDeclsToHaskell flattened

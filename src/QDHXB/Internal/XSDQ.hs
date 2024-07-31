@@ -360,7 +360,10 @@ anyTypeQName = do
 debugXSDQ :: XSDQ ()
 debugXSDQ = do
   st <- liftStatetoXSDQ $ get
-  liftIO $ bprintLn st
+  liftIO $ do
+    -- putStrLn "/\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\ /\\"
+    bprintLn st
+    -- putStrLn "\\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/ \\/"
 
 -- | Adds descriptions of XSD primitive types to the `XSDQ`
 -- environment.
