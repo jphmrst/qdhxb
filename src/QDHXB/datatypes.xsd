@@ -30,6 +30,7 @@
            xml:lang="en"
            targetNamespace="http://www.w3.org/2001/XMLSchema"
            version="datatypes.xsd (rec-20120405)">
+  
   <xs:annotation>
     <xs:documentation source="../datatypes/datatypes.html">
       The schema corresponding to this document is normative,
@@ -58,6 +59,7 @@
       <xs:enumeration value="union"/>
     </xs:restriction>
   </xs:simpleType>
+
   <xs:group name="simpleDerivation">
     <xs:choice>
       <xs:element ref="xs:restriction"/>
@@ -65,13 +67,15 @@
       <xs:element ref="xs:union"/>
     </xs:choice>
   </xs:group>
+
   <xs:simpleType name="simpleDerivationSet">
     <xs:annotation>
       <xs:documentation>
-   #all or (possibly empty) subset of {restriction, extension, union, list}
-   </xs:documentation>
+        #all or (possibly empty) subset of {restriction, extension, union, list}
+      </xs:documentation>
       <xs:documentation>
-   A utility type, not for public use</xs:documentation>
+        A utility type, not for public use
+      </xs:documentation>
     </xs:annotation>
     <xs:union>
       <xs:simpleType>
@@ -93,6 +97,7 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:complexType name="simpleType" abstract="true">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -108,6 +113,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="topLevelSimpleType">
     <xs:complexContent>
       <xs:restriction base="xs:simpleType">
@@ -126,6 +132,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="localSimpleType">
     <xs:complexContent>
       <xs:restriction base="xs:simpleType">
@@ -145,12 +152,14 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="simpleType" type="xs:topLevelSimpleType" id="simpleType">
     <xs:annotation>
       <xs:documentation
            source="http://www.w3.org/TR/xmlschema11-2/#element-simpleType"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="facet" abstract="true">
     <xs:annotation>
       <xs:documentation>
@@ -161,23 +170,23 @@
       </xs:documentation>
     </xs:annotation>
   </xs:element>
+
   <xs:group name="simpleRestrictionModel">
     <xs:sequence>
       <xs:element name="simpleType" type="xs:localSimpleType" minOccurs="0"/>
-      <xs:choice minOccurs="0" 
-          maxOccurs="unbounded">
+      <xs:choice minOccurs="0"  maxOccurs="unbounded">
         <xs:element ref="xs:facet"/>
-        <xs:any processContents="lax"
-            namespace="##other"/>
+        <xs:any processContents="lax" namespace="##other"/>
       </xs:choice>
     </xs:sequence>
   </xs:group>
+
   <xs:element name="restriction" id="restriction">
     <xs:complexType>
       <xs:annotation>
         <xs:documentation
-             source="http://www.w3.org/TR/xmlschema11-2/#element-restriction">
-          base attribute and simpleType child are mutually
+            source="http://www.w3.org/TR/xmlschema11-2/#element-restriction">
+          Base attribute and simpleType child are mutually
           exclusive, but one or other is required
         </xs:documentation>
       </xs:annotation>
@@ -189,6 +198,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="list" id="list">
     <xs:complexType>
       <xs:annotation>
@@ -209,6 +219,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="union" id="union">
     <xs:complexType>
       <xs:annotation>
@@ -233,6 +244,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:complexType name="facet">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -242,6 +254,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="noFixedFacet">
     <xs:complexContent>
       <xs:restriction base="xs:facet">
@@ -253,6 +266,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="minExclusive" type="xs:facet"  
     id="minExclusive"
     substitutionGroup="xs:facet">
@@ -261,6 +275,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-minExclusive"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="minInclusive" type="xs:facet" 
     id="minInclusive"
     substitutionGroup="xs:facet">
@@ -269,6 +284,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-minInclusive"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="maxExclusive" type="xs:facet" 
     id="maxExclusive"
     substitutionGroup="xs:facet">
@@ -277,6 +293,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-maxExclusive"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="maxInclusive" type="xs:facet"  
     id="maxInclusive"
     substitutionGroup="xs:facet">
@@ -285,6 +302,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-maxInclusive"/>
     </xs:annotation>
   </xs:element>
+
   <xs:complexType name="numFacet">
     <xs:complexContent>
       <xs:restriction base="xs:facet">
@@ -328,6 +346,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="fractionDigits" type="xs:numFacet"  
     id="fractionDigits"
     substitutionGroup="xs:facet">
@@ -344,6 +363,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-length"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="minLength" type="xs:numFacet"  
     id="minLength"
     substitutionGroup="xs:facet">
@@ -352,6 +372,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-minLength"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="maxLength" type="xs:numFacet"  
     id="maxLength"
     substitutionGroup="xs:facet">
@@ -360,6 +381,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-maxLength"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="enumeration" type="xs:noFixedFacet"  
     id="enumeration"
     substitutionGroup="xs:facet">
@@ -368,6 +390,7 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-enumeration"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="whiteSpace" id="whiteSpace"
     substitutionGroup="xs:facet">
     <xs:annotation>
@@ -388,12 +411,14 @@
                 <xs:enumeration value="collapse"/>
               </xs:restriction>
             </xs:simpleType>
+
           </xs:attribute>
           <xs:anyAttribute namespace="##other" processContents="lax"/>
         </xs:restriction>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="pattern" id="pattern"
     substitutionGroup="xs:facet">
     <xs:annotation>
@@ -414,6 +439,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="assertion" type="xs:assertion"
               id="assertion" substitutionGroup="xs:facet">
     <xs:annotation>
@@ -421,11 +447,12 @@
            source="http://www.w3.org/TR/xmlschema11-2/#element-assertion"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="explicitTimezone" id="explicitTimezone"
     substitutionGroup="xs:facet">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/xmlschema11-2/#element-explicitTimezone"/>
+        source="http://www.w3.org/TR/xmlschema11-2/#element-explicitTimezone"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -481,10 +508,7 @@
 
         http://www.w3.org/2001/05/datatypes.xsd
           (XSD 1.0 Recommendation, First Edition)
-
     </xs:documentation>
   </xs:annotation>
-
-
 
 </xs:schema>

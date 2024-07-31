@@ -49,15 +49,17 @@
       See below (at the bottom of this document) for information about
       the revision and namespace-versioning policy governing this
       schema document.
-
     </xs:documentation>
   </xs:annotation>
+
   <xs:annotation>
     <xs:documentation>
    The simpleType element and all of its members are defined
    in datatypes.xsd</xs:documentation>
   </xs:annotation>
+
   <xs:include schemaLocation="datatypes.xsd"/>
+
   <xs:import namespace="http://www.w3.org/XML/1998/namespace"
              schemaLocation="http://www.w3.org/2001/xml.xsd">
     <xs:annotation>
@@ -67,6 +69,7 @@
      </xs:documentation>
     </xs:annotation>
   </xs:import>
+
   <xs:complexType name="openAttrs">
     <xs:annotation>
       <xs:documentation>
@@ -81,6 +84,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="annotated">
     <xs:annotation>
       <xs:documentation>
@@ -97,6 +101,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+  
   <xs:group name="composition">
     <xs:choice>
       <xs:element ref="xs:include"/>
@@ -106,12 +111,14 @@
       <xs:element ref="xs:annotation"/>
     </xs:choice>
   </xs:group>
+
   <xs:group name="schemaTop">
     <xs:annotation>
       <xs:documentation>
-   This group is for the
-   elements which occur freely at the top level of schemas.
-   All of their types are based on the "annotated" type by extension.</xs:documentation>
+        This group is for the elements which occur freely at the top level
+	of schemas.  All of their types are based on the "annotated" type
+	by extension.
+      </xs:documentation>
     </xs:annotation>
     <xs:choice>
       <xs:group ref="xs:redefinable"/>
@@ -120,11 +127,13 @@
       <xs:element ref="xs:notation"/>
     </xs:choice>
   </xs:group>
+
   <xs:group name="redefinable">
     <xs:annotation>
       <xs:documentation>
    This group is for the
-   elements which can self-redefine (see &lt;redefine> below).</xs:documentation>
+   elements which can self-redefine (see &lt;redefine> below).
+      </xs:documentation>
     </xs:annotation>
     <xs:choice>
       <xs:element ref="xs:simpleType"/>
@@ -133,6 +142,7 @@
       <xs:element ref="xs:attributeGroup"/>
     </xs:choice>
   </xs:group>
+
   <xs:simpleType name="formChoice">
     <xs:annotation>
       <xs:documentation>
@@ -143,6 +153,7 @@
       <xs:enumeration value="unqualified"/>
     </xs:restriction>
   </xs:simpleType>
+
   <xs:simpleType name="reducedDerivationControl">
     <xs:annotation>
       <xs:documentation>
@@ -153,12 +164,14 @@
       <xs:enumeration value="restriction"/>
     </xs:restriction>
   </xs:simpleType>
+
   <xs:simpleType name="derivationSet">
     <xs:annotation>
       <xs:documentation>
    A utility type, not for public use</xs:documentation>
       <xs:documentation>
-   #all or (possibly empty) subset of {extension, restriction}</xs:documentation>
+        #all or (possibly empty) subset of {extension, restriction}
+      </xs:documentation>
     </xs:annotation>
     <xs:union>
       <xs:simpleType>
@@ -171,6 +184,7 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:simpleType name="typeDerivationControl">
     <xs:annotation>
       <xs:documentation>
@@ -183,12 +197,14 @@
       <xs:enumeration value="union"/>
     </xs:restriction>
   </xs:simpleType>
+
   <xs:simpleType name="fullDerivationSet">
     <xs:annotation>
       <xs:documentation>
    A utility type, not for public use</xs:documentation>
       <xs:documentation>
-   #all or (possibly empty) subset of {extension, restriction, list, union}</xs:documentation>
+        #all or (possibly empty) subset of {extension, restriction, list, union}
+      </xs:documentation>
     </xs:annotation>
     <xs:union>
       <xs:simpleType>
@@ -201,10 +217,11 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:element name="schema" id="schema">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-schema"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-schema"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -240,6 +257,7 @@
         </xs:extension>
       </xs:complexContent>
     </xs:complexType>
+    
     <xs:key name="element">
       <xs:selector xpath="xs:element"/>
       <xs:field xpath="@name"/>
@@ -269,10 +287,10 @@
       <xs:field xpath="@name"/>
     </xs:key>
   </xs:element>
+
   <xs:simpleType name="allNNI">
     <xs:annotation>
-      <xs:documentation>
-   for maxOccurs</xs:documentation>
+      <xs:documentation>for maxOccurs</xs:documentation>
     </xs:annotation>
     <xs:union memberTypes="xs:nonNegativeInteger">
       <xs:simpleType>
@@ -282,6 +300,7 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:attributeGroup name="occurs">
     <xs:annotation>
       <xs:documentation>
@@ -291,6 +310,7 @@
                   use="optional"/>
     <xs:attribute name="maxOccurs" type="xs:allNNI" default="1" use="optional"/>
   </xs:attributeGroup>
+
   <xs:attributeGroup name="defRef">
     <xs:annotation>
       <xs:documentation>
@@ -300,6 +320,7 @@
     <xs:attribute name="name" type="xs:NCName"/>
     <xs:attribute name="ref" type="xs:QName"/>
   </xs:attributeGroup>
+
   <xs:group name="typeDefParticle">
     <xs:annotation>
       <xs:documentation>
@@ -312,6 +333,7 @@
       <xs:element ref="xs:sequence"/>
     </xs:choice>
   </xs:group>
+
   <xs:group name="nestedParticle">
     <xs:choice>
       <xs:element name="element" type="xs:localElement"/>
@@ -322,6 +344,7 @@
       <xs:element ref="xs:any"/>
     </xs:choice>
   </xs:group>
+
   <xs:group name="particle">
     <xs:choice>
       <xs:element name="element" type="xs:localElement"/>
@@ -332,11 +355,13 @@
       <xs:element ref="xs:any"/>
     </xs:choice>
   </xs:group>
+  
   <xs:complexType name="attribute">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
         <xs:sequence>
-          <xs:element name="simpleType" type="xs:localSimpleType" minOccurs="0"/>
+          <xs:element name="simpleType" type="xs:localSimpleType"
+                      minOccurs="0"/>
         </xs:sequence>
         <xs:attributeGroup ref="xs:defRef"/>
         <xs:attribute name="type" type="xs:QName"/>
@@ -358,12 +383,14 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="topLevelAttribute">
     <xs:complexContent>
       <xs:restriction base="xs:attribute">
         <xs:sequence>
           <xs:element ref="xs:annotation" minOccurs="0"/>
-          <xs:element name="simpleType" type="xs:localSimpleType" minOccurs="0"/>
+          <xs:element name="simpleType" type="xs:localSimpleType"
+                      minOccurs="0"/>
         </xs:sequence>
         <xs:attribute name="ref" use="prohibited"/>
         <xs:attribute name="form" use="prohibited"/>
@@ -408,7 +435,8 @@
     <xs:complexContent>
       <xs:extension base="xs:annotated">
         <xs:attribute name="test" type="xs:string"/>
-        <xs:attribute name="xpathDefaultNamespace" type="xs:xpathDefaultNamespace"/>
+        <xs:attribute name="xpathDefaultNamespace"
+                      type="xs:xpathDefaultNamespace"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
@@ -440,14 +468,16 @@
         <xs:attribute name="name" type="xs:NCName">
           <xs:annotation>
             <xs:documentation>
-      Will be restricted to required or prohibited</xs:documentation>
+              Will be restricted to required or prohibited
+            </xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="mixed" type="xs:boolean" use="optional">
           <xs:annotation>
             <xs:documentation>
-      Not allowed if simpleContent child is chosen.
-      May be overridden by setting on complexContent child.</xs:documentation>
+              Not allowed if simpleContent child is chosen.
+              May be overridden by setting on complexContent child.
+            </xs:documentation>
           </xs:annotation>
         </xs:attribute>
         <xs:attribute name="abstract" type="xs:boolean" default="false"
@@ -459,6 +489,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="topLevelComplexType">
     <xs:complexContent>
       <xs:restriction base="xs:complexType">
@@ -471,6 +502,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="localComplexType">
     <xs:complexContent>
       <xs:restriction base="xs:complexType">
@@ -486,12 +518,12 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="restrictionType">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
         <xs:sequence>
           <xs:choice minOccurs="0">
-            
             <xs:sequence>
               <xs:element ref="xs:openContent" minOccurs="0"/>
               <xs:group ref="xs:typeDefParticle"/>
@@ -505,6 +537,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="complexRestrictionType">
     <xs:complexContent>
       <xs:restriction base="xs:restrictionType">
@@ -512,10 +545,11 @@
           <xs:element ref="xs:annotation" minOccurs="0"/>
           <xs:choice minOccurs="0">
             <xs:annotation>
-              <xs:documentation>This choice is added simply to
-                   make this a valid restriction per the REC</xs:documentation>
+              <xs:documentation>
+                This choice is added simply to
+                make this a valid restriction per the REC
+              </xs:documentation>
             </xs:annotation>
-            
             <xs:sequence>
               <xs:element ref="xs:openContent" minOccurs="0"/>
               <xs:group ref="xs:typeDefParticle"/>
@@ -528,6 +562,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="extensionType">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -542,6 +577,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="complexContent" id="complexContent">
     <xs:annotation>
       <xs:documentation
@@ -564,6 +600,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="openContent" id="openContent">
     <xs:annotation>
       <xs:documentation
@@ -589,6 +626,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="defaultOpenContent" id="defaultOpenContent">
     <xs:annotation>
       <xs:documentation
@@ -615,6 +653,7 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:complexType name="simpleRestrictionType">
     <xs:complexContent>
       <xs:restriction base="xs:restrictionType">
@@ -634,6 +673,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="simpleExtensionType">
     <xs:complexContent>
       <xs:restriction base="xs:extensionType">
@@ -650,6 +690,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="simpleContent" id="simpleContent">
     <xs:annotation>
       <xs:documentation
@@ -666,12 +707,14 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="complexType" type="xs:topLevelComplexType" id="complexType">
     <xs:annotation>
       <xs:documentation
            source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-complexType"/>
     </xs:annotation>
   </xs:element>
+
   <xs:simpleType name="blockSet">
     <xs:annotation>
       <xs:documentation>
@@ -699,14 +742,16 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:complexType name="element" abstract="true">
     <xs:annotation>
       <xs:documentation>
-   The element element can be used either
-   at the top level to define an element-type binding globally,
-   or within a content model to either reference a globally-defined
-   element or type or declare an element-type binding locally.
-   The ref form is not allowed at the top level.</xs:documentation>
+        The element element can be used either
+        at the top level to define an element-type binding globally,
+        or within a content model to either reference a globally-defined
+        element or type or declare an element-type binding locally.
+        The ref form is not allowed at the top level.
+      </xs:documentation>
     </xs:annotation>
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -724,9 +769,9 @@
         <xs:attribute name="type" type="xs:QName"/>
         
         <xs:attribute name="substitutionGroup">
-         <xs:simpleType>
-          <xs:list itemType="xs:QName"/>
-         </xs:simpleType>
+          <xs:simpleType>
+            <xs:list itemType="xs:QName"/>
+          </xs:simpleType>
         </xs:attribute>
         <xs:attributeGroup ref="xs:occurs"/>
         <xs:attribute name="default" type="xs:string"/>
@@ -741,6 +786,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="topLevelElement">
     <xs:complexContent>
       <xs:restriction base="xs:element">
@@ -765,6 +811,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="localElement">
     <xs:complexContent>
       <xs:restriction base="xs:element">
@@ -786,12 +833,14 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="element" type="xs:topLevelElement" id="element">
     <xs:annotation>
       <xs:documentation
            source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-element"/>
     </xs:annotation>
   </xs:element>
+
   <xs:complexType name="altType">
     <xs:annotation>
       <xs:documentation>
@@ -810,22 +859,23 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="group" abstract="true">
     <xs:annotation>
       <xs:documentation>
-   group type for explicit groups, named top-level groups and
-   group references</xs:documentation>
+        group type for explicit groups, named top-level groups and
+        group references
+      </xs:documentation>
     </xs:annotation>
     <xs:complexContent>
       <xs:extension base="xs:annotated">
-        
           <xs:group ref="xs:particle" minOccurs="0" maxOccurs="unbounded"/>
-          
         <xs:attributeGroup ref="xs:defRef"/>
         <xs:attributeGroup ref="xs:occurs"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="realGroup">
     <xs:complexContent>
       <xs:restriction base="xs:group">
@@ -836,12 +886,12 @@
             <xs:element ref="xs:choice"/>
             <xs:element ref="xs:sequence"/>
           </xs:choice>
-          
         </xs:sequence>
         <xs:anyAttribute namespace="##other" processContents="lax"/>
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="namedGroup">
     <xs:complexContent>
       <xs:restriction base="xs:realGroup">
@@ -872,6 +922,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="groupRef">
     <xs:complexContent>
       <xs:restriction base="xs:realGroup">
@@ -884,16 +935,19 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="explicitGroup">
     <xs:annotation>
       <xs:documentation>
-   group type for the three kinds of group</xs:documentation>
+        group type for the three kinds of group
+      </xs:documentation>
     </xs:annotation>
     <xs:complexContent>
       <xs:restriction base="xs:group">
         <xs:sequence>
           <xs:element ref="xs:annotation" minOccurs="0"/>
-          <xs:group ref="xs:nestedParticle" minOccurs="0" maxOccurs="unbounded"/>
+          <xs:group ref="xs:nestedParticle"
+                    minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
         <xs:attribute name="name" use="prohibited"/>
         <xs:attribute name="ref" use="prohibited"/>
@@ -901,12 +955,14 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="simpleExplicitGroup">
     <xs:complexContent>
       <xs:restriction base="xs:explicitGroup">
         <xs:sequence>
           <xs:element ref="xs:annotation" minOccurs="0"/>
-          <xs:group ref="xs:nestedParticle" minOccurs="0" maxOccurs="unbounded"/>
+          <xs:group ref="xs:nestedParticle"
+                    minOccurs="0" maxOccurs="unbounded"/>
         </xs:sequence>
         <xs:attribute name="minOccurs" use="prohibited"/>
         <xs:attribute name="maxOccurs" use="prohibited"/>
@@ -914,14 +970,16 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:group name="allModel">
     <xs:sequence>
       <xs:element ref="xs:annotation" minOccurs="0"/>
       <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:annotation>
-          <xs:documentation>This choice with min/max is here to
-                          avoid a pblm with the Elt:All/Choice/Seq
-                          Particle derivation constraint</xs:documentation>
+          <xs:documentation>
+            This choice with min/max is here to avoid a problem with the
+            Elt:All/Choice/Seq Particle derivation constraint
+          </xs:documentation>
         </xs:annotation>
         <xs:element name="element" type="xs:localElement"/>
         <xs:element ref="xs:any"/>
@@ -932,8 +990,10 @@
                 <xs:sequence>
                   <xs:element ref="xs:annotation" minOccurs="0"/>
                 </xs:sequence>
-                <xs:attribute name="minOccurs" fixed="1" type="xs:nonNegativeInteger"/>
-                <xs:attribute name="maxOccurs" fixed="1" type="xs:nonNegativeInteger"/>
+                <xs:attribute name="minOccurs" fixed="1"
+                              type="xs:nonNegativeInteger"/>
+                <xs:attribute name="maxOccurs" fixed="1"
+                              type="xs:nonNegativeInteger"/>
               </xs:restriction>
             </xs:complexContent>
           </xs:complexType>
@@ -941,10 +1001,10 @@
       </xs:choice>
     </xs:sequence>
   </xs:group>
+
   <xs:complexType name="all">
     <xs:annotation>
-      <xs:documentation>
-   Only elements allowed inside</xs:documentation>
+      <xs:documentation>Only elements allowed inside</xs:documentation>
     </xs:annotation>
     <xs:complexContent>
       <xs:restriction base="xs:explicitGroup">
@@ -969,28 +1029,35 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="all" type="xs:all" id="all">
     <xs:annotation>
-      <xs:documentation source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-all"/>
+      <xs:documentation
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-all"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="choice" type="xs:explicitGroup" id="choice">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-choice"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-choice"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="sequence" type="xs:explicitGroup" id="sequence">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-sequence"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-sequence"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="group" type="xs:namedGroup" id="group">
     <xs:annotation>
-      <xs:documentation source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-group"/>
+      <xs:documentation
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-group"/>
     </xs:annotation>
   </xs:element>
+
   <xs:attributeGroup name="anyAttrGroup">
     <xs:attribute name="namespace" type="xs:namespaceList"
                   use="optional"/>
@@ -1019,6 +1086,7 @@
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="any" id="any">
     <xs:annotation>
       <xs:documentation source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-any"/>
@@ -1033,14 +1101,17 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:annotation>
     <xs:documentation>
-   simple type for the value of the 'namespace' attr of
-   'any' and 'anyAttribute'</xs:documentation>
+      simple type for the value of the 'namespace' attr of
+      'any' and 'anyAttribute'
+    </xs:documentation>
   </xs:annotation>
+  
   <xs:annotation>
     <xs:documentation>
-   Value is
+      Value is
               ##any      - - any non-conflicting WFXML/attribute at all
 
               ##other    - - any non-conflicting WFXML/attribute from
@@ -1053,22 +1124,22 @@
               references
               (space separated)
 
-    ##targetNamespace or ##local may appear in the above list, to
+      ##targetNamespace or ##local may appear in the above list, to
         refer to the targetNamespace of the enclosing
-        schema or an absent targetNamespace respectively</xs:documentation>
+        schema or an absent targetNamespace respectively
+    </xs:documentation>
   </xs:annotation>
+  
   <xs:simpleType name="namespaceList">
     <xs:annotation>
-      <xs:documentation>
-   A utility type, not for public use</xs:documentation>
-    </xs:annotation>
-    
+      <xs:documentation>A utility type, not for public use</xs:documentation>
+    </xs:annotation>  
     <xs:union memberTypes="xs:specialNamespaceList xs:basicNamespaceList" />
   </xs:simpleType>
+
   <xs:simpleType name="basicNamespaceList">
     <xs:annotation>
-      <xs:documentation>
-   A utility type, not for public use</xs:documentation>
+      <xs:documentation>A utility type, not for public use</xs:documentation>
     </xs:annotation>
     <xs:list>
       <xs:simpleType>
@@ -1083,6 +1154,7 @@
       </xs:simpleType>
     </xs:list>
   </xs:simpleType>
+
   <xs:simpleType name="specialNamespaceList">
     <xs:annotation>
       <xs:documentation>
@@ -1093,6 +1165,7 @@
       <xs:enumeration value="##other"/>
     </xs:restriction>
   </xs:simpleType>
+
   <xs:simpleType name="qnameList">
     <xs:annotation>
       <xs:documentation>
@@ -1112,6 +1185,7 @@
       </xs:simpleType>
     </xs:list>
   </xs:simpleType>
+
   <xs:simpleType name="qnameListA">
     <xs:annotation>
       <xs:documentation>
@@ -1130,6 +1204,7 @@
       </xs:simpleType>
     </xs:list>
   </xs:simpleType>
+
   <xs:simpleType name="xpathDefaultNamespace">
     <xs:union memberTypes="xs:anyURI">
       <xs:simpleType>
@@ -1141,29 +1216,29 @@
       </xs:simpleType>
     </xs:union>
   </xs:simpleType>
+
   <xs:element name="attribute" type="xs:topLevelAttribute" id="attribute">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-attribute"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-attribute"/>
     </xs:annotation>
   </xs:element>
+
   <xs:complexType name="attributeGroup" abstract="true">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
-        
           <xs:group ref="xs:attrDecls"/>
-          
         <xs:attributeGroup ref="xs:defRef"/>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="namedAttributeGroup">
     <xs:complexContent>
       <xs:restriction base="xs:attributeGroup">
         <xs:sequence>
           <xs:element ref="xs:annotation" minOccurs="0"/>
           <xs:group ref="xs:attrDecls"/>
-          
         </xs:sequence>
         <xs:attribute name="name" type="xs:NCName" use="required"/>
         <xs:attribute name="ref" use="prohibited"/>
@@ -1171,6 +1246,7 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:complexType name="attributeGroupRef">
     <xs:complexContent>
       <xs:restriction base="xs:attributeGroup">
@@ -1183,17 +1259,19 @@
       </xs:restriction>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:element name="attributeGroup" type="xs:namedAttributeGroup"
               id="attributeGroup">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-attributeGroup"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-attributeGroup"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="include" id="include">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-include"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-include"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1203,10 +1281,11 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="redefine" id="redefine">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-redefine"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-redefine"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1225,7 +1304,7 @@
   <xs:element name="override" id="override">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-override"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-override"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1240,10 +1319,11 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="import" id="import">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-import"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-import"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1254,10 +1334,11 @@
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="selector" id="selector">
     <xs:annotation>
       <xs:documentation
-           source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-selector"/>
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-selector"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1265,23 +1346,27 @@
           <xs:attribute name="xpath" use="required">
             <xs:simpleType>
               <xs:annotation>
-                <xs:documentation>A subset of XPath expressions for use
-in selectors</xs:documentation>
-                <xs:documentation>A utility type, not for public
-use</xs:documentation>
+                <xs:documentation>
+                  A subset of XPath expressions for use in selectors
+                </xs:documentation>
+                <xs:documentation>
+                  A utility type, not for public use
+                </xs:documentation>
               </xs:annotation>
               <xs:restriction base="xs:token"/>
-                
             </xs:simpleType>
           </xs:attribute>
-          <xs:attribute name="xpathDefaultNamespace" type="xs:xpathDefaultNamespace"/>
+          <xs:attribute name="xpathDefaultNamespace"
+                        type="xs:xpathDefaultNamespace"/>
         </xs:extension>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="field" id="field">
     <xs:annotation>
-      <xs:documentation source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-field"/>
+      <xs:documentation
+        source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-field"/>
     </xs:annotation>
     <xs:complexType>
       <xs:complexContent>
@@ -1289,20 +1374,24 @@ use</xs:documentation>
           <xs:attribute name="xpath" use="required">
             <xs:simpleType>
               <xs:annotation>
-                <xs:documentation>A subset of XPath expressions for use
-in fields</xs:documentation>
-                <xs:documentation>A utility type, not for public
-use</xs:documentation>
+                <xs:documentation>
+                  A subset of XPath expressions for use in fields
+                </xs:documentation>
+                <xs:documentation>
+                  A utility type, not for public use
+                </xs:documentation>
               </xs:annotation>
               <xs:restriction base="xs:token"/>
                 
             </xs:simpleType>
           </xs:attribute>
-          <xs:attribute name="xpathDefaultNamespace" type="xs:xpathDefaultNamespace"/>
+          <xs:attribute name="xpathDefaultNamespace"
+                        type="xs:xpathDefaultNamespace"/>
         </xs:extension>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:complexType name="keybase">
     <xs:complexContent>
       <xs:extension base="xs:annotated">
@@ -1315,6 +1404,7 @@ use</xs:documentation>
       </xs:extension>
     </xs:complexContent>
   </xs:complexType>
+
   <xs:group name="identityConstraint">
     <xs:annotation>
       <xs:documentation>The three kinds of identity constraints, all with
@@ -1327,17 +1417,20 @@ use</xs:documentation>
       <xs:element ref="xs:keyref"/>
     </xs:choice>
   </xs:group>
+
   <xs:element name="unique" type="xs:keybase" id="unique">
     <xs:annotation>
       <xs:documentation
            source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-unique"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="key" type="xs:keybase" id="key">
     <xs:annotation>
       <xs:documentation source="http://www.w3.org/TR/2012/REC-xmlschema11-1-20120405/structures.html#element-key"/>
     </xs:annotation>
   </xs:element>
+
   <xs:element name="keyref" id="keyref">
     <xs:annotation>
       <xs:documentation
@@ -1351,6 +1444,7 @@ use</xs:documentation>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="notation" id="notation">
     <xs:annotation>
       <xs:documentation
@@ -1366,6 +1460,7 @@ use</xs:documentation>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+
   <xs:simpleType name="public">
     <xs:annotation>
       <xs:documentation>
@@ -1375,6 +1470,7 @@ use</xs:documentation>
     </xs:annotation>
     <xs:restriction base="xs:token"/>
   </xs:simpleType>
+
   <xs:element name="appinfo" id="appinfo">
     <xs:annotation>
       <xs:documentation
@@ -1388,6 +1484,7 @@ use</xs:documentation>
       <xs:anyAttribute namespace="##other" processContents="lax"/>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="documentation" id="documentation">
     <xs:annotation>
       <xs:documentation
@@ -1402,6 +1499,7 @@ use</xs:documentation>
       <xs:anyAttribute namespace="##other" processContents="lax"/>
     </xs:complexType>
   </xs:element>
+
   <xs:element name="annotation" id="annotation">
     <xs:annotation>
       <xs:documentation
@@ -1419,19 +1517,24 @@ use</xs:documentation>
       </xs:complexContent>
     </xs:complexType>
   </xs:element>
+  
   <xs:annotation>
     <xs:documentation>
-   notations for use within  schema documents</xs:documentation>
+      notations for use within  schema documents
+    </xs:documentation>
   </xs:annotation>
+  
   <xs:notation name="XMLSchemaStructures" public="structures"
                system="http://www.w3.org/2000/08/XMLSchema.xsd"/>
   <xs:notation name="XML" public="REC-xml-19980210"
                system="http://www.w3.org/TR/1998/REC-xml-19980210"/>
+	       
   <xs:complexType name="anyType" mixed="true">
     <xs:annotation>
       <xs:documentation>
-   Not the real urType, but as close an approximation as we can
-   get in the XML representation</xs:documentation>
+        Not the real urType, but as close an approximation as we can
+        get in the XML representation
+      </xs:documentation>
     </xs:annotation>
     <xs:sequence>
       <xs:any minOccurs="0" maxOccurs="unbounded" processContents="lax"/>
@@ -1472,10 +1575,6 @@ use</xs:documentation>
 
         http://www.w3.org/2001/05/XMLSchema.xsd
           (XSD 1.0 Recommendation, First Edition)
-
-
     </xs:documentation>
   </xs:annotation>
-
-
 </xs:schema>

@@ -2,6 +2,9 @@
 %.ps: src/QDHXB/Internal/%.hs
 	a2ps --line-numbers=5 -2r -o $@ $<
 
+%-xsd.ps: src/QDHXB/%.xsd
+	a2ps --line-numbers=5 -2r -o $@ $<
+
 Gen-%.ps: src/QDHXB/Internal/Generate/%.hs
 	a2ps --line-numbers=5 -2r -o $@ $<
 
