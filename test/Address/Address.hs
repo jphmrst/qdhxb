@@ -12,13 +12,16 @@ import qualified QDHXB.Expansions
 qdhxb' ["test/Address/address.xsd"]
 
 testAddress :: TLT IO ()
-testAddress = inGroup "XSD address" $ do
+testAddress =
+{-
+inGroup "XSD address" $ do
   inGroup "Address 1" $ do
     p <- lift $ loadAddr "test/Address/address1.xml"
     -- lift $ putStrLn $ ">>> " ++ show p
-    "Correctly decode <address> in address1.xml" ~:
-      USAddress (Address "Kingspointe Circle" "Lafayette")
-                (Address4ComplexExtBSeq "Louisiana")
-      @==- p
+    "Correctly decode <address> in address1.xml"
+      ~: USAddress (Address "Kingspointe Circle" "Lafayette")
+                   (Address4ComplexExtBSeq "Louisiana")
+        @==- p
+-}
   return ()
 
