@@ -393,6 +393,7 @@ xsdDeclToHaskell decl@(SequenceDefn nam refs ln ifDoc) = do
 
 
 xsdDeclToHaskell decl@(ExtensionDefn qn base refs ln doc) = do
+  debugXSDQ
   dbgBLabel ("Generating from (i" ++ ifAtLine ln ++ ") ") decl
   indenting $ do
     decoder <- getSafeDecoderBody qn

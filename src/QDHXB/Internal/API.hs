@@ -37,6 +37,7 @@ apiFunctions = (qdhxbFn, qdhxbFn')
         -- declarations.
         qdhxbFn :: QDHXBOption -> [String] -> Q [Dec]
         qdhxbFn opts xsds = do
+          liftIO $ putStrLn $ "Call to QDHXB for " ++ intercalate ", " xsds
           -- liftIO (getCurrentDirectory >>= putStrLn . show)
           forM_ xsds $ \file -> addDependentFile file
           runXSDQ opts $ do
