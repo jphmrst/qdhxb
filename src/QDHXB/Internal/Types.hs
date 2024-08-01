@@ -133,6 +133,11 @@ data Definition =
         AttributeDefn -- ^ Specification of the attribute or group
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
+  | DescopeAttribute
+    -- ^ Note the end of the scope of an attributes definition.
+        QName -- ^ Name of the attribute/group.
+        (Maybe Line) -- ^ ifLine
+        (Maybe String) -- ^ Documentation string, if available
   | SimpleSynonymDefn
     -- ^ Defining one simple type to have the same structure as
     -- another.
@@ -222,6 +227,8 @@ instance Blockable Definition where
   block (AttributeDefn n k sp _ _) =
     stringToBlock ("AttributeDefn " ++ showQName n ++ "/" ++ showQName k ++ " ")
       `stack2` (labelBlock "  " $ block sp)
+  block (DescopeAttribute name _ifLine _doc) =
+    stringToBlock ("DescopeAttribute " ++ showQName name)
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
   block (ComplexSynonymDefn n t _ _) = stringToBlock $

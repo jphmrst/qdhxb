@@ -835,13 +835,15 @@ instance AST DataScheme where
         dbgLn flattening 1 $ "[fSI'] attribute with nested type" ++ ifAtLine l
         (defs, ref) <- flattenSchemaRef ds
         let qn = referenceQName ref
-        let attrDefn =
+        let doc = pickOrCombine innerDoc outerDoc
+            attrDefn =
               AttributeDefn nam nam
                 (SingleAttributeDefn qn (stringToAttributeUsage use)
                                      (qName nam))
-                l (pickOrCombine innerDoc outerDoc)
+                l doc
         fileNewDefinition attrDefn
-        dbgResult flattening 1 "Flattened [fSI'] to" $ defs ++ [attrDefn]
+        dbgResult flattening 1 "Flattened [fSI'] to" $
+          defs ++ [attrDefn, DescopeAttribute nam l doc]
 
       flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) _i l d) = do
         dbgLn flattening 1 $

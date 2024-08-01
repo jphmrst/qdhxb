@@ -152,7 +152,8 @@ translate_parsed_xsd xsds = do
     liftIO $ putStrLn
       "======================================== RENAMED NESTED INPUT"
     debugXSDQ
-    liftIO $ putStrLn "---------------------------------------- Call to ensureUniqueNames"
+    liftIO $ putStrLn
+      "---------------------------------------- Call to ensureUniqueNames"
   renamedSchemaReps <- ensureUniqueNames nested
   putLog $ " RENAMED NESTED INPUT\n" ++ bpp renamedSchemaReps
     ++ "\n------------------------------ "

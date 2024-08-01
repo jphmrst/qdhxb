@@ -49,6 +49,14 @@
 *** TODO Shiporder 1
     - Bad translation of built-in types
 
+*** TODO Suspended while fixing attributes
+    - PersonAttr2.hs-xx
+    - PersonAttr2Inline.hs-xx
+    - PersonAttr2r.hs-xx
+    - GroupRefs4.hs-xx
+    - GroupRefs3.hs-xx
+*** Suspended in L0 main branch, but should be active in L1 branch
+    - Assertion01.hs-xx
 ** TODO Use non-default minOccurs/maxOccurs attributes of <group>
 
 ** TODO Add small tests with <extension>

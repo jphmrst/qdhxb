@@ -1,20 +1,24 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module NestAttrNestType.Nest0 where
-import Control.Monad.Trans.Class
-import Test.TLT
 import QDHXB
 import qualified QDHXB.Expansions
+
+{- -- Add back when loading/testing
+import Control.Monad.Trans.Class
+import Test.TLT
 import QDHXB.Internal.L0 (qdhxb)
-import QDHXB.Options
 import QDHXB.Internal.Debugln
+import QDHXB.Options
+-}
 
 qdhxb (
-  setDebugging input 3
-  . setDebugging names 3
-  . setDebugging unique 4
-  . setDebugging flattening 2
-  . setDebugging generate 2
+  id
+  -- . setDebugging input 3
+  -- . setDebugging names 3
+  -- . setDebugging unique 4
+  -- . setDebugging flattening 2
+  -- . setDebugging generate 2
   ) [
   "test/NestAttrNestType/nestAttrNestType.xsd"
   ]

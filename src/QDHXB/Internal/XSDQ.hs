@@ -325,6 +325,7 @@ fileNewDefinition (AttributeDefn qn _ defn@(SingleAttributeDefn _ _ _) _ _)  =
   addAttributeDefn qn defn
 fileNewDefinition (AttributeDefn qn _ defn@(AttributeGroupDefn _ _) _ _)  = do
   addAttributeGroup qn defn
+fileNewDefinition (DescopeAttribute _name _ifLine _doc) = return ()
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition d@(ListDefn qn _ _ _) = addTypeDefn qn d

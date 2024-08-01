@@ -218,7 +218,7 @@ xsdDeclToHaskell d@(AttributeDefn nam _ (AttributeGroupDefn ads _hn) ln doc) =
                         decoder doc
 
 
-xsdDeclToHaskell d@(AttributeDefn nam _ (SingleAttributeDefn typ _ hnam)
+xsdDeclToHaskell d@(AttributeDefn nam _ ad@(SingleAttributeDefn typ _ hnam)
                                   ln ifd) = do
   dbgBLabel ("Generating from (g" ++ ifAtLine ln ++ ") ") d
   dbgBLabel "typ " typ
@@ -268,6 +268,9 @@ xsdDeclToHaskell d@(AttributeDefn nam _ (SingleAttributeDefn typ _ hnam)
   pushDeclHaddock ifd rootTypeName $
     "Representation of the @" ++ showQName nam ++ "@ attribute"
 
+  -- Make sure this declaration is in the XSDQ state
+  addAttributeDefn nam ad
+
   decBody <- resultOrThrow $ AppE (VarE safeDecNam) (VarE paramName)
   dbgBLabel "decBody " decBody
   let typeDef = TySynD rootTypeName [] haskellTyp
@@ -292,6 +295,8 @@ xsdDeclToHaskell d@(AttributeDefn nam _ (SingleAttributeDefn typ _ hnam)
                                                (quoteStr "TODO")) []]
         -}
         : [])
+
+xsdDeclToHaskell (DescopeAttribute _ _ _) = return []
 
 
 xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do

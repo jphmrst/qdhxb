@@ -70,6 +70,12 @@ getSafeStringDecoder qn = do
       ElementDefn _ ty _ _ _ -> getSafeStringDecoder ty
       AttributeDefn _ _ (SingleAttributeDefn ty _ _) _ _ ->
         getSafeStringDecoder ty
+      DescopeAttribute _name _ifLine _doc ->
+        return $ \_src _dest -> [
+          -- BindS (VarP dest) $ VarE src
+          ]
+        -- liftExcepttoXSDQ $ throwError $
+        --                       "Call to dispatchDefinition on " ++ bpp name
       SimpleSynonymDefn _ ty _ _ -> getSafeStringDecoder ty
       ListDefn _ elemTyp _ _ -> do
         elemDecoderBlockMaker <- getSafeStringDecoder elemTyp
@@ -149,6 +155,12 @@ getSafeDecoderCall qn = do
       AttributeDefn _ _ _ _ _ -> indenting $ do
         dbgLn "* safeDecodingBlockMakerByName via (b)"
         safeDecodingBlockMakerByName qn
+      DescopeAttribute _name _ifLine _doc ->
+        return $ \_src _dest -> [
+          -- BindS (VarP dest) $ VarE src
+          ]
+        -- liftExcepttoXSDQ $ throwError $
+        --                       "Call to dispatchDefinition on " ++ bpp name
       SimpleSynonymDefn _ _ _ _ -> indenting $ do
         dbgLn "* safeDecodingBlockMakerByName via (c)"
         safeDecodingBlockMakerByName qn
