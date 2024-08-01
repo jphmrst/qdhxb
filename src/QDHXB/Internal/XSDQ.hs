@@ -13,7 +13,8 @@ module QDHXB.Internal.XSDQ (
   -- ** Elements
   addElementType, getElementType, getElementTypeOrFail,
   -- ** Attributes
-  addAttributeType, getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
+  addAttributeDefn, removeAttributeDefn,
+  getAttributeType, getAttributeDefn, getAttributeTypeOrFail,
   getAttributeOrGroup, adjustTypeForUsage, getAttributeOrGroupTypeForUsage,
   getAttributeTypeHint, AttributeTypeHint(..),
   -- ** Attribute groups
@@ -99,7 +100,7 @@ type QNameStore a = [(QName, a)]
 data QdhxbState = QdhxbState {
   stateOptions :: QDHXBOptionSet,
   stateElementTypes :: (QNameStore QName),
-  stateAttributeTypes :: (QNameStore AttributeDefn),
+  stateAttributeDefns :: (QNameStore AttributeDefn),
   stateAttributeGroups :: (QNameStore AttributeDefn),
   stateTypeDefinitions :: (QNameStore Definition),
   stateGroupDefinitions :: (QNameStore Definition),
@@ -128,7 +129,7 @@ instance Blockable QdhxbState where
                                       labelBlock (bpp qn ++ " -> ") $
                                         block defn)
                                 elemTypes)))
-    `stack2` (let attrTypes = stateAttributeTypes st
+    `stack2` (let attrTypes = stateAttributeDefns st
                in if null attrTypes
                   then stringToBlock "- No attribute types"
                   else (labelBlock "- Attribute types: " $
@@ -241,7 +242,7 @@ initialQdhxbState optsF =
   in QdhxbState {
     stateOptions = opts,
     stateElementTypes = [],
-    stateAttributeTypes = [],
+    stateAttributeDefns = [],
     stateAttributeGroups = [],
     stateTypeDefinitions = [],
     stateGroupDefinitions = [],
@@ -321,7 +322,7 @@ containForBounds _ _ t = [t|[$t]|]
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
 fileNewDefinition (AttributeDefn qn _ defn@(SingleAttributeDefn _ _ _) _ _)  =
-  addAttributeType qn defn
+  addAttributeDefn qn defn
 fileNewDefinition (AttributeDefn qn _ defn@(AttributeGroupDefn _ _) _ _)  = do
   addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
@@ -749,12 +750,23 @@ getElementTypeOrFail name = do
     Just typ -> return typ
     Nothing -> error $ "Undefined element " ++ show name
 
--- | Register the type name associated with an attribute tag with the
--- tracking tables in the `XSDQ` state.
-addAttributeType :: QName -> AttributeDefn -> XSDQ ()
-addAttributeType name typ = liftStatetoXSDQ $ do
+-- | Register the definition of an attribute tag with the tracking
+-- tables in the `XSDQ` state.
+addAttributeDefn :: QName -> AttributeDefn -> XSDQ ()
+addAttributeDefn name defn = liftStatetoXSDQ $ do
   st <- get
-  put $ st { stateAttributeTypes = (name, typ) : stateAttributeTypes st }
+  put $ st { stateAttributeDefns = (name, defn) : stateAttributeDefns st }
+
+-- | Remove the most recent definition of an attribute tag from the
+-- `XSDQ` state.
+removeAttributeDefn :: QName -> XSDQ ()
+removeAttributeDefn name = liftStatetoXSDQ $ do
+  st <- get
+  let attrDefns = dropFirstFor $ stateAttributeDefns st
+                  where dropFirstFor [] = []
+                        dropFirstFor ((x,_):xs) | x==name = xs
+                        dropFirstFor (p:xs) = p : dropFirstFor xs
+  put $ st { stateAttributeDefns = attrDefns }
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
@@ -762,7 +774,7 @@ addAttributeType name typ = liftStatetoXSDQ $ do
 getAttributeDefn :: QName -> XSDQ (Maybe AttributeDefn)
 getAttributeDefn name = liftStatetoXSDQ $ do
   st <- get
-  return $ lookupFirst (stateAttributeTypes st) name
+  return $ lookupFirst (stateAttributeDefns st) name
 
 get_attribute_type_defn :: QName -> XSDQ (Maybe Definition)
 get_attribute_type_defn qn = do
