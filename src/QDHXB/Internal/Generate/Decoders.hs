@@ -68,7 +68,7 @@ getSafeStringDecoder qn = do
       BuiltinDefn _ _ _ efn -> return $ \src dest ->
         [BindS (VarP dest) $ efn $ VarE src]
       ElementDefn _ ty _ _ _ -> getSafeStringDecoder ty
-      AttributeDefn _ (SingleAttributeDefn ty _ _) _ _ ->
+      AttributeDefn _ _ (SingleAttributeDefn ty _ _) _ _ ->
         getSafeStringDecoder ty
       SimpleSynonymDefn _ ty _ _ -> getSafeStringDecoder ty
       ListDefn _ elemTyp _ _ -> do
@@ -95,7 +95,7 @@ getSafeStringDecoder qn = do
         throwError "No string decoder for complex choice"
       GroupDefn _ _ _ _ ->
         throwError "No string decoder for complex group"
-      AttributeDefn _ (AttributeGroupDefn _ _) _ _ ->
+      AttributeDefn _ _ (AttributeGroupDefn _ _) _ _ ->
         throwError "No string decoder for attr. defn. over group"
 
 
@@ -146,7 +146,7 @@ getSafeDecoderCall qn = do
       ElementDefn _ _ _ _ _ -> indenting $ do
         dbgLn "* safeDecodingBlockMakerByName via (a)"
         safeDecodingBlockMakerByName qn
-      AttributeDefn _ _ _ _ -> indenting $ do
+      AttributeDefn _ _ _ _ _ -> indenting $ do
         dbgLn "* safeDecodingBlockMakerByName via (b)"
         safeDecodingBlockMakerByName qn
       SimpleSynonymDefn _ _ _ _ -> indenting $ do
@@ -336,7 +336,7 @@ getSafeDecoderBody qn = do
         ElementDefn _ _ty _ _ _ -> do
           error "REDO/2"
           -- getSafeDecoderBody ty
-        AttributeDefn _ (SingleAttributeDefn _ty _ _) _ _ -> do
+        AttributeDefn _ _ (SingleAttributeDefn _ty _ _) _ _ -> do
           error "TODO"
         SimpleSynonymDefn _ _ty _ _ -> do
           error "REDO/3"

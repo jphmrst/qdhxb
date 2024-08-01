@@ -320,9 +320,9 @@ containForBounds _ _ t = [t|[$t]|]
 -- state.
 fileNewDefinition :: Definition -> XSDQ ()
 fileNewDefinition d@(SimpleSynonymDefn qn _ _ _) = addTypeDefn qn d
-fileNewDefinition (AttributeDefn qn defn@(SingleAttributeDefn _ _ _) _ _)  = do
+fileNewDefinition (AttributeDefn qn _ defn@(SingleAttributeDefn _ _ _) _ _)  =
   addAttributeType qn defn
-fileNewDefinition (AttributeDefn qn defn@(AttributeGroupDefn _ _) _ _)  = do
+fileNewDefinition (AttributeDefn qn _ defn@(AttributeGroupDefn _ _) _ _)  = do
   addAttributeGroup qn defn
 fileNewDefinition d@(SequenceDefn qn _ _ _)   = addTypeDefn qn d
 fileNewDefinition d@(UnionDefn qn _ _ _) = addTypeDefn qn d
@@ -524,8 +524,10 @@ installXsdPrimitives ns pfx = do
   -- XML attributes which we need to load in the XML/XSD specs
   let stringSingleAttribute = SingleAttributeDefn stringQN Optional "String"
       fileStringAttribute name =
-        fileNewDefinition $ AttributeDefn (QName name (Just ns) pfx)
-                                          stringSingleAttribute Nothing Nothing
+        let nameAndKey = QName name (Just ns) pfx
+        in fileNewDefinition $
+             AttributeDefn nameAndKey nameAndKey
+                           stringSingleAttribute Nothing Nothing
   fileStringAttribute "base"
   fileStringAttribute "lang"
   fileStringAttribute "space"
@@ -577,8 +579,8 @@ getGroupDefnOrFail name = do
 defn_to_haskell_name :: Definition -> QName -> String
 defn_to_haskell_name defn qn = case defn of
   ElementDefn _ hn _ _ _ -> firstToUpper $ qName hn
-  AttributeDefn _ (SingleAttributeDefn _ _ hn) _ _ -> firstToUpper hn
-  AttributeDefn _ (AttributeGroupDefn _ hn) _ _ -> firstToUpper hn
+  AttributeDefn _ _ (SingleAttributeDefn _ _ hn) _ _ -> firstToUpper hn
+  AttributeDefn _ _ (AttributeGroupDefn _ hn) _ _ -> firstToUpper hn
   BuiltinDefn _ hn _ _ -> hn
   _ -> firstToUpper $ qName qn
 
@@ -766,7 +768,7 @@ get_attribute_type_defn :: QName -> XSDQ (Maybe Definition)
 get_attribute_type_defn qn = do
   -- dbgBLabel generate 3 "get_attribute_type_defn " qn
   ifAD <- getAttributeDefn qn
-  return $ fmap (\ad -> AttributeDefn qn ad Nothing Nothing) ifAD
+  return $ fmap (\ad -> AttributeDefn qn qn ad Nothing Nothing) ifAD
 
 -- | Get the type name associated with an attribute tag from the
 -- tracking tables in the `XSDQ` state, or `Nothing` if there is no
@@ -815,7 +817,7 @@ get_attribute_group_type_defn :: QName -> XSDQ (Maybe Definition)
 get_attribute_group_type_defn qn = do
   -- dbgBLabel generate 3 "get_attribute_type_defn " qn
   ifAD <- getAttributeGroup qn
-  return $ fmap (\ad -> AttributeDefn qn ad Nothing Nothing) ifAD
+  return $ fmap (\ad -> AttributeDefn qn qn ad Nothing Nothing) ifAD
 
 -- | Given the base type for an attribute, return the type
 -- corresponding to a particular mode of usage for that attribute.

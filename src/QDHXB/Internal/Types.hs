@@ -128,6 +128,8 @@ data Definition =
   | AttributeDefn
     -- ^ Defining the attributes and groups.
         QName -- ^ Name of the attribute/group.
+        QName -- ^ The associated key of a nested definition, or the
+              -- same as the name.
         AttributeDefn -- ^ Specification of the attribute or group
         (Maybe Line) -- ^ ifLine
         (Maybe String) -- ^ Documentation string, if available
@@ -217,8 +219,8 @@ instance Blockable Definition where
     `stack2` stringToBlock ("as " ++ impl)
     `stack2` (stringToBlock $
                 maybe "  no doc" (\d -> "  doc=\"" ++ d ++ "\"") dm)
-  block (AttributeDefn n sp _ _) =
-    stringToBlock ("AttributeDefn " ++ showQName n ++ " ")
+  block (AttributeDefn n k sp _ _) =
+    stringToBlock ("AttributeDefn " ++ showQName n ++ "/" ++ showQName k ++ " ")
       `stack2` (labelBlock "  " $ block sp)
   block (SimpleSynonymDefn n t _ _) = stringToBlock $
     "SimpleSynonymDefn " ++ showQName n ++ " :: " ++ showQName t
