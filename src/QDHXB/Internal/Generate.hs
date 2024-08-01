@@ -296,7 +296,10 @@ xsdDeclToHaskell d@(AttributeDefn nam _ ad@(SingleAttributeDefn typ _ hnam)
         -}
         : [])
 
-xsdDeclToHaskell (DescopeAttribute _ _ _) = return []
+xsdDeclToHaskell (DescopeAttribute n ln _) = do
+  dbgLn $ "Generating (m) for DescopeAttribute of " ++ bpp n ++ ifAtLine ln
+  removeAttributeDefn n
+  return []
 
 
 xsdDeclToHaskell decl@(SimpleSynonymDefn nam typ ln ifDoc) = do
