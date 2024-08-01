@@ -812,6 +812,10 @@ instance AST DataScheme where
         flattenElementSchemeItem contents ifName ifType ifRef ifTag ifMin ifMax
                                  abst l ifDoc
 
+      flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _ _)
+                                          _impl ln _d) = do
+        return $ error $ "[fSI'] Reference in attribute" ++ ifAtLine ln
+
       flattenSchemaItem' (AttributeScheme
                           (SingleAttribute (WithName nam) (Just hnam)
                                            (NameRef typ) m d')
@@ -823,10 +827,6 @@ instance AST DataScheme where
                 l (pickOrCombine d d')
         fileNewDefinition attrDefn
         dbgResult flattening 1 "Flattened [fSI'] to" [attrDefn]
-
-      flattenSchemaItem' (AttributeScheme (SingleAttribute (WithRef _) _ _ _ _)
-                                          _impl ln _d) = do
-        return $ error $ "[fSI'] Reference in attribute" ++ ifAtLine ln
 
       flattenSchemaItem' (AttributeScheme
                           (SingleAttribute (WithName nam) _ (Nested ds)
@@ -845,7 +845,7 @@ instance AST DataScheme where
 
       flattenSchemaItem' (AttributeScheme (AttributeGroup nr cs _) _i l d) = do
         dbgLn flattening 1 $
-          "[fSI'] Relaying to flattenAttributeGroupItem for" ++ ifAtLine l ++ " "
+          "[fSI'] Relaying to flattenAttributeGroupItem for" ++ ifAtLine l
         flattenAttributeGroupItem nr cs l d
 
       flattenSchemaItem' (CTS cts ats ifNam l d) = do
